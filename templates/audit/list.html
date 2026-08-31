@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Who did what</p>
+        <h1>Activity timeline</h1>
+        <p>Authentication secrets are never written here.</p>
+    </div>
+</div>
+<div class="filters">
+    <select class="field"><option>All users</option>{% for u in m.users %}<option>{{ u.name }}</option>{% endfor %}</select>
+    <select class="field"><option>All actions</option><option>Recorded payment</option><option>Confirmed booking</option></select>
+    <select class="field"><option>All entity types</option><option>Booking</option><option>Invoice</option><option>Payment</option></select>
+    <input class="field" type="date">
+</div>
+<section class="panel">
+    <div class="timeline">
+        {% for a in m.audit %}
+        <div class="tl">
+            <i></i>
+            <div>
+                <div class="tiny" style="text-transform:none">{{ a.date }} · {{ a.time }}</div>
+                <strong>{{ a.who }}</strong> {{ a.action|lower }} <span class="mono">{{ a.entity }}</span>
+                <div class="muted">{{ a.related }}{% if a.amount %} · {{ a.amount|money }}{% endif %}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

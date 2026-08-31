@@ -1,0 +1,10 @@
+from django.urls import path
+
+from apps.supplier_payments import api
+from core.http import method_view
+
+app_name = "supplier_payments_api"
+
+urlpatterns = [
+    path("", method_view(GET=api.list_supplier_payments, POST=api.create_supplier_payment), name="collection"),
+]

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Customers</p>
+        <h1>{{ page_heading }}</h1>
+        <p>Wireframe form — not persisted until the customers API is implemented.</p>
+    </div>
+</div>
+<form class="panel form-grid" style="max-width:640px" onsubmit="event.preventDefault()">
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>First name<input class="field" value="{{ record.first|default:'' }}"></label>
+        <label>Last name<input class="field" value="{{ record.last|default:'' }}"></label>
+    </div>
+    <label>Email<input class="field" type="email" value="{{ record.email|default:'' }}"></label>
+    <label>Phone<input class="field" value="{{ record.phone|default:'' }}"></label>
+    <label>City<input class="field" value="{{ record.city|default:'' }}"></label>
+    <label>Passport number<input class="field" value="{{ record.passport|default:'' }}"></label>
+    <label>Emergency contact<input class="field" value="{{ record.emergency|default:'' }}"></label>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Save customer</button>
+        <a class="btn btn-ghost" href="{% url 'customers:list' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

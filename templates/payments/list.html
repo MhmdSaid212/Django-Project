@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Money in</p>
+        <h1>Payment ledger</h1>
+    </div>
+    <div class="actions">
+        <button class="btn btn-warm" type="button" data-open-drawer="pay-drawer">Record payment</button>
+    </div>
+</div>
+<div class="metrics-4">
+    <div class="metric"><span class="tiny">Payments today</span><b>$750</b></div>
+    <div class="metric"><span class="tiny">This month</span><b>$18,420</b></div>
+    <div class="metric"><span class="tiny">Cash</span><b>$1,780</b></div>
+    <div class="metric"><span class="tiny">Bank / card</span><b>$1,980</b></div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr><th>Payment</th><th>Invoice</th><th>Customer</th><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+        {% for p in m.payments %}
+            <tr>
+                <td><a class="mono" href="{% url 'payments:detail' p.id %}">{{ p.number }}</a></td>
+                <td>{{ p.invoice }}</td>
+                <td>{{ p.customer }}</td>
+                <td>{{ p.date }}</td>
+                <td><strong>{{ p.amount|money }}</strong></td>
+                <td>{{ p.method|labelize }}</td>
+                <td class="mono">{{ p.ref }}</td>
+                <td>{% include "components/status_badge.html" with status=p.status %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="drawer-back" id="pay-drawer-back" data-close-drawer></div>
+<aside class="drawer" id="pay-drawer">
+    <div class="panel-h">
+        <h2>Record payment</h2>
+        <button class="btn btn-ghost btn-sm" type="button" data-close-drawer>Close</button>
+    </div>
+    <p class="muted">Allocated to INV-1042 · Fatima Ghazzawi</p>
+    <div class="form-grid" style="margin-top:1rem">
+        <div class="metric"><span class="tiny">Invoice total</span><b>$2,400</b></div>
+        <div class="metric"><span class="tiny">Already paid</span><b>$1,980</b></div>
+        <div class="metric"><span class="tiny">Remaining</span><b data-pay-remaining>$420</b></div>
+        <label>Payment amount
+            <input class="field" type="number" value="420" data-pay-amount data-max="420">
+        </label>
+        <p class="err-inline" data-pay-error>Payment cannot exceed the remaining invoice balance of $420.</p>
+        <p>Remaining after payment: <strong class="live-remain" data-pay-after>$0</strong></p>
+        <label>Method
+            <select class="field"><option>Bank transfer</option><option>Card</option><option>Cash</option></select>
+        </label>
+        <label>Reference<input class="field" placeholder="TRX-…"></label>
+        <button class="btn btn-warm" type="button" data-toast="Receipt REC-1043 drafted for this payment." data-close-drawer>Save payment</button>
+    </div>
+</aside>
+{% endblock %}

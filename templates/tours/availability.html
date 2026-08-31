@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Derived from capacity − booked seats</p>
+        <h1>Seat availability</h1>
+        <p>Available seats are never stored. This board is a live reading of each departure.</p>
+    </div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Tour</th><th>Dates</th><th>Capacity</th><th>Booked</th><th>Available</th><th></th></tr></thead>
+        <tbody>
+        {% for t in m.tours %}
+        <tr>
+            <td><a href="{% url 'tours:detail' t.id %}">{{ t.name }}</a></td>
+            <td>{{ t.dates }}</td>
+            <td>{{ t.capacity }}</td>
+            <td>{{ t.booked }}</td>
+            <td><strong>{{ t.available }}</strong></td>
+            <td style="min-width:140px">{% include "components/capacity_bar.html" with pct=t.pct %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

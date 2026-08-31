@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">AP aging</p>
+        <h1>Accounts payable</h1>
+        <p>Open supplier expenses waiting to be paid.</p>
+    </div>
+    <a class="btn btn-ghost" href="{% url 'supplier_payments:list' %}">Pay suppliers</a>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Expense</th><th>Supplier</th><th>Due</th><th>Remaining</th></tr></thead>
+        <tbody>
+        {% for e in m.expenses %}
+            {% if e.remaining %}
+            <tr class="{% if e.overdue %}is-overdue{% endif %}">
+                <td><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
+                <td>{{ e.supplier }}</td>
+                <td>{{ e.due }}</td>
+                <td><strong>{{ e.remaining|money }}</strong></td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

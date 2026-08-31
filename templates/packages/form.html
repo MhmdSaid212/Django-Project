@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>{{ page_heading }}</h1></div></div>
+<form class="panel form-grid" style="max-width:640px" onsubmit="event.preventDefault()">
+    <label>Package name<input class="field" value="{{ record.name|default:'' }}"></label>
+    <label>Destination<input class="field" value="{{ record.city|default:'' }}"></label>
+    <label>Duration<input class="field" value="{{ record.duration|default:'' }}"></label>
+    <label>Base price / person<input class="field" value="{{ record.price|default:'' }}"></label>
+    <label>Included<textarea class="field" rows="3">{{ record.includes|default:'' }}</textarea></label>
+    <label>Excluded<textarea class="field" rows="2">{{ record.excluded|default:'' }}</textarea></label>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Save package</button>
+        <a class="btn btn-ghost" href="{% url 'packages:list' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

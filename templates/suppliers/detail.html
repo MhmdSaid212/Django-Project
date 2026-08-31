@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="profile-hero">
+    <span class="avatar lg teal">{{ record.name|slice:":1" }}</span>
+    <div>
+        <p class="type-pill">{{ record.type_label }} · {{ record.number }}</p>
+        <h1>{{ record.name }}</h1>
+        <p class="muted">{{ record.contact }} · {{ record.phone }} · {{ record.city }}</p>
+    </div>
+    <div class="actions">
+        {% include "components/status_badge.html" with status=record.status %}
+        <a class="btn btn-warm" href="{% url 'supplier_payments:list' %}">Record payment</a>
+        <a class="btn btn-ghost" href="{% url 'suppliers:edit' record.id %}">Edit</a>
+    </div>
+</div>
+<div class="metrics-4">
+    <div class="metric"><span class="tiny">Current balance</span><b>{{ record.owed|money }}</b></div>
+    <div class="metric"><span class="tiny">Payment terms</span><b style="font-size:1rem">{{ record.terms }}</b></div>
+    <div class="metric"><span class="tiny">Bank</span><b style="font-size:.85rem">{{ record.bank }}</b></div>
+    <div class="metric"><span class="tiny">Email</span><b style="font-size:.85rem">{{ record.email }}</b></div>
+</div>
+
+{% if record.type == 'HOTEL' %}
+<section class="panel" style="margin-bottom:.85rem">
+    <h2>Hotel details</h2>
+    <dl class="kv" style="margin-top:.7rem">
+        <dt>Stars</dt><dd>{{ record.stars }}</dd>
+        <dt>Rooms</dt><dd>{{ record.rooms }}</dd>
+        <dt>Board</dt><dd>{{ record.board }}</dd>
+        <dt>Check-in</dt><dd>{{ record.checkin }}</dd>
+        <dt>Check-out</dt><dd>{{ record.checkout }}</dd>
+    </dl>
+</section>
+{% elif record.type == 'TRANSPORTATION' %}
+<section class="panel" style="margin-bottom:.85rem">
+    <h2>Fleet</h2>
+    <dl class="kv" style="margin-top:.7rem">
+        <dt>Vehicle type</dt><dd>{{ record.vehicle }}</dd>
+        <dt>Fleet size</dt><dd>{{ record.fleet }}</dd>
+        <dt>Seats / vehicle</dt><dd>{{ record.seats }}</dd>
+    </dl>
+</section>
+{% elif record.type == 'TOUR_GUIDE' %}
+<section class="panel" style="margin-bottom:.85rem">
+    <h2>Guide profile</h2>
+    <dl class="kv" style="margin-top:.7rem">
+        <dt>Languages</dt><dd>{{ record.languages }}</dd>
+        <dt>Years</dt><dd>{{ record.years }}</dd>
+        <dt>Specialties</dt><dd>{{ record.specialties }}</dd>
+    </dl>
+</section>
+{% endif %}
+
+<div class="two-col">
+    <section class="panel">
+        <h2>Related tours</h2>
+        <p style="margin-top:.5rem"><a href="{% url 'tours:detail' 'tour-1001' %}">Cairo Discovery</a> — planned service partner</p>
+    </section>
+    <section class="panel">
+        <h2>Open expenses</h2>
+        {% for e in m.expenses %}
+            {% if e.supplier_id == record.id %}
+            <p style="margin-top:.45rem"><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a> · {{ e.remaining|money }} remaining</p>
+            {% endif %}
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

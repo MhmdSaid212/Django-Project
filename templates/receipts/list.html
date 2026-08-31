@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Proof of payment</p>
+        <h1>Receipts</h1>
+    </div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Receipt</th><th>Payment</th><th>Customer</th><th>Invoice</th><th>Amount</th><th>Issued</th></tr></thead>
+        <tbody>
+        {% for r in m.receipts %}
+            <tr>
+                <td><a class="mono" href="{% url 'receipts:detail' r.id %}">{{ r.number }}</a></td>
+                <td>{{ r.payment }}</td>
+                <td>{{ r.customer }}</td>
+                <td>{{ r.invoice }}</td>
+                <td>{{ r.amount|money }}</td>
+                <td>{{ r.issued }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

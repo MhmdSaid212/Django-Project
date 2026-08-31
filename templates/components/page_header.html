@@ -1,0 +1,11 @@
+<div class="page-head">
+    <div>
+        <p class="tiny">{{ kicker|default:brand.tagline }}</p>
+        <h1>{{ page_heading }}</h1>
+        {% if lead %}<p>{{ lead }}</p>{% endif %}
+    </div>
+    <div class="actions">
+        {% block header_actions %}{% endblock %}
+        {{ actions_html|safe }}
+    </div>
+</div>

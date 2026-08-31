@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Export-ready workspace</p>
+        <h1>Financial reports</h1>
+        <p>Each report has its own visual — none of these are stored collections.</p>
+    </div>
+    <div class="actions">
+        <input class="field" type="month" value="2026-08">
+        <button class="btn btn-ghost" type="button">Export Excel</button>
+        <button class="btn btn-ghost" type="button">Export PDF</button>
+    </div>
+</div>
+<div class="report-grid">
+    <a class="report" href="{% url 'finance:receivables' %}">
+        <h2>Accounts receivable</h2>
+        <div class="viz"></div>
+        <p class="muted">Aging of unpaid customer invoices</p>
+    </a>
+    <a class="report alt" href="{% url 'finance:payables' %}">
+        <h2>Accounts payable</h2>
+        <div class="viz"></div>
+        <p class="muted">Supplier bills still open</p>
+    </a>
+    <a class="report" href="{% url 'reports:profit_loss' %}">
+        <h2>Cash flow</h2>
+        <div class="viz"></div>
+        <p class="muted">Money in versus money out</p>
+    </a>
+    <a class="report alt" href="{% url 'reports:revenue' %}">
+        <h2>Revenue vs cost</h2>
+        <div class="viz"></div>
+        <p class="muted">Booked revenue against incurred cost</p>
+    </a>
+    <a class="report" href="{% url 'reports:profitability' %}">
+        <h2>Tour profitability</h2>
+        <div class="viz"></div>
+        <p class="muted">Margin by departure</p>
+    </a>
+    <a class="report alt" href="{% url 'reports:expenses' %}">
+        <h2>Expense breakdown</h2>
+        <div class="viz"></div>
+        <p class="muted">Hotel, transport, guide, overhead</p>
+    </a>
+    <a class="report" href="{% url 'finance:customer_balances' %}">
+        <h2>Customer balances</h2>
+        <div class="viz"></div>
+        <p class="muted">Outstanding AR by guest</p>
+    </a>
+    <a class="report alt" href="{% url 'finance:supplier_balances' %}">
+        <h2>Supplier balances</h2>
+        <div class="viz"></div>
+        <p class="muted">Outstanding AP by vendor</p>
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Inbox</p>
+        <h1>Notification center</h1>
+    </div>
+    <div class="actions">
+        <button class="btn btn-ghost" type="button">Mark all as read</button>
+    </div>
+</div>
+{% regroup m.notifications by when as groups %}
+{% for group in groups %}
+    <p class="tiny" style="margin:1rem 0 .4rem">{{ group.grouper }}</p>
+    <div class="stack">
+        {% for n in group.list %}
+        <a class="panel" href="{% if n.kind == 'tour' %}{% if nav.ops %}{% url 'tours:list' %}{% else %}{% url 'reports:profitability' %}{% endif %}{% elif n.kind == 'booking' %}{% if nav.ops %}{% url 'bookings:list' %}{% else %}{% url nav.dashboard %}{% endif %}{% elif n.kind == 'refund' %}{% if nav.finance %}{% url 'refunds:list' %}{% else %}{% url nav.dashboard %}{% endif %}{% elif n.kind == 'supplier' %}{% if nav.finance %}{% url 'supplier_payments:list' %}{% else %}{% url nav.dashboard %}{% endif %}{% else %}{% if nav.finance %}{% url 'invoices:list' %}{% else %}{% url nav.dashboard %}{% endif %}{% endif %}" style="display:block;{% if n.unread %}border-color:var(--terracotta){% endif %}">
+            <div class="panel-h">
+                <h2>{{ n.title }}</h2>
+                <span class="badge {% if n.kind == 'refund' %}b-warn{% elif n.kind == 'payment' %}b-bad{% elif n.kind == 'tour' %}b-warm{% elif n.kind == 'supplier' %}b-info{% else %}b-ok{% endif %}">{{ n.kind }}</span>
+            </div>
+            <p class="muted">{{ n.body }}</p>
+            {% if n.unread %}<p class="tiny" style="margin-top:.4rem">Unread · Mark as read</p>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+{% endfor %}
+{% endblock %}

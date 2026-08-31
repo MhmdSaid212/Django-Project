@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>{{ page_heading }}</h1></div></div>
+<form class="panel form-grid" style="max-width:640px" onsubmit="event.preventDefault()">
+    <label>Company name<input class="field" value="{{ record.name|default:'' }}"></label>
+    <label>Type
+        <select class="field">
+            <option>Hotel</option><option>Transportation</option><option>Guide</option>
+            <option>Airline</option><option>Restaurant</option><option>Activity</option>
+            <option>Insurance</option><option>Other</option>
+        </select>
+    </label>
+    <label>Contact<input class="field" value="{{ record.contact|default:'' }}"></label>
+    <label>City<input class="field" value="{{ record.city|default:'' }}"></label>
+    <label>Payment terms<input class="field" value="{{ record.terms|default:'Net 14' }}"></label>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Save supplier</button>
+        <a class="btn btn-ghost" href="{% url 'suppliers:list' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

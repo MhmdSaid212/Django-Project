@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">{{ record.number }}</p>
+        <h1>{{ record.amount|money }}</h1>
+        <p>{{ record.supplier }} · {{ record.expense }}</p>
+    </div>
+</div>
+<section class="panel">
+    <dl class="kv">
+        <dt>Date</dt><dd>{{ record.date }}</dd>
+        <dt>Method</dt><dd>{{ record.method|labelize }}</dd>
+        <dt>Reference</dt><dd class="mono">{{ record.ref }}</dd>
+    </dl>
+</section>
+{% endblock %}

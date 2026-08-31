@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">What we owe</p>
+        <h1>Supplier balances</h1>
+        <p>Calculated: expenses − supplier payments. Not stored as a collection.</p>
+    </div>
+    <div class="view-switch">
+        <a href="{% url 'finance:customer_balances' %}">Customers</a>
+        <a class="is-on" href="{% url 'finance:supplier_balances' %}">Suppliers</a>
+    </div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Supplier</th><th>Total expenses</th><th>Paid</th><th>Outstanding</th></tr></thead>
+        <tbody>
+            {% for s in m.suppliers %}
+            <tr>
+                <td><a href="{% url 'suppliers:detail' s.id %}">{{ s.name }}</a></td>
+                <td>{% if s.id == 'sup-1001' %}$3,000{% elif s.id == 'sup-1002' %}$180{% else %}$250{% endif %}</td>
+                <td>{% if s.id == 'sup-1001' %}$2,000{% else %}$0{% endif %}</td>
+                <td><strong>{{ s.owed|money }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

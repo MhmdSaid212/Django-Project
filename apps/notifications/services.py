@@ -1,0 +1,20 @@
+"""
+Business rules.
+
+OWNER: Shared — all developers
+
+Create notifications from other services. Do not log secrets.
+"""
+from apps.notifications.repositories import NotificationRepository
+
+
+class NotificationService:
+    def __init__(self, repository: NotificationRepository | None = None):
+        self.repository = repository or NotificationRepository()
+
+    def list_items(self):
+        # TODO: replace with real list + pagination.
+        return self.repository.find_all()
+
+    def get(self, doc_id: str):
+        return self.repository.find_by_id(doc_id)

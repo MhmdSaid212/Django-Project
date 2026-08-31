@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Dated departures</p>
+        <h1>Tours</h1>
+        <p>Capacity, remaining seats, and projected revenue for each departure.</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'availability:index' %}">Availability board</a>
+        <a class="btn btn-warm" href="{% url 'tours:create' %}">New tour</a>
+    </div>
+</div>
+
+<div class="cards">
+    {% for t in m.tours %}
+    <a class="t-card" href="{% url 'tours:detail' t.id %}">
+        <div class="t-hero">
+            <small>{{ t.city }} · {{ t.country }}</small>
+            <h2 style="color:#fff;margin-top:.2rem">{{ t.name }}</h2>
+        </div>
+        <div class="t-body">
+            <div class="muted" style="font-size:.84rem">{{ t.dates }}</div>
+            <div>
+                <strong data-cap-label>{{ t.booked }} / {{ t.capacity }} seats</strong>
+                <span class="muted"> · {{ t.pct }}% booked</span>
+            </div>
+            {% include "components/capacity_bar.html" with pct=t.pct %}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <span>{{ t.price|money }} / traveler</span>
+                {% include "components/status_badge.html" with status=t.status %}
+            </div>
+            <div class="tiny" style="text-transform:none">Projected revenue {{ t.revenue|money }}</div>
+        </div>
+    </a>
+    {% empty %}
+    {% include "components/empty_state.html" with title="No tours yet" body="Create your first departure and start accepting bookings." cta="Create tour" cta_url="/tours/create/" %}
+    {% endfor %}
+</div>
+{% endblock %}

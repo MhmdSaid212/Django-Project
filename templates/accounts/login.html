@@ -1,0 +1,23 @@
+{% extends "base_auth.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<h2>Sign in</h2>
+<p class="muted">Use your TourOps account. Roles: Travel Agent, Accountant, Owner/Admin.</p>
+<form method="post" class="form-grid" style="margin-top: 1rem;">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label>
+        Email
+        {{ form.email }}
+    </label>
+    <label>
+        Password
+        {{ form.password }}
+    </label>
+    <button class="btn btn-teal" type="submit">Sign in</button>
+</form>
+<p class="muted" style="margin-top: 1rem; font-size: 0.85rem;">
+    Development seed user: <code>owner@tourops.local</code> / <code>changeme</code>
+    after running <code>python manage.py seed_demo_user</code>.
+</p>
+{% endblock %}

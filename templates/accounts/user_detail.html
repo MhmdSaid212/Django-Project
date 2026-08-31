@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="profile-hero">
+    <span class="avatar lg">{{ record.initials }}</span>
+    <div>
+        <p class="tiny">{{ record.email }}</p>
+        <h1>{{ record.name }}</h1>
+        <p class="muted">{{ record.role_label }} · Last login {{ record.last }}</p>
+    </div>
+    <div class="actions">
+        {% include "components/status_badge.html" with status=record.status %}
+        {% if record.status == 'ACTIVE' %}
+            <button class="btn btn-ghost" type="button">Deactivate</button>
+        {% else %}
+            <button class="btn btn-ok" type="button">Activate</button>
+        {% endif %}
+        <button class="btn btn-warm" type="button">Change role</button>
+    </div>
+</div>
+<div class="two-col">
+    <section class="panel">
+        <h2>Permissions</h2>
+        <p class="muted" style="margin-top:.4rem">Role-based. Owner sees everything; agents operate bookings; accountants own money.</p>
+        <ul>
+            {% if record.role == 'OWNER_ADMIN' %}
+            <li>All operations, finance, users, settings, audit</li>
+            {% elif record.role == 'ACCOUNTANT' %}
+            <li>Invoices, payments, refunds, expenses, reports, balances</li>
+            {% else %}
+            <li>Customers, bookings, tours, packages, suppliers</li>
+            {% endif %}
+        </ul>
+    </section>
+    <section class="panel">
+        <h2>Recent activity</h2>
+        {% for item in m.activity %}
+            {% if item.who == record.name %}
+            <p style="margin-top:.45rem">{{ item.text }}</p>
+            {% endif %}
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Who owes us</p>
+        <h1>Customer balances</h1>
+        <p>Calculated: invoiced − paid + refunds. Not stored as a collection.</p>
+    </div>
+    <div class="view-switch">
+        <a class="is-on" href="{% url 'finance:customer_balances' %}">Customers</a>
+        <a href="{% url 'finance:supplier_balances' %}">Suppliers</a>
+    </div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Customer</th><th>Total invoiced</th><th>Paid</th><th>Refunded</th><th>Outstanding</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'customers:detail' 'cus-1001' %}">Fatima Ghazzawi</a></td>
+                <td>$2,400</td><td>$1,980</td><td>$0</td><td><strong>$420</strong></td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'customers:detail' 'cus-1002' %}">Sarah Ahmad</a></td>
+                <td>$1,780</td><td>$1,780</td><td>$150</td><td><strong>$0</strong></td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'customers:detail' 'cus-1003' %}">Omar Khalil</a></td>
+                <td>$1,698</td><td>$0</td><td>$0</td><td><strong>$1,698</strong></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p class="muted" style="margin-top:.8rem">Click a customer to open their profile statement.</p>
+{% endblock %}

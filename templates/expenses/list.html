@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Cost incurred</p>
+        <h1>Expenses</h1>
+        <p>Supplier bills and overhead — not the same as a planned tour service.</p>
+    </div>
+    <div class="actions"><a class="btn btn-warm" href="{% url 'expenses:create' %}">New expense</a></div>
+</div>
+<div class="filters" data-chips>
+    <button type="button" class="chip is-on">All</button>
+    <button type="button" class="chip">Hotel</button>
+    <button type="button" class="chip">Transportation</button>
+    <button type="button" class="chip">Guide</button>
+    <button type="button" class="chip">Flight</button>
+    <button type="button" class="chip">Meals</button>
+    <button type="button" class="chip">Rent</button>
+    <button type="button" class="chip">Salary</button>
+    <button type="button" class="chip">Software</button>
+    <button type="button" class="chip">Other</button>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr><th>Expense</th><th>Supplier</th><th>Related</th><th>Category</th><th>Amount</th><th>Paid</th><th>Remaining</th><th>Due</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+        {% for e in m.expenses %}
+            <tr class="{% if e.overdue %}is-overdue{% endif %}">
+                <td><a class="mono" href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
+                <td>{{ e.supplier }}</td>
+                <td>{{ e.related }}</td>
+                <td><span class="category">{{ e.category|labelize }}</span></td>
+                <td>{{ e.amount|money }}</td>
+                <td>{{ e.paid|money }}</td>
+                <td><strong>{{ e.remaining|money }}</strong></td>
+                <td>{{ e.due }}{% if e.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
+                <td>{% include "components/status_badge.html" with status=e.status %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

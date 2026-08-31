@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Six-step reservation</p>
+        <h1>Create booking</h1>
+        <p>Select the customer and product, add travelers, then lock pricing before confirm.</p>
+    </div>
+</div>
+
+<div data-wizard>
+    <div class="wizard-steps">
+        <div class="wz" data-wz="1">1. Customer</div>
+        <div class="wz" data-wz="2">2. Tour / package</div>
+        <div class="wz" data-wz="3">3. Travelers</div>
+        <div class="wz" data-wz="4">4. Pricing</div>
+        <div class="wz" data-wz="5">5. Review</div>
+        <div class="wz" data-wz="6">6. Confirm</div>
+    </div>
+
+    <section class="panel" data-step="1">
+        <h2>Select customer</h2>
+        <p class="muted" style="margin:.3rem 0 .8rem">Search the book, or create a customer first.</p>
+        <div class="pick-grid">
+            {% for c in m.customers %}
+            <button type="button" class="pick {% if forloop.first %}is-on{% endif %}">
+                <strong>{{ c.name }}</strong>
+                <div class="tiny" style="text-transform:none;margin-top:.25rem">{{ c.number }} · {{ c.city }}</div>
+                <div class="muted" style="font-size:.8rem;margin-top:.25rem">Balance {{ c.balance|money }}</div>
+            </button>
+            {% endfor %}
+        </div>
+        <div class="actions" style="margin-top:1rem">
+            <a class="btn btn-ghost" href="{% url 'customers:create' %}">New customer</a>
+            <button type="button" class="btn btn-warm" data-next>Continue</button>
+        </div>
+    </section>
+
+    <section class="panel" data-step="2" hidden>
+        <h2>Select tour or package</h2>
+        <p class="muted" style="margin:.3rem 0 .8rem">Dated departures show remaining seats. Packages do not.</p>
+        <div class="pick-grid">
+            {% for t in m.tours %}
+            <button type="button" class="pick {% if forloop.first %}is-on{% endif %}">
+                <span class="type-pill">Tour</span>
+                <strong style="display:block;margin-top:.2rem">{{ t.name }}</strong>
+                <div class="muted" style="font-size:.82rem">{{ t.dates }}</div>
+                <div style="margin:.45rem 0">{% include "components/capacity_bar.html" with pct=t.pct %}</div>
+                <div class="tiny" style="text-transform:none">{{ t.booked }} / {{ t.capacity }} seats · {{ t.price|money }} / traveler</div>
+            </button>
+            {% endfor %}
+            {% for p in m.packages %}
+            <button type="button" class="pick">
+                <span class="type-pill">Package</span>
+                <strong style="display:block;margin-top:.2rem">{{ p.name }}</strong>
+                <div class="muted" style="font-size:.82rem">{{ p.duration }}</div>
+                <div class="tiny" style="text-transform:none;margin-top:.45rem">From {{ p.price|money }}/person</div>
+            </button>
+            {% endfor %}
+        </div>
+        <div class="actions" style="margin-top:1rem">
+            <button type="button" class="btn btn-ghost" data-prev>Back</button>
+            <button type="button" class="btn btn-warm" data-next>Continue</button>
+        </div>
+    </section>
+
+    <section class="panel" data-step="3" hidden>
+        <h2>Add travelers</h2>
+        <label style="max-width:200px;margin:.8rem 0">Number of travelers
+            <input class="field" type="number" min="1" max="10" value="4" data-travelers>
+        </label>
+        <p class="muted">Names can be completed later; seats are reserved on confirm.</p>
+        <div class="actions" style="margin-top:1rem">
+            <button type="button" class="btn btn-ghost" data-prev>Back</button>
+            <button type="button" class="btn btn-warm" data-next>Continue</button>
+        </div>
+    </section>
+
+    <section class="panel" data-step="4" hidden>
+        <h2>Configure pricing</h2>
+        <p class="muted" style="margin:.3rem 0 .8rem">Cairo Discovery · $650 per traveler</p>
+        <div class="two-col">
+            <div class="form-grid">
+                <label>Discount ($)<input class="field" type="number" value="200" data-discount></label>
+                <p class="muted">VAT 11% is calculated on the discounted subtotal.</p>
+            </div>
+            <div class="fin">
+                <div class="fin-row"><span>Subtotal</span><span data-sum="sub">$2,600</span></div>
+                <div class="fin-row"><span>Discount</span><span data-sum="disc">$200</span></div>
+                <div class="fin-row"><span>Tax</span><span data-sum="tax">$264</span></div>
+                <div class="fin-row total"><span>Final total</span><span data-sum="total">$2,664</span></div>
+            </div>
+        </div>
+        <div class="actions" style="margin-top:1rem">
+            <button type="button" class="btn btn-ghost" data-prev>Back</button>
+            <button type="button" class="btn btn-warm" data-next>Review</button>
+        </div>
+    </section>
+
+    <section class="confirm-sheet" data-step="5" hidden>
+        <p class="inv-brand">TourOps Travel · Booking confirmation</p>
+        <h2>Review BK-draft</h2>
+        <dl class="kv">
+            <dt>Customer</dt><dd>Fatima Ghazzawi · CUS-1001</dd>
+            <dt>Product</dt><dd>Cairo Discovery · 12–16 Sep 2026</dd>
+            <dt>Travelers</dt><dd data-sum="pax">4</dd>
+            <dt>Total</dt><dd data-sum="total">$2,664</dd>
+            <dt>Payment</dt><dd>Invoice will be issued on confirm</dd>
+        </dl>
+        <div class="actions" style="margin-top:1.2rem">
+            <button type="button" class="btn btn-ghost" data-prev>Back</button>
+            <button type="button" class="btn btn-warm" data-next>Confirm booking</button>
+        </div>
+    </section>
+
+    <section class="panel" data-step="6" hidden>
+        <div class="notice-ok">
+            Booking <strong>BK-1102</strong> is confirmed for Fatima Ghazzawi. Cairo Discovery capacity will move from 18/25 to 22/25.
+        </div>
+        <p class="muted" style="margin:1rem 0">An invoice can be issued next. This wireframe does not write to MongoDB yet.</p>
+        <a class="btn btn-warm" href="{% url 'bookings:detail' 'bk-1048' %}">Open booking</a>
+        <a class="btn btn-ghost" href="{% url 'bookings:list' %}">Back to list</a>
+    </section>
+</div>
+{% endblock %}

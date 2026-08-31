@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">{{ record.code }}</p>
+        <h1>{{ record.name }}</h1>
+        <p>{{ record.city }} · {{ record.duration }}</p>
+    </div>
+    <div class="actions">
+        {% include "components/status_badge.html" with status=record.status %}
+        <a class="btn btn-warm" href="{% url 'bookings:create' %}">Book package</a>
+        <a class="btn btn-ghost" href="{% url 'packages:edit' record.id %}">Edit</a>
+    </div>
+</div>
+<div class="two-col">
+    <div class="stack">
+        <section class="panel">
+            <h2>Included</h2>
+            <p style="margin-top:.5rem">{{ record.includes }}</p>
+        </section>
+        <section class="panel">
+            <h2>Excluded</h2>
+            <p style="margin-top:.5rem">{{ record.excluded }}</p>
+        </section>
+        <section class="panel">
+            <h2>Supplier plan</h2>
+            <p class="muted" style="margin-top:.4rem">Typical service mix for this product. Costs become expenses when a departure is operated.</p>
+            <div class="itinerary" style="margin-top:.7rem">
+                <div class="it-block"><div><strong>Hotel</strong><div class="muted">Partner hotel in {{ record.city }}</div></div><div>Included</div></div>
+                <div class="it-block"><div><strong>Transfers</strong><div class="muted">Airport and local moves</div></div><div>Included</div></div>
+                <div class="it-block"><div><strong>Guided experiences</strong><div class="muted">As listed in inclusions</div></div><div>Included</div></div>
+            </div>
+        </section>
+    </div>
+    <div class="fin">
+        <p class="tiny" style="color:#c4b5a5">From price</p>
+        <div class="fin-row total"><span>Per person</span><span>{{ record.price|money }}</span></div>
+        <p class="muted" style="margin-top:.8rem;font-size:.82rem">No capacity bar — packages are not dated seat inventories.</p>
+    </div>
+</div>
+{% endblock %}

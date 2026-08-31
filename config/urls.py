@@ -1,0 +1,36 @@
+"""
+TourOps URL configuration.
+
+HTML pages live under feature prefixes.
+JSON APIs live under /api/...
+Keep this file as the contract map — feature apps own the actual views.
+"""
+from django.urls import include, path
+from django.views.generic import RedirectView
+
+urlpatterns = [
+    path("", RedirectView.as_view(pattern_name="dashboard:home"), name="home"),
+    path("", include("apps.accounts.urls")),
+    path("dashboard/", include("apps.dashboard.urls")),
+    path("customers/", include("apps.customers.urls")),
+    path("bookings/", include("apps.bookings.urls")),
+    path("suppliers/", include("apps.suppliers.urls")),
+    path("tours/", include("apps.tours.urls")),
+    path("packages/", include("apps.packages.urls")),
+    path("availability/", include("apps.tours.availability_urls")),
+    path("invoices/", include("apps.invoices.urls")),
+    path("payments/", include("apps.payments.urls")),
+    path("receipts/", include("apps.receipts.urls")),
+    path("refunds/", include("apps.refunds.urls")),
+    path("expenses/", include("apps.expenses.urls")),
+    path("supplier-payments/", include("apps.supplier_payments.urls")),
+    path("finance/", include("apps.finance.urls")),
+    path("reports/", include("apps.reports.urls")),
+    path("notifications/", include("apps.notifications.urls")),
+    path("audit/", include("apps.audit.urls")),
+    path("api/", include("config.api_urls")),
+]
+
+handler403 = "core.views.handler403"
+handler404 = "core.views.handler404"
+handler500 = "core.views.handler500"

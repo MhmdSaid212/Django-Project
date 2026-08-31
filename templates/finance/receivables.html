@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">AR aging</p>
+        <h1>Accounts receivable</h1>
+        <p>Outstanding customer invoices. Click through to collect.</p>
+    </div>
+    <a class="btn btn-ghost" href="{% url 'invoices:list' %}">Invoice workspace</a>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Invoice</th><th>Customer</th><th>Due</th><th>Remaining</th><th></th></tr></thead>
+        <tbody>
+        {% for inv in m.invoices %}
+            {% if inv.remaining %}
+            <tr class="{% if inv.overdue %}is-overdue{% endif %}">
+                <td><a href="{% url 'invoices:detail' inv.id %}">{{ inv.number }}</a></td>
+                <td>{{ inv.customer }}</td>
+                <td>{{ inv.due }}</td>
+                <td><strong>{{ inv.remaining|money }}</strong></td>
+                <td>{% if inv.overdue %}<span class="badge b-bad">Overdue</span>{% endif %}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+from django.urls import path
+
+from apps.expenses.api import expenses_for_supplier
+from apps.finance.api import supplier_balance
+from apps.supplier_payments.api import (
+    create_supplier_payment_for_supplier,
+    supplier_payments_for_supplier,
+)
+from apps.suppliers import api
+from core.http import method_view
+
+app_name = "suppliers_api"
+
+urlpatterns = [
+    path("", method_view(GET=api.list_suppliers, POST=api.create_supplier), name="collection"),
+    path("<str:id>/expenses/", method_view(GET=expenses_for_supplier), name="expenses"),
+    path(
+        "<str:supplier_id>/payments/",
+        method_view(
+            GET=supplier_payments_for_supplier,
+            POST=create_supplier_payment_for_supplier,
+        ),
+        name="payments",
+    ),
+    path("<str:id>/balance/", method_view(GET=supplier_balance), name="balance"),
+    path("<str:id>/", method_view(GET=api.get_supplier, PATCH=api.patch_supplier), name="detail"),
+]

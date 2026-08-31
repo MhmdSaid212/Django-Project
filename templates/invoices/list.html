@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Customer finance</p>
+        <h1>Invoices</h1>
+        <p>What customers owe, what they’ve paid, and what is overdue.</p>
+    </div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr>
+                <th>Invoice</th><th>Customer</th><th>Booking</th><th>Issue</th><th>Due</th>
+                <th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in m.invoices %}
+            <tr class="{% if inv.overdue %}is-overdue{% endif %}">
+                <td><a class="mono" href="{% url 'invoices:detail' inv.id %}"><strong>{{ inv.number }}</strong></a></td>
+                <td>{{ inv.customer }}</td>
+                <td>{{ inv.booking }}</td>
+                <td>{{ inv.issue }}</td>
+                <td>{{ inv.due }}{% if inv.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
+                <td>{{ inv.total|money }}</td>
+                <td>{{ inv.paid|money }}</td>
+                <td><strong>{{ inv.remaining|money }}</strong></td>
+                <td>{% include "components/status_badge.html" with status=inv.status %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9">{% include "components/empty_state.html" with title="No outstanding invoices" body="Nice work — every customer invoice is currently settled." %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
