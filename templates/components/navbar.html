@@ -42,7 +42,11 @@
                     <small>{{ current_role }}</small>
                 </span>
             </div>
-            <a class="btn btn-ghost btn-sm" href="{% url 'accounts:logout' %}">Log out</a>
+            <a class="btn btn-ghost btn-sm" href="{% url 'accounts:password' %}">Password</a>
+            <form method="post" action="{% url 'accounts:logout' %}" style="margin:0">
+                {% csrf_token %}
+                <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
+            </form>
         {% endif %}
     </div>
 </header>

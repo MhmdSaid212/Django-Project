@@ -1,16 +1,6 @@
-"""
-Shared constants for TourOps.
-
-Use these everywhere. Do not scatter magic strings like "PAID" or "users"
-through views and services.
-"""
 from enum import StrEnum
 
 
-# ---------------------------------------------------------------------------
-# MongoDB collection names
-# Do NOT create collections for calculated reports (balances, P&L, AR/AP).
-# ---------------------------------------------------------------------------
 class Collections:
     USERS = "users"
     CUSTOMERS = "customers"
@@ -29,13 +19,10 @@ class Collections:
     SYSTEM_SETTINGS = "system_settings"
     TAXES = "taxes"
     ATTACHMENTS = "attachments"
-    # Atomic counters for business numbers (CUS-1001, INV-1001, ...).
+
     COUNTERS = "counters"
 
 
-# ---------------------------------------------------------------------------
-# Enums — stored as their string values in MongoDB
-# ---------------------------------------------------------------------------
 class UserRole(StrEnum):
     TRAVEL_AGENT = "TRAVEL_AGENT"
     ACCOUNTANT = "ACCOUNTANT"
@@ -48,8 +35,6 @@ class UserStatus(StrEnum):
 
 
 class RecordStatus(StrEnum):
-    """Generic active/inactive flag used by customers, suppliers, packages."""
-
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
 
@@ -87,8 +72,6 @@ class BookingStatus(StrEnum):
 
 
 class PaymentStatus(StrEnum):
-    """Used on bookings and expenses for how much has been settled."""
-
     UNPAID = "UNPAID"
     PARTIALLY_PAID = "PARTIALLY_PAID"
     PAID = "PAID"
@@ -114,8 +97,6 @@ class PaymentMethod(StrEnum):
 
 
 class PaymentRecordStatus(StrEnum):
-    """Status of a single payment document (not the invoice/booking rollup)."""
-
     COMPLETED = "COMPLETED"
     VOIDED = "VOIDED"
 
@@ -134,8 +115,6 @@ class RefundStatus(StrEnum):
 
 
 class ExpenseScope(StrEnum):
-    """TOUR = cost of a dated departure. GENERAL = overhead (no tour)."""
-
     TOUR = "TOUR"
     GENERAL = "GENERAL"
 
@@ -169,8 +148,6 @@ class TaxStatus(StrEnum):
 
 
 class RefundPolicyTier(StrEnum):
-    """Days before tour start, plus agency-cancel and ad-hoc."""
-
     DAYS_30_PLUS = "30_PLUS"
     DAYS_15_TO_29 = "15_TO_29"
     DAYS_7_TO_14 = "7_TO_14"
@@ -197,7 +174,6 @@ class AttachmentEntityType(StrEnum):
     TOURS = "tours"
 
 
-# Default prefixes for business numbers. System settings may override later.
 NUMBER_PREFIXES = {
     Collections.CUSTOMERS: "CUS",
     Collections.SUPPLIERS: "SUP",

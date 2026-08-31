@@ -1,17 +1,3 @@
-"""
-Booking document contract. NOT a Django model.
-
-OWNER: Dev 1 — Customer & Booking Operations
-Collection: bookings
-
-Rules (implement in services, not views):
-- Clients book tours only. Packages are not bookable.
-- A tour is a dated bookable departure (optional tours.package_id).
-- travelers_count cannot exceed available seats (capacity - booked_seats).
-- Confirm booking → increase tour.booked_seats.
-- Cancel a confirmed booking → restore booked_seats.
-- Do not hard-delete booking financial history. Use soft delete (`is_deleted`).
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -1,0 +1,11 @@
+{% extends "base_auth.html" %}
+{% block title %}Sign out{% endblock %}
+{% block content %}
+<h2>Sign out</h2>
+<p class="muted">End this session on this device.</p>
+<form method="post" style="margin-top: 1rem;">
+    {% csrf_token %}
+    <button class="btn btn-teal" type="submit">Sign out</button>
+    <a class="btn btn-ghost" href="{% url 'dashboard:home' %}">Stay signed in</a>
+</form>
+{% endblock %}

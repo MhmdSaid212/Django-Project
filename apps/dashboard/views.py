@@ -1,7 +1,7 @@
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from apps.accounts.views import dashboard_for_role
+from core.access import dashboard_for_role
 from core.constants import UserRole
 from core.permissions import get_session_user, login_required, role_required
 from core.wireframes import wireframe

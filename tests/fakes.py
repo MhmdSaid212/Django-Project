@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+import copy
+from bson import ObjectId
+
+
+class FakeInsertResult:
+    def __init__(self, inserted_id):
+        self.inserted_id = inserted_id
+
+
+class FakeUpdateResult:
+    def __init__(self, matched_count, modified_count):
+        self.matched_count = matched_count
+        self.modified_count = modified_count
+
+
+class FakeCursor:
+    def __init__(self, docs):
+        self._docs = docs
+
+    def limit(self, count):
+        return FakeCursor(self._docs[:count])
+
+    def sort(self, key, direction=1):
+        reverse = direction == -1
+        return FakeCursor(
+            sorted(self._docs, key=lambda doc: (doc.get(key) is None, doc.get(key)), reverse=reverse)
+        )
+
+    def __iter__(self):
+        return iter(self._docs)
+
+
+class FakeCollection:
+    def __init__(self):
+        self.docs: list[dict] = []
+
+    def _matches(self, document: dict, query: dict) -> bool:
+        for key, expected in (query or {}).items():
+            actual = document.get(key)
+            if isinstance(expected, dict):
+                if "$ne" in expected:
+                    if actual == expected["$ne"]:
+                        return False
+                    continue
+                return False
+            if actual != expected:
+                return False
+        return True
+
+    def find_one(self, query=None):
+        for document in self.docs:
+            if self._matches(document, query or {}):
+                return copy.deepcopy(document)
+        return None
+
+    def find(self, query=None):
+        return FakeCursor(
+            [copy.deepcopy(document) for document in self.docs if self._matches(document, query or {})]
+        )
+
+    def insert_one(self, document):
+        stored = copy.deepcopy(document)
+        stored.setdefault("_id", ObjectId())
+        self.docs.append(stored)
+        return FakeInsertResult(stored["_id"])
+
+    def update_one(self, query, update):
+        for document in self.docs:
+            if self._matches(document, query or {}):
+                document.update(update.get("$set", {}))
+                return FakeUpdateResult(1, 1)
+        return FakeUpdateResult(0, 0)
+
+    def count_documents(self, query=None):
+        return sum(1 for document in self.docs if self._matches(document, query or {}))
+
+
+class FakeMongo:
+    def __init__(self):
+        self._collections: dict[str, FakeCollection] = {}
+
+    def get_collection(self, name: str) -> FakeCollection:
+        if name not in self._collections:
+            self._collections[name] = FakeCollection()
+        return self._collections[name]

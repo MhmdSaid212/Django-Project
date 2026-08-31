@@ -1,23 +1,3 @@
-"""
-Business number generation (CUS-1001, INV-1001, ...).
-
-This uses a MongoDB atomic counter so two requests cannot mint the same number:
-
-    db.counters.find_one_and_update(
-        {"_id": "invoices"},
-        {"$inc": {"seq": 1}},
-        upsert=True,
-        return_document=ReturnDocument.AFTER,
-    )
-
-MongoDB upsert+$inc starts at 1. We map that onto NUMBER_START (1001) without
-a second write, so the mapping stays race-free:
-
-    displayed = NUMBER_START + seq - 1   # 1 → 1001, 2 → 1002, ...
-
-The counters collection is infrastructure, not a business document.
-System settings may later override prefixes (INV, BK, ...).
-"""
 from __future__ import annotations
 
 from pymongo import ReturnDocument
@@ -29,7 +9,6 @@ from core.exceptions import DatabaseUnavailableError
 
 
 def next_number(collection_name: str, prefix: str | None = None) -> str:
-    """Return the next business number for a collection, e.g. "INV-1001"."""
     prefix = prefix or NUMBER_PREFIXES.get(collection_name)
     if not prefix:
         raise ValueError(f"No number prefix configured for collection {collection_name!r}")
@@ -51,7 +30,6 @@ def next_number(collection_name: str, prefix: str | None = None) -> str:
 
 
 def peek_next_number(collection_name: str, prefix: str | None = None) -> str:
-    """Read-only preview of the next number. Do not use this to assign IDs."""
     prefix = prefix or NUMBER_PREFIXES.get(collection_name, "DOC")
     try:
         doc = get_collection(Collections.COUNTERS).find_one({"_id": collection_name})

@@ -142,6 +142,7 @@ p { margin: 0; }
 }
 .search input { border: 0; background: transparent; outline: none; width: 100%; font: inherit; }
 .navbar-actions { display: flex; align-items: center; gap: 0.5rem; }
+.navbar-actions form { margin: 0; display: flex; }
 .icon-btn {
     width: 36px; height: 36px; border-radius: 50%;
     border: 1px solid var(--line); background: var(--paper);

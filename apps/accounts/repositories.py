@@ -1,15 +1,9 @@
-"""
-MongoDB access for users. No Django ORM.
-
-Deleted users cannot log in. Use soft_delete — never delete_one().
-INACTIVE status is different: the account exists and can be reactivated.
-"""
 from __future__ import annotations
 
 from bson import ObjectId
 from pymongo.collection import Collection
 
-from core.constants import Collections, UserStatus
+from core.constants import Collections, UserRole, UserStatus
 from core.database import get_collection
 from core.soft_delete import LIVE_FILTER, SoftDeleteRepositoryMixin, live_query, stamp_new
 from core.utils import parse_object_id
@@ -37,7 +31,18 @@ class UserRepository(SoftDeleteRepositoryMixin):
     def update_last_login(self, user_id, when) -> None:
         self.collection.update_one(live_query({"_id": user_id}), {"$set": {"last_login_at": when}})
 
+    def list_users(self, *, include_deleted: bool = False) -> list[dict]:
+        query = {} if include_deleted else live_query()
+        return list(self.collection.find(query).sort("created_at", -1))
+
     def list_active(self) -> list[dict]:
-        return list(
-            self.collection.find(live_query({"status": UserStatus.ACTIVE.value}))
-        )
+        return list(self.collection.find(live_query({"status": UserStatus.ACTIVE.value})))
+
+    def count_live(self, extra: dict | None = None) -> int:
+        return self.collection.count_documents(live_query(extra))
+
+    def count_active_owners(self, exclude_id: str | ObjectId | None = None) -> int:
+        query = live_query({"role": UserRole.OWNER_ADMIN.value, "status": UserStatus.ACTIVE.value})
+        if exclude_id is not None:
+            query["_id"] = {"$ne": parse_object_id(exclude_id, field="user_id")}
+        return self.collection.count_documents(query)

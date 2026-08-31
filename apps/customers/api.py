@@ -1,7 +1,3 @@
-"""JSON API placeholders.
-
-OWNER: Dev 1 — Customer & Booking Operations
-"""
 from core.responses import not_implemented
 
 def list_customers(request, **kwargs):

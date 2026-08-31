@@ -5,19 +5,26 @@
 <p class="muted">Use your TourOps account. Roles: Travel Agent, Accountant, Owner/Admin.</p>
 <form method="post" class="form-grid" style="margin-top: 1rem;">
     {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     {{ form.non_field_errors }}
     <label>
         Email
         {{ form.email }}
+        {{ form.email.errors }}
     </label>
     <label>
         Password
         {{ form.password }}
+        {{ form.password.errors }}
     </label>
     <button class="btn btn-teal" type="submit">Sign in</button>
 </form>
 <p class="muted" style="margin-top: 1rem; font-size: 0.85rem;">
-    Development seed user: <code>owner@tourops.local</code> / <code>changeme</code>
-    after running <code>python manage.py seed_demo_user</code>.
+    Development seed users (after <code>python manage.py seed_demo_user</code>):
 </p>
+<ul class="muted" style="font-size: 0.85rem; margin-top: 0.4rem;">
+    <li><code>owner@tourops.local</code> / <code>changeme</code> — Owner / Admin</li>
+    <li><code>agent@tourops.local</code> / <code>changeme</code> — Travel Agent</li>
+    <li><code>accountant@tourops.local</code> / <code>changeme</code> — Accountant</li>
+</ul>
 {% endblock %}

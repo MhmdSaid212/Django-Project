@@ -1,14 +1,7 @@
-"""
-Recommended MongoDB indexes.
-
-Call ensure_indexes() from a management command after schema work starts.
-Email uniqueness applies to live rows only (soft-deleted emails can be reused).
-Business numbers stay unique forever — never reuse CUS-1001 after a soft delete.
-"""
 from core.constants import Collections
 from core.database import get_collection
 
-# (collection, keys, unique, extra_options)
+
 RECOMMENDED_INDEXES = [
     (Collections.USERS, [("email", 1)], True, {"partialFilterExpression": {"is_deleted": False}}),
     (Collections.CUSTOMERS, [("customer_number", 1)], True, None),

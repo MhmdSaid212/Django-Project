@@ -1,14 +1,3 @@
-"""
-Package document contract. NOT a Django model.
-
-OWNER: Dev 2 — Travel Products & Suppliers
-Collection: packages
-
-A package is a reusable product template (duration, base price, inclusions,
-planned supplier services). It is NOT bookable.
-
-To sell it, create a tour (dated departure) from the package, then book that tour.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

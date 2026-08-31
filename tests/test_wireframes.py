@@ -37,7 +37,7 @@ def test_wireframe_pages_render(owner_session):
         ("notifications:list", None),
         ("audit:list", None),
         ("accounts:users", None),
-        ("accounts:user_detail", ["usr-1"]),
+        ("accounts:user_create", None),
         ("accounts:settings", None),
     ]
     for name, args in named:

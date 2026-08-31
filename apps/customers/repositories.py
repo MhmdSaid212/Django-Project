@@ -1,10 +1,3 @@
-"""
-MongoDB access for customers.
-
-OWNER: Dev 1 — Customer & Booking Operations
-
-Queries exclude soft-deleted rows by default. Never call delete_one().
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections

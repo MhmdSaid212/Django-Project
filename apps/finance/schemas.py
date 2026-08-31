@@ -1,18 +1,3 @@
-"""
-Finance does NOT have its own MongoDB collections.
-
-OWNER: Dev 4 — Business Finance & Reports
-
-Calculated (never stored as source of truth):
-    Customer Balance = invoice totals - payments (+ refunds as agreed)
-    Supplier Balance = expenses - supplier payments
-    Accounts Receivable = sum of outstanding customer balances
-    Accounts Payable = sum of outstanding supplier balances
-    Tour Profit = tour revenue - tour expenses
-    Net Profit = revenue - tour costs - general business expenses
-
-Always exclude soft-deleted documents (`is_deleted: true`) from these sums.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

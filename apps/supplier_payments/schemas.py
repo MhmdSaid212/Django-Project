@@ -1,9 +1,3 @@
-"""
-Supplier payment document contract. NOT a Django model.
-
-OWNER: Dev 4 — Business Finance & Reports
-Collection: supplier_payments
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

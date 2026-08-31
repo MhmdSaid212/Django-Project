@@ -1,4 +1,3 @@
-"""Tiny HTTP helpers so one URL can accept GET and POST without duplicate path() entries."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -6,22 +5,13 @@ from collections.abc import Callable
 from django.http import HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 
-from core.permissions import login_required
+from core.permissions import login_required, role_required
 from core.responses import error_response, not_implemented
 
 
-def method_view(**handlers: Callable):
-    """
-    Route one URL to different placeholder (or real) callables by HTTP method.
-
-    Django matches path() in order and ignores HTTP method, so two path("", ...)
-    entries would hide the second one. Use this instead.
-    """
-
+def method_view(*roles, **handlers: Callable):
     allowed = sorted(handlers)
 
-    @csrf_exempt  # JSON APIs will send a CSRF token later; skeleton uses method-based 501s.
-    @login_required
     def view(request: HttpRequest, *args, **kwargs):
         handler = handlers.get(request.method)
         if handler is None:
@@ -32,14 +22,13 @@ def method_view(**handlers: Callable):
             )
         return handler(request, *args, **kwargs)
 
-    view.handlers = handlers  # type: ignore[attr-defined]
-    return view
+    view.handlers = handlers
+    protected = role_required(*roles)(view) if roles else login_required(view)
+    return csrf_exempt(protected)
 
 
-def unimplemented(*methods: str, message: str | None = None):
-    """Shortcut: any of the given methods returns the same 501 placeholder."""
-
+def unimplemented(*methods: str, message: str | None = None, roles: tuple = ()):
     def handler(request, **kwargs):
         return not_implemented(message or f"{request.method} {request.path} is not implemented yet.")
 
-    return method_view(**{method: handler for method in methods})
+    return method_view(*roles, **{method: handler for method in methods})

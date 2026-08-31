@@ -1,13 +1,3 @@
-"""
-Customer document contract. NOT a Django model.
-
-OWNER: Dev 1 — Customer & Booking Operations
-Collection: customers
-
-INACTIVE status means the customer is not used for new bookings.
-is_deleted means the row is hidden from normal lists (soft delete).
-Never call delete_one() on this collection.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

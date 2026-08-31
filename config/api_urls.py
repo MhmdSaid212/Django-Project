@@ -1,13 +1,7 @@
-"""
-JSON API URL contract.
-
-Placeholder endpoints return a consistent "not implemented yet" JSON body.
-Feature owners replace the views in their own apps — do not dump business
-logic into this file.
-"""
 from django.urls import include, path
 
 urlpatterns = [
+    path("", include("apps.accounts.api_urls")),
     path("customers/", include("apps.customers.api_urls")),
     path("bookings/", include("apps.bookings.api_urls")),
     path("tours/", include("apps.tours.api_urls")),

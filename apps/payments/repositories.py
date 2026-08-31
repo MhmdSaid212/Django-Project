@@ -1,11 +1,3 @@
-"""
-MongoDB access for payments.
-
-OWNER: Dev 3 — Customer Finance
-
-Never hard-delete a payment to represent a refund. Soft-delete is only for
-removing a mistaken record from lists — the document stays in MongoDB.
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections
