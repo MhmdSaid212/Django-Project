@@ -14,10 +14,10 @@
 </div>
 
 <div class="cards">
-    {% for t in m.tours %}
+    {% for t in tours %}
     <a class="t-card" href="{% url 'tours:detail' t.id %}">
         <div class="t-hero">
-            <small>{{ t.city }} · {{ t.country }}</small>
+            <small>{{ t.city }}{% if t.country %} · {{ t.country }}{% endif %}</small>
             <h2 style="color:#fff;margin-top:.2rem">{{ t.name }}</h2>
         </div>
         <div class="t-body">
@@ -35,7 +35,8 @@
         </div>
     </a>
     {% empty %}
-    {% include "components/empty_state.html" with title="No tours yet" body="Create your first departure and start accepting bookings." cta="Create tour" cta_url="/tours/create/" %}
+    {% url 'tours:create' as tour_create_url %}
+    {% include "components/empty_state.html" with title="No tours yet" body="Create your first departure and start accepting bookings." cta="Create tour" cta_url=tour_create_url %}
     {% endfor %}
 </div>
 {% endblock %}

@@ -4,51 +4,50 @@
     <div>
         <p class="tiny">Export-ready workspace</p>
         <h1>Financial reports</h1>
-        <p>Each report has its own visual — none of these are stored collections.</p>
+        <p>Each report is calculated from live records — none of these are stored collections.</p>
     </div>
-    <div class="actions">
-        <input class="field" type="month" value="2026-08">
-        <button class="btn btn-ghost" type="button">Export Excel</button>
-        <button class="btn btn-ghost" type="button">Export PDF</button>
-    </div>
+    <form class="actions" method="get">
+        <input class="field" type="month" name="month" value="{{ filters.month }}">
+        <button class="btn btn-ghost" type="submit">Apply</button>
+    </form>
 </div>
 <div class="report-grid">
-    <a class="report" href="{% url 'finance:receivables' %}">
+    <a class="report" href="{% url 'finance:receivables' %}{{ query }}">
         <h2>Accounts receivable</h2>
         <div class="viz"></div>
         <p class="muted">Aging of unpaid customer invoices</p>
     </a>
-    <a class="report alt" href="{% url 'finance:payables' %}">
+    <a class="report alt" href="{% url 'finance:payables' %}{{ query }}">
         <h2>Accounts payable</h2>
         <div class="viz"></div>
         <p class="muted">Supplier bills still open</p>
     </a>
-    <a class="report" href="{% url 'reports:profit_loss' %}">
+    <a class="report" href="{% url 'reports:profit_loss' %}{{ query }}">
         <h2>Cash flow</h2>
         <div class="viz"></div>
         <p class="muted">Money in versus money out</p>
     </a>
-    <a class="report alt" href="{% url 'reports:revenue' %}">
+    <a class="report alt" href="{% url 'reports:revenue' %}{{ query }}">
         <h2>Revenue vs cost</h2>
         <div class="viz"></div>
         <p class="muted">Booked revenue against incurred cost</p>
     </a>
-    <a class="report" href="{% url 'reports:profitability' %}">
+    <a class="report" href="{% url 'reports:profitability' %}{{ query }}">
         <h2>Tour profitability</h2>
         <div class="viz"></div>
         <p class="muted">Margin by departure</p>
     </a>
-    <a class="report alt" href="{% url 'reports:expenses' %}">
+    <a class="report alt" href="{% url 'reports:expenses' %}{{ query }}">
         <h2>Expense breakdown</h2>
         <div class="viz"></div>
         <p class="muted">Hotel, transport, guide, overhead</p>
     </a>
-    <a class="report" href="{% url 'finance:customer_balances' %}">
+    <a class="report" href="{% url 'finance:customer_balances' %}{{ query }}">
         <h2>Customer balances</h2>
         <div class="viz"></div>
         <p class="muted">Outstanding AR by guest</p>
     </a>
-    <a class="report alt" href="{% url 'finance:supplier_balances' %}">
+    <a class="report alt" href="{% url 'finance:supplier_balances' %}{{ query }}">
         <h2>Supplier balances</h2>
         <div class="viz"></div>
         <p class="muted">Outstanding AP by vendor</p>

@@ -10,7 +10,7 @@
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
         {% if record.has_remaining %}
-        <a class="btn btn-warm" href="{% url 'supplier_payments:list' %}">Pay supplier</a>
+        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">Pay supplier</a>
         {% endif %}
         <a class="btn btn-ghost" href="{% url 'expenses:edit' record.id %}">Edit</a>
         {% if not record.has_payments %}

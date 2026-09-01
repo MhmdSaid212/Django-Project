@@ -10,17 +10,20 @@
     <div class="actions"><a class="btn btn-warm" href="{% url 'packages:create' %}">New package</a></div>
 </div>
 <div class="cards">
-    {% for p in m.packages %}
+    {% for p in packages %}
     <a class="p-card" href="{% url 'packages:detail' p.id %}">
         <div class="t-body">
             <span class="type-pill">{{ p.city }}</span>
             <h2 style="margin-top:.35rem">{{ p.name }}</h2>
             <p class="muted">{{ p.duration }}</p>
             <p style="font-size:1.15rem;font-weight:750;margin:.4rem 0 0">From {{ p.price|money }}/person</p>
-            <p class="muted" style="font-size:.84rem">{{ p.includes }}</p>
+            <p class="muted" style="font-size:.84rem">{{ p.includes|default:"—" }}</p>
             <div style="margin-top:.5rem">{% include "components/status_badge.html" with status=p.status %}</div>
         </div>
     </a>
+    {% empty %}
+    {% url 'packages:create' as package_create_url %}
+    {% include "components/empty_state.html" with title="No packages yet" body="Create a reusable product. Dated departures (tours) are created from a package or as a standalone trip." cta="New package" cta_url=package_create_url %}
     {% endfor %}
 </div>
 {% endblock %}
