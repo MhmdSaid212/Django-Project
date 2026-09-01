@@ -1,41 +1,355 @@
 {% extends "base.html" %}
-{% load tourops %}
-{% block content %}
-<div class="page-head">
-    <div>
-        <p class="tiny">Dated departures</p>
-        <h1>Tours</h1>
-        <p>Capacity, remaining seats, and projected revenue for each departure.</p>
-    </div>
-    <div class="actions">
-        <a class="btn btn-ghost" href="{% url 'availability:index' %}">Availability board</a>
-        <a class="btn btn-warm" href="{% url 'tours:create' %}">New tour</a>
-    </div>
-</div>
+{% load static %}
 
-<div class="cards">
-    {% for t in m.tours %}
-    <a class="t-card" href="{% url 'tours:detail' t.id %}">
-        <div class="t-hero">
-            <small>{{ t.city }} · {{ t.country }}</small>
-            <h2 style="color:#fff;margin-top:.2rem">{{ t.name }}</h2>
+{% block title %}Tours - TourOps{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  
+  <!-- Header Bar -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Tours</h1>
+
+    <div class="flex items-center gap-4 flex-1 max-w-xl justify-end">
+      <div class="relative w-full max-w-md hidden sm:block">
+        <input type="text" placeholder="Search tours by name, destination, supplier..." 
+          class="w-full pl-4 pr-10 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm">
+        <svg class="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+
+      <button class="relative p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl shadow-sm transition shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#00B49F] text-white text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
+      </button>
+
+      <a href="#" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#00B49F] hover:bg-[#009e8c] text-white text-sm font-semibold rounded-xl shadow-sm transition shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Tour
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Top Ribbon -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+      <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m4 4v10M4 7v10l8 4"/></svg>
+      </div>
+      <div>
+        <p class="text-2xl font-black text-slate-900 leading-tight">24</p>
+        <p class="text-xs text-slate-500 font-medium">Total Tours</p>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+      <div class="w-11 h-11 rounded-xl bg-teal-50 text-[#00B49F] flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+      </div>
+      <div>
+        <p class="text-2xl font-black text-slate-900 leading-tight">12</p>
+        <p class="text-[11px] text-slate-500 font-medium leading-none">Departing Soon</p>
+        <p class="text-[10px] text-slate-400">Next 30 days</p>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+      <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      </div>
+      <div>
+        <p class="text-2xl font-black text-slate-900 leading-tight">458</p>
+        <p class="text-xs text-slate-500 font-medium">Total Booked Pax</p>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+      <div class="relative w-11 h-11 shrink-0 flex items-center justify-center">
+        <svg class="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+          <path class="text-slate-100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path class="text-[#00B49F]" stroke-dasharray="72, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+        </svg>
+        <span class="absolute text-[10px] font-black text-slate-800">72%</span>
+      </div>
+      <div>
+        <p class="text-base font-black text-slate-900 leading-tight">329 / 458</p>
+        <p class="text-xs text-slate-500 font-medium">Overall Capacity</p>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+      <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div>
+        <p class="text-xl font-black text-slate-900 leading-tight">$312,540</p>
+        <p class="text-xs text-slate-500 font-medium">Est. Revenue</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div class="flex items-center gap-6 border-b border-slate-200 text-sm font-semibold text-slate-600">
+    <button class="pb-3 text-slate-500 hover:text-slate-900 transition">All Tours</button>
+    <button class="pb-3 text-[#00B49F] border-b-2 border-[#00B49F] font-bold">Departures</button>
+    <button class="pb-3 text-slate-500 hover:text-slate-900 transition">Upcoming</button>
+    <button class="pb-3 text-slate-500 hover:text-slate-900 transition">Past</button>
+  </div>
+
+  <!-- Master-Detail Layout -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- LEFT: Departures List (6 Cols) -->
+    <div class="lg:col-span-6 space-y-4">
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <input type="text" placeholder="Search departures..." 
+            class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
-        <div class="t-body">
-            <div class="muted" style="font-size:.84rem">{{ t.dates }}</div>
+        <button class="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-sm">
+          Filter
+        </button>
+        <select class="px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-sm">
+          <option>Sort by: Departure Date</option>
+        </select>
+      </div>
+
+      <!-- Departure Cards -->
+      <div class="space-y-3">
+        <!-- Cairo Discovery (Active Selected) -->
+        <div class="bg-white p-3 rounded-2xl border-2 border-teal-500 shadow-xs flex items-center justify-between gap-3 cursor-pointer">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-900">
+              <img src="https://images.unsplash.com/photo-1572252009286-268acec5ca0a?auto=format&fit=crop&w=200&q=80" 
+                alt="Cairo Discovery" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-extrabold text-slate-900 text-sm tracking-tight truncate">CAIRO DISCOVERY</h3>
+              <p class="text-xs text-slate-500">Egypt</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">📅 20 Jun – 27 Jun 2025</p>
+              <p class="text-xs text-slate-500 font-medium">👥 18 / 20 Pax</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0 flex flex-col items-end pr-1">
+            <span class="text-xs font-black text-teal-600">90%</span>
+            <div class="w-16 bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div class="bg-[#00B49F] h-full rounded-full" style="width: 90%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dubai Experience -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-sm flex items-center justify-between gap-3 cursor-pointer transition">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-900">
+              <img src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=200&q=80" 
+                alt="Dubai Experience" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-extrabold text-slate-900 text-sm tracking-tight truncate">DUBAI EXPERIENCE</h3>
+              <p class="text-xs text-slate-500">UAE</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">📅 05 Jul – 12 Jul 2025</p>
+              <p class="text-xs text-slate-500 font-medium">👥 22 / 24 Pax</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0 flex flex-col items-end pr-1">
+            <span class="text-xs font-black text-teal-600">92%</span>
+            <div class="w-16 bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div class="bg-[#00B49F] h-full rounded-full" style="width: 92%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Maldives Escape -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-sm flex items-center justify-between gap-3 cursor-pointer transition">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-900">
+              <img src="https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=200&q=80" 
+                alt="Maldives Escape" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-extrabold text-slate-900 text-sm tracking-tight truncate">MALDIVES ESCAPE</h3>
+              <p class="text-xs text-slate-500">Maldives</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">📅 18 Jul – 25 Jul 2025</p>
+              <p class="text-xs text-slate-500 font-medium">👥 12 / 16 Pax</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0 flex flex-col items-end pr-1">
+            <span class="text-xs font-black text-teal-600">75%</span>
+            <div class="w-16 bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div class="bg-[#00B49F] h-full rounded-full" style="width: 75%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- London City Break (Fully Booked) -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-sm flex items-center justify-between gap-3 cursor-pointer transition">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-900">
+              <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=200&q=80" 
+                alt="London City Break" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-extrabold text-slate-900 text-sm tracking-tight truncate">LONDON CITY BREAK</h3>
+              <p class="text-xs text-slate-500">United Kingdom</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">📅 02 Aug – 06 Aug 2025</p>
+              <p class="text-xs text-slate-500 font-medium">👥 16 / 16 Pax</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0 flex flex-col items-end pr-1">
+            <span class="text-[10px] font-black text-indigo-600 uppercase tracking-wider">FULLY BOOKED</span>
+            <div class="w-16 bg-indigo-600 h-1.5 rounded-full mt-2"></div>
+          </div>
+        </div>
+
+        <!-- Swiss Alpine Discovery -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-sm flex items-center justify-between gap-3 cursor-pointer transition">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-900">
+              <img src="https://images.unsplash.com/photo-1502784444187-359ac186c5bb?auto=format&fit=crop&w=200&q=80" 
+                alt="Swiss Alpine Discovery" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-extrabold text-slate-900 text-sm tracking-tight truncate">SWISS ALPINE DISCOVERY</h3>
+              <p class="text-xs text-slate-500">Switzerland</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">📅 15 Aug – 22 Aug 2025</p>
+              <p class="text-xs text-slate-500 font-medium">👥 14 / 20 Pax</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0 flex flex-col items-end pr-1">
+            <span class="text-xs font-black text-teal-600">70%</span>
+            <div class="w-16 bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div class="bg-[#00B49F] h-full rounded-full" style="width: 70%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex items-center justify-between pt-2 text-xs text-slate-500">
+        <p>Showing 1 to 5 of 24 departures</p>
+        <div class="flex items-center gap-1">
+          <button class="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-500">‹</button>
+          <button class="px-2.5 py-1 bg-[#00B49F] text-white rounded font-bold">1</button>
+          <button class="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-700">2</button>
+          <button class="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-700">3</button>
+          <span class="px-1 text-slate-400">...</span>
+          <button class="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-700">5</button>
+          <button class="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-500">›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Selected Tour Detail (6 Cols) -->
+    <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden space-y-6">
+      <div class="relative h-44 w-full bg-slate-900">
+        <img src="https://images.unsplash.com/photo-1572252009286-268acec5ca0a?auto=format&fit=crop&w=1200&q=80" 
+          alt="Cairo Panorama" class="w-full h-full object-cover opacity-90">
+      </div>
+
+      <div class="px-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">CAIRO DISCOVERY</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">CONFIRMED</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4 text-xs font-semibold text-slate-600">
+          <span>📅 20 Jun – 27 Jun 2025 (7 Days)</span>
+          <span>👥 18 / 20 Pax</span>
+        </div>
+
+        <div class="flex items-center gap-6 border-b border-slate-200 text-xs font-semibold pt-2">
+          <button class="pb-2.5 text-slate-500">Overview</button>
+          <button class="pb-2.5 text-[#00B49F] border-b-2 border-[#00B49F] font-bold">Itinerary</button>
+          <button class="pb-2.5 text-slate-500">Pax List</button>
+          <button class="pb-2.5 text-slate-500">Supplier Plan</button>
+          <button class="pb-2.5 text-slate-500">Financials</button>
+        </div>
+
+        <!-- Supplier Plan Day-by-Day -->
+        <div class="space-y-4 pt-1">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Supplier Service Plan</h3>
+
+          <!-- Day 1 -->
+          <div class="p-4 rounded-xl border border-slate-200/80 bg-white shadow-sm space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-full bg-[#00B49F] text-white flex flex-col items-center justify-center shrink-0 text-center leading-none font-bold">
+                  <span class="text-[7px] uppercase">DAY</span>
+                  <span class="text-xs">1</span>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">Arrival & Transfer</h4>
+                  <p class="text-[11px] text-slate-400">20 Jun 2025</p>
+                  <p class="text-xs text-slate-600 mt-1">Meet & assist at Cairo International Airport. Private transfer to hotel for check-in.</p>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="text-[10px] text-slate-400 font-medium">Est. Cost</p>
+                <p class="text-sm font-black text-slate-900">$65.00</p>
+              </div>
+            </div>
+            <div class="p-2 bg-slate-50 rounded-lg flex items-center gap-2 text-xs text-slate-600">
+              <span>Supplier: <strong class="text-slate-800 font-semibold">Cairo Transfers</strong></span>
+            </div>
+          </div>
+
+          <!-- Day 2 -->
+          <div class="p-4 rounded-xl border border-slate-200/80 bg-white shadow-sm space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-full bg-[#00B49F] text-white flex flex-col items-center justify-center shrink-0 text-center leading-none font-bold">
+                  <span class="text-[7px] uppercase">DAY</span>
+                  <span class="text-xs">2</span>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">Full Day Guide – Giza Pyramids & Museum</h4>
+                  <p class="text-[11px] text-slate-400">21 Jun 2025</p>
+                  <p class="text-xs text-slate-600 mt-1">Full day guided tour to the Giza Pyramids, Sphinx and Egyptian Museum.</p>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="text-[10px] text-slate-400 font-medium">Est. Cost</p>
+                <p class="text-sm font-black text-slate-900">$180.00</p>
+              </div>
+            </div>
+            <div class="p-2 bg-slate-50 rounded-lg flex items-center gap-2 text-xs text-slate-600">
+              <span>Supplier: <strong class="text-slate-800 font-semibold">Cairo Guides</strong></span>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <button class="inline-flex items-center gap-1.5 px-4 py-1.5 border border-dashed border-slate-300 bg-white text-slate-700 text-xs font-bold rounded-lg">
+              + Add Service
+            </button>
+          </div>
+        </div>
+
+        <!-- Pricing & Edit CTA -->
+        <div class="pt-4 border-t border-slate-200 space-y-4">
+          <div class="grid grid-cols-3 gap-2 text-center">
             <div>
-                <strong data-cap-label>{{ t.booked }} / {{ t.capacity }} seats</strong>
-                <span class="muted"> · {{ t.pct }}% booked</span>
+              <p class="text-[10px] text-slate-400 font-semibold">Total Est. Cost</p>
+              <p class="text-base font-black text-slate-900 mt-0.5">$245.00</p>
             </div>
-            {% include "components/capacity_bar.html" with pct=t.pct %}
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <span>{{ t.price|money }} / traveler</span>
-                {% include "components/status_badge.html" with status=t.status %}
+            <div>
+              <p class="text-[10px] text-slate-400 font-semibold">Est. Markup</p>
+              <p class="text-base font-black text-slate-900 mt-0.5">20%</p>
             </div>
-            <div class="tiny" style="text-transform:none">Projected revenue {{ t.revenue|money }}</div>
+            <div>
+              <p class="text-[10px] text-slate-400 font-semibold">Est. Sell Price</p>
+              <p class="text-base font-black text-[#00B49F] mt-0.5">$294.00</p>
+            </div>
+          </div>
+
+          <button class="w-full py-2.5 px-4 bg-[#00B49F] hover:bg-[#009e8c] text-white text-sm font-bold rounded-xl shadow-sm transition">
+            Edit Tour
+          </button>
         </div>
-    </a>
-    {% empty %}
-    {% include "components/empty_state.html" with title="No tours yet" body="Create your first departure and start accepting bookings." cta="Create tour" cta_url="/tours/create/" %}
-    {% endfor %}
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

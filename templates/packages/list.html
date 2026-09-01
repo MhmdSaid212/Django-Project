@@ -1,26 +1,201 @@
 {% extends "base.html" %}
-{% load tourops %}
+{% load static %}
+
+{% block title %}Packages - TourOps{% endblock %}
+
 {% block content %}
-<div class="page-head">
+<div class="space-y-6">
+  
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
-        <p class="tiny">Reusable products</p>
-        <h1>Packages</h1>
-        <p>Packages are sellable products, not dated departures — no seat counts.</p>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Packages</h1>
+      <p class="text-sm text-slate-500 mt-0.5">Browse and manage travel packages</p>
     </div>
-    <div class="actions"><a class="btn btn-warm" href="{% url 'packages:create' %}">New package</a></div>
-</div>
-<div class="cards">
-    {% for p in m.packages %}
-    <a class="p-card" href="{% url 'packages:detail' p.id %}">
-        <div class="t-body">
-            <span class="type-pill">{{ p.city }}</span>
-            <h2 style="margin-top:.35rem">{{ p.name }}</h2>
-            <p class="muted">{{ p.duration }}</p>
-            <p style="font-size:1.15rem;font-weight:750;margin:.4rem 0 0">From {{ p.price|money }}/person</p>
-            <p class="muted" style="font-size:.84rem">{{ p.includes }}</p>
-            <div style="margin-top:.5rem">{% include "components/status_badge.html" with status=p.status %}</div>
+
+    <div class="flex items-center gap-3">
+      <div class="relative w-64 hidden md:block">
+        <input type="text" placeholder="Search packages..." 
+          class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+
+      <button class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg shadow-sm">
+        Filters
+      </button>
+
+      <a href="#" class="inline-flex items-center gap-2 px-4 py-2 bg-[#1a64f0] hover:bg-[#1554d1] text-white text-sm font-semibold rounded-lg shadow-sm transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Package
+      </a>
+    </div>
+  </div>
+
+  <!-- Master / Detail Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- LEFT: Package Catalog (6 Cols) -->
+    <div class="lg:col-span-6 space-y-4">
+      
+      <!-- Card 1: Istanbul Essentials (Selected) -->
+      <div class="bg-white p-4 rounded-2xl border-2 border-teal-500 shadow-sm flex items-center justify-between gap-4 cursor-pointer">
+        <div class="flex items-center gap-4 min-w-0">
+          <img src="https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=300&q=80" 
+            alt="Istanbul Mosque" class="w-28 h-28 rounded-xl object-cover shrink-0 border border-slate-100">
+          <div class="min-w-0">
+            <h3 class="font-extrabold text-slate-900 text-base">Istanbul Essentials</h3>
+            <p class="text-xs font-bold text-slate-400 mt-0.5">5D/4N</p>
+            <p class="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+              Discover the best of Istanbul with iconic landmarks, Bosphorus cruise, and vibrant local culture.
+            </p>
+            <div class="mt-2.5">
+              <span class="text-[11px] text-slate-400 font-medium">From</span>
+              <p class="text-xl font-extrabold text-[#00B49F] leading-none mt-0.5">$699</p>
+            </div>
+          </div>
         </div>
-    </a>
-    {% endfor %}
+        <div class="shrink-0 pl-2">
+          <div class="w-8 h-8 rounded-full border border-teal-500 text-teal-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Dubai Escape -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-sm flex items-center justify-between gap-4 cursor-pointer transition">
+        <div class="flex items-center gap-4 min-w-0">
+          <img src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=300&q=80" 
+            alt="Dubai Skyline" class="w-28 h-28 rounded-xl object-cover shrink-0 border border-slate-100">
+          <div class="min-w-0">
+            <h3 class="font-extrabold text-slate-900 text-base">Dubai Escape</h3>
+            <p class="text-xs font-bold text-slate-400 mt-0.5">5D/4N</p>
+            <p class="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+              Experience modern luxury and desert adventure in the dazzling city of Dubai.
+            </p>
+            <div class="mt-2.5">
+              <span class="text-[11px] text-slate-400 font-medium">From</span>
+              <p class="text-xl font-extrabold text-[#1a64f0] leading-none mt-0.5">$849</p>
+            </div>
+          </div>
+        </div>
+        <div class="shrink-0 pl-2">
+          <div class="w-8 h-8 rounded-full border border-slate-300 text-slate-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Cairo Heritage -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-sm flex items-center justify-between gap-4 cursor-pointer transition">
+        <div class="flex items-center gap-4 min-w-0">
+          <img src="https://images.unsplash.com/photo-1572252009286-268acec5ca0a?auto=format&fit=crop&w=300&q=80" 
+            alt="Cairo Sphinx" class="w-28 h-28 rounded-xl object-cover shrink-0 border border-slate-100">
+          <div class="min-w-0">
+            <h3 class="font-extrabold text-slate-900 text-base">Cairo Heritage</h3>
+            <p class="text-xs font-bold text-slate-400 mt-0.5">5D/4N</p>
+            <p class="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+              Step back in time and explore ancient wonders and rich Egyptian heritage.
+            </p>
+            <div class="mt-2.5">
+              <span class="text-[11px] text-slate-400 font-medium">From</span>
+              <p class="text-xl font-extrabold text-[#1a64f0] leading-none mt-0.5">$649</p>
+            </div>
+          </div>
+        </div>
+        <div class="shrink-0 pl-2">
+          <div class="w-8 h-8 rounded-full border border-slate-300 text-slate-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Package Detail View (6 Cols) -->
+    <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 space-y-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Istanbul Essentials</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium mt-1">5D/4N • Istanbul, Turkey</p>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex items-center gap-6 border-b border-slate-200 text-xs font-semibold">
+        <button class="pb-2.5 text-blue-600 border-b-2 border-blue-600 font-bold">Details</button>
+        <button class="pb-2.5 text-slate-500 hover:text-slate-800 transition">Inclusions</button>
+        <button class="pb-2.5 text-slate-500 hover:text-slate-800 transition">Exclusions</button>
+        <button class="pb-2.5 text-slate-500 hover:text-slate-800 transition">Supplier Plan</button>
+      </div>
+
+      <!-- Overview -->
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-bold text-slate-900">Package Overview</h4>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Explore Istanbul's timeless beauty with visits to historic sites, a scenic Bosphorus cruise, and immersive local experiences.
+        </p>
+      </div>
+
+      <!-- Inclusions / Exclusions -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1">
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold text-slate-900">Inclusions</h4>
+          <ul class="space-y-2 text-xs text-slate-600">
+            <li class="flex items-start gap-2"><span class="text-teal-500 font-bold">✓</span><span>4 Nights accommodation with breakfast</span></li>
+            <li class="flex items-start gap-2"><span class="text-teal-500 font-bold">✓</span><span>Airport transfers</span></li>
+            <li class="flex items-start gap-2"><span class="text-teal-500 font-bold">✓</span><span>Bosphorus cruise tour</span></li>
+            <li class="flex items-start gap-2"><span class="text-teal-500 font-bold">✓</span><span>Guided city tour</span></li>
+            <li class="flex items-start gap-2"><span class="text-teal-500 font-bold">✓</span><span>Domestic flights</span></li>
+            <li class="flex items-start gap-2"><span class="text-teal-500 font-bold">✓</span><span>All taxes and service charges</span></li>
+          </ul>
+        </div>
+
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold text-slate-900">Exclusions</h4>
+          <ul class="space-y-2 text-xs text-slate-600">
+            <li class="flex items-start gap-2"><span class="text-rose-400 font-bold">✕</span><span>International airfare</span></li>
+            <li class="flex items-start gap-2"><span class="text-rose-400 font-bold">✕</span><span>Travel insurance</span></li>
+            <li class="flex items-start gap-2"><span class="text-rose-400 font-bold">✕</span><span>Visa fees</span></li>
+            <li class="flex items-start gap-2"><span class="text-rose-400 font-bold">✕</span><span>Personal expenses</span></li>
+            <li class="flex items-start gap-2"><span class="text-rose-400 font-bold">✕</span><span>Optional tours</span></li>
+            <li class="flex items-start gap-2"><span class="text-rose-400 font-bold">✕</span><span>Meals not mentioned</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Supplier Plan & Price Box -->
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-2">
+        <div class="sm:col-span-7 bg-[#0b1626] text-white p-4 rounded-xl space-y-2.5 text-xs">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 font-bold">
+              <span>Supplier Plan</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00B49F] text-white">Standard</span>
+          </div>
+          <div class="space-y-1.5 pt-1 text-slate-300">
+            <div class="flex justify-between"><span class="text-slate-400">Supplier</span><span class="font-semibold text-white">Global Travel Services</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Plan ID</span><span class="font-mono text-slate-300">GTS-IST-5D4N-STD</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Rate Type</span><span class="font-semibold text-white">Net</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Cancellation Policy</span><span class="text-slate-300">Flexible – 7 days</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Last Updated</span><span class="text-slate-300">May 12, 2024</span></div>
+          </div>
+        </div>
+
+        <div class="sm:col-span-5 bg-slate-50 border border-slate-200/80 p-4 rounded-xl flex flex-col justify-between text-center space-y-3">
+          <div>
+            <p class="text-xs font-bold text-slate-700">Package Price</p>
+            <p class="text-[11px] text-slate-400 mt-2">From</p>
+            <p class="text-3xl font-black text-[#00B49F] leading-tight">$699</p>
+            <p class="text-[10px] text-slate-400">per person</p>
+          </div>
+          <a href="#" class="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#00B49F] hover:bg-[#009e8c] text-white text-xs font-bold rounded-lg shadow-sm">
+            <span>View Details</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
