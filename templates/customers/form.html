@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-head">
+    <div>
+        <p class="tiny">Customers</p>
+        <h1>Create customer</h1>
+        <p>Add the customer's personal, contact, address, passport, and emergency information.</p>
+    </div>
+</div>
+
+<form
+    class="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 lg:p-8 w-full"
+    method="post"  enctype="multipart/form-data"
+>
+    {% csrf_token %}
+
+    <!-- =========================
+         Basic Information
+    ========================== -->
+    <section>
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+                Basic Information
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">
+                Enter the customer's personal and contact information.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Customer number
+                </span>
+                <input
+                    class="field w-full mt-1 bg-gray-50"
+                    value="{{ record.customer_number|default:'Auto-generated' }}"
+                    disabled
+                >
+            </label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    First name
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="first_name"
+                    value="{{ record.first_name|default:'' }}"
+                    required
+                >
+            </label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Last name
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="last_name"
+                    value="{{ record.last_name|default:'' }}"
+                    required
+                >
+            </label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Status
+                </span>
+                <select
+                    class="field w-full mt-1"
+                    name="status"
+                >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                </select>
+            </label>
+
+            <label class="block sm:col-span-2">
+                <span class="text-sm font-medium text-gray-700">
+                    Email
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="email"
+                    name="email"
+                    value="{{ record.email|default:'' }}"
+                >
+            </label>
+
+            <label class="block w-full">
+    <span class="text-sm font-medium text-gray-700 block mb-1">
+        Phone
+    </span>
+
+    <input
+        id="phone"
+        name="phone"
+        type="tel"
+        class="field w-full"
+    >
+    <input type="hidden" id="phone-full" name="phone_full">
+</label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Date of birth
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="date"
+                    name="date_of_birth"
+                    value="{{ record.date_of_birth|default:'' }}"
+                >
+            </label>
+
+            <label class="block w-full">
+    <span class="text-sm font-medium text-gray-700 block mb-1">
+        Nationality
+    </span>
+
+    <input
+        id="nationality"
+        name="nationality"
+        type="text"
+        class="field w-full"
+        placeholder="Select nationality"
+    >
+</label>
+
+        </div>
+    </section>
+
+
+    <!-- =========================
+         Address
+    ========================== -->
+    <section class="mt-8 pt-8 border-t border-gray-100">
+
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+                Address
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">
+                Add the customer's current address.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+            <label class="block w-full">
+    <span class="text-sm font-medium text-gray-700 block mb-1">
+        Country
+    </span>
+
+    <input
+        id="address-country"
+        name="address_country"
+        type="text"
+        class="field w-full"
+        placeholder="Select country"
+    >
+</label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    City
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="address_city"
+                    value="{{ record.address.city|default:'' }}"
+                >
+            </label>
+
+            <label class="block sm:col-span-2 lg:col-span-1">
+                <span class="text-sm font-medium text-gray-700">
+                    Street
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="address_street"
+                    value="{{ record.address.street|default:'' }}"
+                >
+            </label>
+
+        </div>
+    </section>
+
+
+    <!-- =========================
+         Passport
+    ========================== -->
+    <section class="mt-8 pt-8 border-t border-gray-100">
+
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+                Passport
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">
+                Passport information is optional.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Passport number
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="passport_number"
+                    value="{{ record.passport.number|default:'' }}"
+                >
+            </label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Expiry date
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="date"
+                    name="passport_expiry_date"
+                    value="{{ record.passport.expiry_date|default:'' }}"
+                >
+            </label>
+
+            <label class="block w-full">
+    <span class="text-sm font-medium text-gray-700 block mb-1">
+        Issuing country
+    </span>
+
+    <input
+        id="passport-country"
+        name="passport_issuing_country"
+        type="text"
+        class="field w-full"
+        placeholder="Select country"
+    >
+</label>
+
+        </div>
+    </section>
+
+
+    <!-- =========================
+         Emergency Contact
+    ========================== -->
+    <section class="mt-8 pt-8 border-t border-gray-100">
+
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+                Emergency Contact
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">
+                Add someone to contact in case of an emergency.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Name
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="emergency_contact_name"
+                    value="{{ record.emergency_contact.name|default:'' }}"
+                >
+            </label>
+
+            <label class="block w-full">
+    <span class="text-sm font-medium text-gray-700 block mb-1">
+        Emergency contact phone
+    </span>
+
+    <input
+        id="emergency-phone"
+        name="emergency_contact_phone"
+        type="tel"
+        class="field w-full"
+    >
+    <input
+    type="hidden"
+    id="emergency-phone-full"
+    name="emergency_contact_phone_full"
+>
+</label>
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Relationship
+                </span>
+                <input
+                    class="field w-full mt-1"
+                    type="text"
+                    name="emergency_contact_relationship"
+                    value="{{ record.emergency_contact.relationship|default:'' }}"
+                >
+            </label>
+
+        </div>
+    </section>
+
+
+    <!-- =========================
+         Notes
+    ========================== -->
+    <section class="mt-8 pt-8 border-t border-gray-100">
+
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+                Notes
+            </h2>
+        </div>
+
+        <label class="block">
+            <span class="text-sm font-medium text-gray-700">
+                Customer notes
+            </span>
+
+            <textarea
+                class="field w-full mt-1 min-h-[120px]"
+                name="notes"
+                placeholder="Add any additional notes about this customer..."
+            >{{ record.notes|default:'' }}</textarea>
+        </label>
+
+    </section>
+
+<!-- =========================
+     Documents
+========================== -->
+<section class="mt-8 pt-8 border-t border-gray-100">
+
+    <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900">
+            Documents
+        </h2>
+
+        <p class="text-sm text-gray-500 mt-1">
+            Attach documents related to this customer, such as a passport or contract.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <!-- File -->
+        <div class="lg:col-span-2">
+
+            <label class="block">
+                <span class="text-sm font-medium text-gray-700">
+                    Document
+                </span>
+
+                <input
+                    type="file"
+                    name="document"
+                    class="block w-full mt-1 text-sm text-gray-500
+                           file:mr-4 file:py-2.5 file:px-4
+                           file:rounded-lg file:border-0
+                           file:text-sm file:font-medium
+                           file:bg-blue-50 file:text-brand-blue
+                           hover:file:bg-blue-100
+                           border border-gray-200 rounded-lg
+                           cursor-pointer"
+                >
+            </label>
+
+            <p class="text-xs text-gray-400 mt-2">
+                Upload PDF, image, Word document, or other supported file.
+            </p>
+
+        </div>
+
+
+        <!-- Category -->
+        <label class="block">
+
+            <span class="text-sm font-medium text-gray-700">
+                Document category
+            </span>
+
+            <select
+                class="field w-full mt-1"
+                name="document_category"
+            >
+                <option value="">Select category</option>
+                <option value="PASSPORT">Passport</option>
+                <option value="CONTRACT">Contract</option>
+                <option value="OTHER">Other</option>
+            </select>
+
+        </label>
+
+
+        <!-- Notes -->
+        <label class="block lg:col-span-3">
+
+            <span class="text-sm font-medium text-gray-700">
+                Document notes
+            </span>
+
+            <textarea
+                class="field w-full mt-1 min-h-[100px]"
+                name="document_notes"
+                placeholder="Add notes about this document..."
+            ></textarea>
+
+        </label>
+
+    </div>
+
+</section>
+
+    <!-- =========================
+         Actions
+    ========================== -->
+    <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+
+        <a
+            href="{% url 'customers:list' %}"
+            class="w-full sm:w-auto text-center border border-gray-300 hover:bg-gray-50 text-sm font-medium px-5 py-2.5 rounded-lg transition"
+        >
+            Cancel
+        </a>
+
+        <button
+            type="submit"
+            class="w-full sm:w-auto bg-brand-blue hover:opacity-90 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition"
+        >
+            Save Customer
+        </button>
+
+    </div>
+
+</form>
+{% endblock %}

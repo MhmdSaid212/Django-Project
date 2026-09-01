@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Reusable products</p>
+        <h1>Packages</h1>
+        <p>Packages are sellable products, not dated departures — no seat counts.</p>
+    </div>
+    <div class="actions"><a class="btn btn-warm" href="{% url 'packages:create' %}">New package</a></div>
+</div>
+<div class="cards">
+    {% for p in m.packages %}
+    <a class="p-card" href="{% url 'packages:detail' p.id %}">
+        <div class="t-body">
+            <span class="type-pill">{{ p.city }}</span>
+            <h2 style="margin-top:.35rem">{{ p.name }}</h2>
+            <p class="muted">{{ p.duration }}</p>
+            <p style="font-size:1.15rem;font-weight:750;margin:.4rem 0 0">From {{ p.price|money }}/person</p>
+            <p class="muted" style="font-size:.84rem">{{ p.includes }}</p>
+            <div style="margin-top:.5rem">{% include "components/status_badge.html" with status=p.status %}</div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

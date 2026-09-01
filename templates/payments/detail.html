@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">{{ record.number }}</p>
+        <h1>{{ record.amount|money }}</h1>
+        <p>{{ record.customer }} · {{ record.invoice }} · {{ record.date }}</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'receipts:detail' 'rec-1042' %}">Open receipt</a>
+    </div>
+</div>
+<div class="two-col">
+    <section class="panel">
+        <dl class="kv">
+            <dt>Method</dt><dd>{{ record.method|labelize }}</dd>
+            <dt>Reference</dt><dd class="mono">{{ record.ref }}</dd>
+            <dt>Recorded by</dt><dd>{{ record.by }}</dd>
+            <dt>Status</dt><dd>{% include "components/status_badge.html" with status=record.status %}</dd>
+        </dl>
+    </section>
+    <section class="panel">
+        <h2>Net received</h2>
+        <p class="ledger-in" style="margin-top:.5rem">Payment +{{ record.amount|money }}</p>
+        <p class="muted">No refunds against this payment.</p>
+    </section>
+</div>
+{% endblock %}

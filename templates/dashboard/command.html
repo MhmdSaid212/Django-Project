@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">{{ today_label }}</p>
+        <h1>{{ greeting }}, {{ greeting_name }}</h1>
+        <p>Here’s what needs attention across bookings, finance, and upcoming tours.</p>
+    </div>
+    <div class="actions">
+        <select class="field">
+            <option>This month</option>
+            <option>Last 30 days</option>
+            <option>This quarter</option>
+        </select>
+        {% if nav.ops %}<a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>{% endif %}
+    </div>
+</div>
+
+<div class="kpi-strip">
+    {% include "components/metric_card.html" with label="Revenue" value=m.kpis.revenue|money delta=m.kpis.revenue_delta up=1 spark=1 accent="#0f766e" %}
+    {% include "components/metric_card.html" with label="Customer outstanding" value=m.kpis.ar|money delta=m.kpis.ar_delta up=1 spark=1 accent="#b45309" %}
+    {% include "components/metric_card.html" with label="Supplier payables" value=m.kpis.ap|money delta=m.kpis.ap_delta spark=1 accent="#1d4ed8" %}
+    {% include "components/metric_card.html" with label="Active bookings" value=m.kpis.active_bookings delta=4.1 up=1 spark=1 accent="#1f2a3a" %}
+    {% include "components/metric_card.html" with label="Upcoming tours" value=m.kpis.upcoming spark=1 accent="#ca8a04" %}
+    {% include "components/metric_card.html" with label="Monthly profit" value=m.kpis.profit|money delta=m.kpis.profit_delta up=1 spark=1 accent="#047857" %}
+</div>
+
+<div class="layout-13">
+    <section class="panel">
+        <div class="panel-h">
+            <h2>Attention center</h2>
+            <span class="tiny">Act now</span>
+        </div>
+        <div class="attn">
+            {% if nav.finance %}
+            <a href="{% url 'invoices:list' %}">
+                <div><strong>5 overdue invoices</strong><em>Oldest: INV-1042 · Fatima Ghazzawi · $420</em></div>
+                <span class="badge b-bad">Due</span>
+            </a>
+            <a href="{% url 'refunds:list' %}">
+                <div><strong>3 refunds awaiting approval</strong><em>REF-1012 · Ali Mansour · $300</em></div>
+                <span class="badge b-warn">Review</span>
+            </a>
+            {% endif %}
+            {% if nav.ops %}
+            <a href="{% url 'tours:list' %}">
+                <div><strong>2 tours near capacity</strong><em>Cairo Discovery 18/25 · Istanbul fully booked</em></div>
+                <span class="badge b-warm">Seats</span>
+            </a>
+            {% endif %}
+            {% if nav.finance %}
+            <a href="{% url 'supplier_payments:list' %}">
+                <div><strong>4 supplier payments due this week</strong><em>Beirut Transport Co. · EXP-1033 · $180 overdue</em></div>
+                <span class="badge b-info">AP</span>
+            </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-h">
+            <h2>Upcoming departures</h2>
+            <a class="tiny" href="{% url 'tours:list' %}">View all</a>
+        </div>
+        <div class="journey">
+            {% for tour in m.tours %}
+            <a class="j-row" href="{% if nav.ops %}{% url 'tours:detail' tour.id %}{% else %}{% url 'reports:profitability' %}?tour={{ tour.id }}{% endif %}">
+                <span class="pin"></span>
+                <div>
+                    <strong>{{ tour.city }}</strong>
+                    <div class="tiny" style="text-transform:none;letter-spacing:0">{{ tour.name }} · {{ tour.start }}</div>
+                    <div class="route-line"></div>
+                    <span class="muted" style="font-size:.8rem">{{ tour.booked }}/{{ tour.capacity }} seats booked</span>
+                </div>
+                <div style="text-align:right">
+                    {% include "components/status_badge.html" with status=tour.status %}
+                    <div class="tiny" style="margin-top:.35rem;text-transform:none">{{ tour.projected|money }} profit</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="stack">
+        <section class="panel">
+            <div class="panel-h"><h2>Booking pipeline</h2></div>
+            <div class="pipeline">
+                <div class="pipe"><span class="tiny">Pending</span><b>{{ m.pipeline.pending }}</b></div>
+                <div class="pipe"><span class="tiny">Confirmed</span><b>{{ m.pipeline.confirmed }}</b></div>
+                <div class="pipe"><span class="tiny">In progress</span><b>{{ m.pipeline.progress }}</b></div>
+                <div class="pipe"><span class="tiny">Completed</span><b>{{ m.pipeline.completed }}</b></div>
+            </div>
+        </section>
+        <section class="panel">
+            <div class="panel-h"><h2>Finance snapshot</h2></div>
+            <div class="money-split">
+                <div class="money-in">
+                    <span class="tiny">Money in</span>
+                    <div class="value" style="font-size:1.2rem;font-weight:750">{{ m.money_in|money }}</div>
+                    <p class="muted" style="font-size:.8rem">Customer payments</p>
+                    <div class="bar"><i style="width:78%"></i></div>
+                </div>
+                <div class="money-out">
+                    <span class="tiny">Money out</span>
+                    <div class="value" style="font-size:1.2rem;font-weight:750">{{ m.money_out|money }}</div>
+                    <p class="muted" style="font-size:.8rem">Supplier payments + expenses</p>
+                    <div class="bar"><i style="width:32%"></i></div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<section class="panel" style="margin-top:.85rem">
+    <div class="panel-h">
+        <h2>Recent activity</h2>
+        {% if nav.system %}<a class="tiny" href="{% url 'audit:list' %}">Audit log</a>{% endif %}
+    </div>
+    <div class="timeline">
+        {% for item in m.activity %}
+        <div class="tl">
+            <i></i>
+            <div>
+                <strong>{{ item.who }}</strong> {{ item.text }}
+                <div class="tiny" style="text-transform:none;letter-spacing:0;margin-top:.15rem">{{ item.time }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

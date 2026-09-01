@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Departures</p>
+        <h1>{{ page_heading }}</h1>
+    </div>
+</div>
+<form class="panel form-grid" style="max-width:680px" onsubmit="event.preventDefault()">
+    <label>Tour name<input class="field" value="{{ record.name|default:'' }}"></label>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Destination city<input class="field" value="{{ record.city|default:'' }}"></label>
+        <label>Country<input class="field" value="{{ record.country|default:'' }}"></label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Start date<input class="field" type="date"></label>
+        <label>End date<input class="field" type="date"></label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Capacity<input class="field" type="number" value="{{ record.capacity|default:25 }}"></label>
+        <label>Selling price / traveler<input class="field" value="{{ record.price|default:650 }}"></label>
+    </div>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Save tour</button>
+        <a class="btn btn-ghost" href="{% url 'tours:list' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

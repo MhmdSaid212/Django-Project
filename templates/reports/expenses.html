@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Expense breakdown</h1><p>Where cost sits: hotels, transport, guides, and overhead.</p></div></div>
+<div class="waterfall" style="max-width:560px">
+    <div class="wf"><span>Hotel</span><div class="track"><i class="cost" style="width:70%"></i></div><b>$12,400</b></div>
+    <div class="wf"><span>Transport</span><div class="track"><i class="cost" style="width:22%"></i></div><b>$3,100</b></div>
+    <div class="wf"><span>Guides</span><div class="track"><i class="cost" style="width:12%"></i></div><b>$1,800</b></div>
+    <div class="wf"><span>Overhead</span><div class="track"><i class="cost" style="width:18%;background:#78716c"></i></div><b>$2,900</b></div>
+</div>
+{% endblock %}

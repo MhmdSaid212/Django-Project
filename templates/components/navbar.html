@@ -1,0 +1,201 @@
+{% load tourops %}
+<header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+
+    <!-- Left -->
+    <div class="flex items-center gap-4">
+
+        <button
+            type="button"
+            class="lg:hidden text-slate-600 hover:text-slate-900"
+            data-sidebar-toggle
+            aria-label="Toggle menu"
+        >
+            ☰
+        </button>
+
+        <div>
+            {% if crumbs %}
+                <div class="flex items-center gap-2 text-xs text-slate-400 mb-0.5">
+                    {% for crumb in crumbs %}
+                        {% if crumb.url %}
+                            <a href="{{ crumb.url }}" class="hover:text-brand-blue">
+                                {{ crumb.label }}
+                            </a>
+                        {% else %}
+                            <span>{{ crumb.label }}</span>
+                        {% endif %}
+
+                        {% if not forloop.last %}
+                            <span>/</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <h1 class="text-lg font-semibold text-navy">
+                {{ page_heading }}
+            </h1>
+        </div>
+
+    </div>
+
+
+    <!-- Right -->
+    <div class="flex items-center gap-3">
+
+        <!-- Search -->
+        <div class="hidden md:flex items-center gap-2 w-64 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+
+            <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="text-slate-400"
+            >
+                <circle cx="11" cy="11" r="7"/>
+                <path d="m20 20-3.5-3.5"/>
+            </svg>
+
+            <input
+                type="search"
+                placeholder="Search..."
+                aria-label="Global search"
+                class="w-full bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
+            >
+
+        </div>
+
+
+        <!-- Create -->
+        <div class="relative">
+
+            <button
+                type="button"
+                class="px-4 py-2 rounded-lg bg-brand-blue text-white text-sm font-medium hover:opacity-90"
+                data-quick-create
+            >
+                + Create
+            </button>
+
+            <div
+    class="hidden absolute right-0 top-11 z-50 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1"
+    data-quick-menu
+>
+
+                {% if nav.ops %}
+                    <a
+                        href="{% url 'bookings:create' %}"
+                        class="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                        Booking
+                    </a>
+
+                    <a
+                        href="{% url 'customers:create' %}"
+                        class="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                        Customer
+                    </a>
+                {% endif %}
+
+                {% if nav.finance %}
+                    <a
+                        href="{% url 'invoices:list' %}"
+                        class="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                        Invoice
+                    </a>
+
+                    <a
+                        href="{% url 'payments:list' %}"
+                        class="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                        Payment
+                    </a>
+
+                    <a
+                        href="{% url 'expenses:create' %}"
+                        class="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                        Expense
+                    </a>
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <!-- Notifications -->
+        <a
+            href="{% url 'notifications:list' %}"
+            class="relative h-9 w-9 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600"
+            aria-label="Notifications"
+        >
+            <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+            >
+                <path d="M6 16V10a6 6 0 1 1 12 0v6l2 2H4l2-2z"/>
+                <path d="M10 20a2 2 0 0 0 4 0"/>
+            </svg>
+
+            {% if unread_count %}
+                <span class="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
+            {% endif %}
+
+        </a>
+
+
+        <!-- User -->
+        {% if current_user %}
+
+            <div class="hidden sm:flex items-center gap-2 pl-2">
+
+                <div class="h-9 w-9 rounded-full bg-brand-blue text-white flex items-center justify-center text-sm font-semibold">
+                    {{ current_user_initial }}
+                </div>
+
+                <div class="text-sm leading-tight">
+                    <p class="font-medium text-slate-800">
+                        {{ current_user_name }}
+                    </p>
+
+                    <p class="text-xs text-slate-400">
+                        {{ current_role|labelize }}
+                    </p>
+                </div>
+
+            </div>
+
+            <a
+                class="hidden lg:block px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                href="{% url 'accounts:password' %}"
+            >
+                Password
+            </a>
+
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+
+                <button
+                    class="px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                    type="submit"
+                >
+                    Log out
+                </button>
+
+            </form>
+
+        {% endif %}
+
+    </div>
+
+</header>

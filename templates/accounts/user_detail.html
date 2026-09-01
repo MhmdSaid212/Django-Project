@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="profile-hero">
+    <span class="avatar lg">{{ record.initials }}</span>
+    <div>
+        <p class="tiny">{{ record.email }}</p>
+        <h1>{{ record.name }}</h1>
+        <p class="muted">{{ record.role_label }} · Last login {{ record.last }}</p>
+    </div>
+    <div class="actions">
+        {% include "components/status_badge.html" with status=record.status %}
+        {% if not is_self %}
+            {% if record.status == 'ACTIVE' %}
+            <form method="post" action="{% url 'accounts:user_status' record.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="INACTIVE">
+                <button class="btn btn-ghost" type="submit">Deactivate</button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'accounts:user_status' record.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="ACTIVE">
+                <button class="btn btn-ok" type="submit">Activate</button>
+            </form>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+<div class="two-col">
+    <section class="panel">
+        <h2>Permissions</h2>
+        <p class="muted" style="margin-top:.4rem">Role-based. Owner sees everything; agents operate bookings; accountants own money.</p>
+        <ul>
+            {% if record.role == 'OWNER_ADMIN' %}
+            <li>All operations, finance, users, settings, audit</li>
+            {% elif record.role == 'ACCOUNTANT' %}
+            <li>Invoices, payments, refunds, expenses, reports, balances</li>
+            {% else %}
+            <li>Customers, bookings, tours, packages, suppliers</li>
+            {% endif %}
+        </ul>
+        {% if not is_self %}
+        <form method="post" action="{% url 'accounts:user_role' record.id %}" class="form-grid" style="margin-top:1rem;max-width:320px">
+            {% csrf_token %}
+            <label>Change role{{ role_form.role }}</label>
+            <button class="btn btn-warm" type="submit">Save role</button>
+        </form>
+        {% endif %}
+    </section>
+    <section class="panel">
+        <h2>Password</h2>
+        {% if is_self %}
+        <p class="muted" style="margin-top:.4rem">Use the change password page for your own account.</p>
+        <p style="margin-top:.8rem"><a class="btn btn-ghost" href="{% url 'accounts:password' %}">Change my password</a></p>
+        {% else %}
+        <form method="post" action="{% url 'accounts:user_password' record.id %}" class="form-grid" style="margin-top:.8rem;max-width:360px">
+            {% csrf_token %}
+            <label>New password{{ password_form.new_password }}</label>
+            <label>Confirm password{{ password_form.confirm_password }}</label>
+            <button class="btn btn-warm" type="submit">Reset password</button>
+        </form>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

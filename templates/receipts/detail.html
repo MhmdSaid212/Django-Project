@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="print-actions">
+    <button class="btn btn-warm" type="button" onclick="window.print()">Print</button>
+    <button class="btn btn-ghost" type="button">Download PDF</button>
+</div>
+<div class="invoice-sheet">
+    <div class="inv-top">
+        <div>
+            <div class="inv-brand">TourOps Travel</div>
+            <p class="muted">Hamra Street, Beirut<br>hello@tourops.example</p>
+        </div>
+        <div style="text-align:right">
+            <p class="tiny">Receipt</p>
+            <h1>{{ record.number }}</h1>
+        </div>
+    </div>
+    <dl class="kv">
+        <dt>Customer</dt><dd>{{ record.customer }}</dd>
+        <dt>Invoice</dt><dd>{{ record.invoice }}</dd>
+        <dt>Payment</dt><dd>{{ record.payment }}</dd>
+        <dt>Date</dt><dd>{{ record.issued }}</dd>
+        <dt>Method</dt><dd>{{ record.method }}</dd>
+        <dt>Amount</dt><dd><strong>{{ record.amount|money }}</strong></dd>
+        <dt>Issued by</dt><dd>{{ record.by }}</dd>
+    </dl>
+    <p class="muted" style="margin-top:2rem;font-size:.8rem">This receipt confirms a completed payment. Refunds are recorded separately and never delete the original payment.</p>
+</div>
+{% endblock %}

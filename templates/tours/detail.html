@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="hero-tour">
+    <div>
+        <p class="tiny">{{ record.city }} · {{ record.country }}</p>
+        <h1>{{ record.name }}</h1>
+        <p class="muted">{{ record.dates }} · {{ record.code }}</p>
+        <div style="margin-top:.7rem;max-width:280px">
+            <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.25rem">
+                <span data-cap-label>{{ record.booked }} / {{ record.capacity }} seats</span>
+                <span>{{ record.pct }}%</span>
+            </div>
+            {% include "components/capacity_bar.html" with pct=record.pct animate=1 %}
+        </div>
+    </div>
+    <div class="hero-kpis">
+        <div><span class="tiny">Price</span><b>{{ record.price|money }}</b></div>
+        <div><span class="tiny">Status</span><b style="font-size:1rem">{% include "components/status_badge.html" with status=record.status %}</b></div>
+        <div class="actions" style="flex-direction:column">
+            <a class="btn btn-warm" href="{% url 'bookings:create' %}">Add booking</a>
+            <a class="btn btn-ghost" href="{% url 'tours:edit' record.id %}">Edit</a>
+        </div>
+    </div>
+</div>
+
+<div class="tabs">
+    <a class="{% if tab == 'overview' %}is-on{% endif %}" href="?tab=overview">Overview</a>
+    <a class="{% if tab == 'bookings' %}is-on{% endif %}" href="?tab=bookings">Bookings</a>
+    <a class="{% if tab == 'travelers' %}is-on{% endif %}" href="?tab=travelers">Travelers</a>
+    <a class="{% if tab == 'services' %}is-on{% endif %}" href="?tab=services">Supplier services</a>
+    <a class="{% if tab == 'expenses' %}is-on{% endif %}" href="?tab=expenses">Expenses</a>
+    <a class="{% if tab == 'profit' %}is-on{% endif %}" href="?tab=profit">Profitability</a>
+    <a class="{% if tab == 'activity' %}is-on{% endif %}" href="?tab=activity">Activity</a>
+</div>
+
+{% if tab == 'overview' %}
+<div class="metrics-4">
+    <div class="metric"><span class="tiny">Booked</span><b>{{ record.booked }}</b></div>
+    <div class="metric"><span class="tiny">Available</span><b>{{ record.available }}</b></div>
+    <div class="metric"><span class="tiny">Projected revenue</span><b>{{ record.revenue|money }}</b></div>
+    <div class="metric"><span class="tiny">Projected profit</span><b>{{ record.profit|money }}</b></div>
+</div>
+<p class="muted">Planned supplier services are an itinerary, not a bill. Expenses record cost incurred.</p>
+{% elif tab == 'bookings' %}
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Booking</th><th>Customer</th><th>Travelers</th><th>Status</th><th>Total</th></tr></thead>
+        <tbody>
+        {% for b in m.bookings %}
+            {% if b.tour_id == record.id %}
+            <tr>
+                <td><a href="{% url 'bookings:detail' b.id %}">{{ b.number }}</a></td>
+                <td>{{ b.customer }}</td>
+                <td>{{ b.travelers }}</td>
+                <td>{% include "components/status_badge.html" with status=b.status %}</td>
+                <td>{{ b.total|money }}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif tab == 'travelers' %}
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Name</th><th>Passport</th><th>Type</th></tr></thead>
+        <tbody>{% for t in m.travelers %}<tr><td>{{ t.name }}</td><td class="mono">{{ t.passport }}</td><td>{{ t.type }}</td></tr>{% endfor %}</tbody>
+    </table>
+</div>
+{% elif tab == 'services' %}
+<div class="panel">
+    <div class="itinerary">
+        {% regroup m.itinerary by day as days %}
+        {% for day in days %}
+            <div class="it-day">{{ day.grouper }}</div>
+            {% for block in day.list %}
+            <div class="it-block">
+                <div>
+                    <strong>{{ block.title }}</strong>
+                    <div class="muted" style="font-size:.84rem">Supplier: {{ block.supplier }}</div>
+                </div>
+                <div>Est. {{ block.est|money }}</div>
+            </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+{% elif tab == 'expenses' %}
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Expense</th><th>Supplier</th><th>Category</th><th>Amount</th><th>Remaining</th></tr></thead>
+        <tbody>
+        {% for e in m.expenses %}
+            {% if e.related == record.name %}
+            <tr {% if e.overdue %}class="is-overdue"{% endif %}>
+                <td><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
+                <td>{{ e.supplier }}</td>
+                <td>{{ e.category|labelize }}</td>
+                <td>{{ e.amount|money }}</td>
+                <td>{{ e.remaining|money }}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif tab == 'profit' %}
+<div class="panel">
+    <div class="waterfall">
+        <div class="wf"><span>Revenue</span><div class="track"><i class="rev"></i></div><b>{{ record.revenue|money }}</b></div>
+        <div class="wf"><span>Costs</span><div class="track"><i class="cost"></i></div><b>{{ record.costs|money }}</b></div>
+        <div class="wf"><span>Profit</span><div class="track"><i class="profit"></i></div><b>{{ record.profit|money }}</b></div>
+    </div>
+    <p style="margin-top:.8rem">Margin <strong>{{ record.margin }}%</strong></p>
+    <p><a href="{% url 'reports:profitability' %}?tour={{ record.id }}">Open full profitability</a></p>
+</div>
+{% else %}
+<section class="panel">
+    {% for item in m.activity %}
+        <div class="tl" style="margin-bottom:.6rem"><i></i><div>{{ item.text }}</div></div>
+    {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>New expense</h1></div></div>
+<form class="panel form-grid" style="width:100%" onsubmit="event.preventDefault()">
+    <label>Supplier
+        <select class="field">{% for s in m.suppliers %}<option>{{ s.name }}</option>{% endfor %}<option>Overhead (no supplier)</option></select>
+    </label>
+    <label>Related tour / package
+        <select class="field">{% for t in m.tours %}<option>{{ t.name }}</option>{% endfor %}<option>General</option></select>
+    </label>
+    <label>Category
+        <select class="field">
+            <option>Hotel</option><option>Transportation</option><option>Guide</option>
+            <option>Flight</option><option>Meals</option><option>Rent</option>
+            <option>Salary</option><option>Software</option><option>Other</option>
+        </select>
+    </label>
+    <label>Amount<input class="field" type="number" value="1200"></label>
+    <label>Due date<input class="field" type="date"></label>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Save expense</button>
+        <a class="btn btn-ghost" href="{% url 'expenses:list' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

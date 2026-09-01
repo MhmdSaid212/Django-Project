@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Approval workflow</p>
+        <h1>Refunds</h1>
+        <p>Pending → Approved → Completed, or Pending → Rejected. Payments are never deleted.</p>
+    </div>
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr><th>Refund</th><th>Customer</th><th>Payment</th><th>Amount</th><th>Reason</th><th>Requested</th><th>Approver</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+        {% for r in m.refunds %}
+            <tr>
+                <td><a class="mono" href="{% url 'refunds:detail' r.id %}">{{ r.number }}</a></td>
+                <td>{{ r.customer }}</td>
+                <td>{{ r.payment }}</td>
+                <td><strong>{{ r.amount|money }}</strong></td>
+                <td>{{ r.reason }}</td>
+                <td>{{ r.requested }}</td>
+                <td>{{ r.approver }}</td>
+                <td>{% include "components/status_badge.html" with status=r.status %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

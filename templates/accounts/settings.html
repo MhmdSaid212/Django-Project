@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Agency configuration</p>
+        <h1>System settings</h1>
+    </div>
+</div>
+<div class="tabs settings-tabs">
+    <a class="is-on" href="#" data-settings-tab="agency">Agency</a>
+    <a href="#" data-settings-tab="finance">Finance</a>
+    <a href="#" data-settings-tab="tax">Tax</a>
+    <a href="#" data-settings-tab="numbering">Numbering</a>
+    <a href="#" data-settings-tab="roles">Users & roles</a>
+    <a href="#" data-settings-tab="notify">Notifications</a>
+    <a href="#" data-settings-tab="security">Security</a>
+</div>
+
+<section class="panel settings-panel" data-settings-panel="agency">
+    <div class="form-grid" style="max-width:520px">
+        <label>Agency name<input class="field" value="{{ m.settings.agency }}"></label>
+        <label>Legal name<input class="field" value="{{ m.settings.legal }}"></label>
+        <label>Phone<input class="field" value="{{ m.settings.phone }}"></label>
+        <label>Email<input class="field" value="{{ m.settings.email }}"></label>
+        <label>Address<textarea class="field" rows="2">{{ m.settings.address }}</textarea></label>
+        <button class="btn btn-warm" type="button">Save agency</button>
+    </div>
+</section>
+<section class="panel settings-panel" data-settings-panel="finance" hidden>
+    <div class="form-grid" style="max-width:420px">
+        <label>Base currency<input class="field" value="{{ m.settings.currency }}"></label>
+        <p class="muted">Amounts are stored as Decimal. Display uses this currency.</p>
+        <button class="btn btn-warm" type="button">Save finance</button>
+    </div>
+</section>
+<section class="panel settings-panel" data-settings-panel="tax" hidden>
+    <div class="form-grid" style="max-width:420px">
+        <label>Tax name<input class="field" value="{{ m.settings.tax_name }}"></label>
+        <label>Default rate (%)<input class="field" value="{{ m.settings.tax_rate }}"></label>
+        <button class="btn btn-warm" type="button">Save tax</button>
+    </div>
+</section>
+<section class="panel settings-panel" data-settings-panel="numbering" hidden>
+    <p class="muted" style="margin-bottom:.8rem">Prefixes combine with an atomic counter. Example: CUS-1001.</p>
+    <div class="num-grid">
+        {% for label, prefix in m.settings.prefixes %}
+        <div class="num-row"><span>{{ label }}</span><b>{{ prefix }}</b></div>
+        {% endfor %}
+    </div>
+</section>
+<section class="panel settings-panel" data-settings-panel="roles" hidden>
+    <p>Travel Agent — customers, bookings, tours, packages, suppliers.</p>
+    <p>Accountant — invoices, payments, refunds, expenses, reports.</p>
+    <p>Owner / Admin — everything, including users and settings.</p>
+    <p style="margin-top:.8rem"><a href="{% url 'accounts:users' %}">Open staff directory</a></p>
+</section>
+<section class="panel settings-panel" data-settings-panel="notify" hidden>
+    <label><input type="checkbox" checked> Booking confirmed</label>
+    <label><input type="checkbox" checked> Invoice overdue</label>
+    <label><input type="checkbox" checked> Refund awaiting approval</label>
+    <label><input type="checkbox" checked> Supplier payment due</label>
+</section>
+<section class="panel settings-panel" data-settings-panel="security" hidden>
+    <p class="muted">Passwords are hashed. Sessions store a non-secret snapshot only — never password_hash.</p>
+    <label>Session length<input class="field" value="8 hours" readonly></label>
+    <p style="margin-top:.8rem"><a class="btn btn-warm" href="{% url 'accounts:password' %}">Change my password</a></p>
+</section>
+{% endblock %}

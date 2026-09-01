@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">The story of each departure</p>
+        <h1>Tour profitability</h1>
+        <p>Revenue from bookings, minus hotel, transport, guide, and other costs.</p>
+    </div>
+</div>
+
+<div class="profit-row">
+    <section class="panel">
+        <div class="panel-h"><h2>Revenue vs costs</h2></div>
+        <div class="waterfall">
+            <div class="wf"><span>Revenue</span><div class="track"><i class="rev"></i></div><b>$49,640</b></div>
+            <div class="wf"><span>Supplier costs</span><div class="track"><i class="cost"></i></div><b>$31,200</b></div>
+            <div class="wf"><span>Other costs</span><div class="track"><i class="cost" style="width:18%;background:#78716c"></i></div><b>$4,100</b></div>
+            <div class="wf"><span>Gross profit</span><div class="track"><i class="profit"></i></div><b>$14,340</b></div>
+        </div>
+        <p class="muted" style="margin-top:.7rem">August 2026 · all departures</p>
+    </section>
+    <div class="stack">
+        <section class="panel">
+            <h2>Top profitable tours</h2>
+            <p style="margin-top:.5rem"><a href="?tour=tour-1004">Dubai Escape — Sep</a> · 44.3%</p>
+            <p><a href="?tour=tour-1003">Istanbul Essentials — Late Sep</a> · 39.9%</p>
+        </section>
+        <section class="panel">
+            <h2>Low margin tours</h2>
+            <p style="margin-top:.5rem"><a href="?tour=tour-1002">Istanbul Explorer</a> · 20.2%</p>
+            <p><a href="?tour=tour-1001">Cairo Discovery</a> · 34.6%</p>
+        </section>
+    </div>
+</div>
+
+<div class="panel" style="padding:0;margin-top:.85rem">
+    <table class="data">
+        <thead><tr><th>Tour</th><th>Revenue</th><th>Supplier costs</th><th>Other costs</th><th>Gross profit</th><th>Margin</th></tr></thead>
+        <tbody>
+        {% for t in m.tours %}
+            <tr>
+                <td><a href="?tour={{ t.id }}">{{ t.name }}</a></td>
+                <td>{{ t.revenue|money }}</td>
+                <td>{{ t.costs|money }}</td>
+                <td>$0</td>
+                <td><strong>{{ t.profit|money }}</strong></td>
+                <td>{{ t.margin }}%</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if selected %}
+<section class="panel" style="margin-top:.85rem">
+    <div class="panel-h">
+        <h2>{{ selected.name }} breakdown</h2>
+        {% include "components/status_badge.html" with status=selected.status %}
+    </div>
+    <div class="waterfall">
+        <div class="wf"><span>Bookings revenue</span><div class="track"><i class="rev"></i></div><b>{{ selected.revenue|money }}</b></div>
+        <div class="wf"><span>Hotel costs</span><div class="track"><i class="cost" style="width:38%"></i></div><b>$7,200</b></div>
+        <div class="wf"><span>Transport costs</span><div class="track"><i class="cost" style="width:12%"></i></div><b>$1,800</b></div>
+        <div class="wf"><span>Guide costs</span><div class="track"><i class="cost" style="width:8%"></i></div><b>$900</b></div>
+        <div class="wf"><span>Other costs</span><div class="track"><i class="cost" style="width:10%"></i></div><b>$2,000</b></div>
+        <div class="wf"><span>Final profit</span><div class="track"><i class="profit"></i></div><b>{{ selected.profit|money }}</b></div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
