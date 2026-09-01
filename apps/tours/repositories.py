@@ -1,10 +1,86 @@
+from __future__ import annotations
+
+from bson import ObjectId
 from pymongo.collection import Collection
 
-from core.constants import Collections
+from apps.expenses.constants import MONEY_FIELDS as EXPENSE_MONEY
+from apps.tours.constants import MONEY_FIELDS
+from core.constants import BookingStatus, Collections
 from core.database import get_collection
-from core.soft_delete import SoftDeleteRepositoryMixin
+from core.money import ZERO, money_dict, to_money
+from core.soft_delete import LIVE_FILTER, SoftDeleteRepositoryMixin, live_query
+from core.utils import parse_object_id
 
 
 class TourRepository(SoftDeleteRepositoryMixin):
-    def __init__(self, collection: Collection | None = None):
+    def __init__(
+        self,
+        collection: Collection | None = None,
+        *,
+        packages: Collection | None = None,
+        suppliers: Collection | None = None,
+        bookings: Collection | None = None,
+        expenses: Collection | None = None,
+        customers: Collection | None = None,
+    ):
         self.collection = collection or get_collection(Collections.TOURS)
+        self.packages = packages if packages is not None else get_collection(Collections.PACKAGES)
+        self.suppliers = suppliers if suppliers is not None else get_collection(Collections.SUPPLIERS)
+        self.bookings = bookings if bookings is not None else get_collection(Collections.BOOKINGS)
+        self.expenses = expenses if expenses is not None else get_collection(Collections.EXPENSES)
+        self.customers = customers if customers is not None else get_collection(Collections.CUSTOMERS)
+
+    def find_by_id(self, doc_id: str | ObjectId, *, include_deleted: bool = False) -> dict | None:
+        query = {"_id": parse_object_id(doc_id, field="tour_id")}
+        if not include_deleted:
+            query.update(LIVE_FILTER)
+        document = self.collection.find_one(query)
+        return money_dict(document, *MONEY_FIELDS) if document else None
+
+    def list_tours(self, extra: dict | None = None) -> list[dict]:
+        return [
+            money_dict(document, *MONEY_FIELDS)
+            for document in self.collection.find(live_query(extra)).sort("start_date", 1)
+        ]
+
+    def find_package(self, package_id: str | ObjectId) -> dict | None:
+        query = live_query({"_id": parse_object_id(package_id, field="package_id")})
+        document = self.packages.find_one(query)
+        return money_dict(document, "selling_price_per_person") if document else None
+
+    def find_supplier(self, supplier_id: str | ObjectId) -> dict | None:
+        query = live_query({"_id": parse_object_id(supplier_id, field="supplier_id")})
+        return self.suppliers.find_one(query)
+
+    def find_customer(self, customer_id: str | ObjectId) -> dict | None:
+        query = live_query({"_id": parse_object_id(customer_id, field="customer_id")})
+        return self.customers.find_one(query)
+
+    def list_bookings_for(self, tour_id: str | ObjectId) -> list[dict]:
+        query = live_query({"tour_id": parse_object_id(tour_id, field="tour_id")})
+        return list(self.bookings.find(query).sort("booking_date", -1))
+
+    def list_expenses_for(self, tour_id: str | ObjectId) -> list[dict]:
+        query = live_query({"tour_id": parse_object_id(tour_id, field="tour_id")})
+        return [
+            money_dict(document, *EXPENSE_MONEY)
+            for document in self.expenses.find(query).sort("expense_date", -1)
+        ]
+
+    def costs_by_tour(self) -> dict[str, object]:
+        totals: dict[str, object] = {}
+        for document in self.expenses.find(live_query()):
+            hydrated = money_dict(document, *EXPENSE_MONEY)
+            tour_id = hydrated.get("tour_id")
+            if not tour_id:
+                continue
+            key = str(tour_id)
+            totals[key] = to_money(totals.get(key, ZERO)) + to_money(hydrated.get("amount"))
+        return totals
+
+    def has_live_bookings(self, tour_id: str | ObjectId) -> bool:
+        oid = parse_object_id(tour_id, field="tour_id")
+        for document in self.bookings.find(live_query({"tour_id": oid})):
+            if document.get("booking_status") != BookingStatus.CANCELLED.value:
+                return True
+        return False

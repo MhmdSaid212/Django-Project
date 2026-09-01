@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero-tour">
     <div>
-        <p class="tiny">{{ record.city }} · {{ record.country }}</p>
+        <p class="tiny">{{ record.city }}{% if record.country %} · {{ record.country }}{% endif %}</p>
         <h1>{{ record.name }}</h1>
-        <p class="muted">{{ record.dates }} · {{ record.code }}</p>
+        <p class="muted">{{ record.dates }} · {{ record.code }}{% if record.package %} · {{ record.package }}{% endif %}</p>
         <div style="margin-top:.7rem;max-width:280px">
             <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.25rem">
                 <span data-cap-label>{{ record.booked }} / {{ record.capacity }} seats</span>
@@ -18,8 +18,14 @@
         <div><span class="tiny">Price</span><b>{{ record.price|money }}</b></div>
         <div><span class="tiny">Status</span><b style="font-size:1rem">{% include "components/status_badge.html" with status=record.status %}</b></div>
         <div class="actions" style="flex-direction:column">
-            <a class="btn btn-warm" href="{% url 'bookings:create' %}">Add booking</a>
+            <a class="btn btn-warm" href="{% url 'bookings:create' %}?tour_id={{ record.id }}">Add booking</a>
             <a class="btn btn-ghost" href="{% url 'tours:edit' record.id %}">Edit</a>
+            {% if not record.booked %}
+            <form method="post" action="{% url 'tours:delete' record.id %}" onsubmit="return confirm('Delete {{ record.name }}?');">
+                {% csrf_token %}
+                <button class="btn btn-ghost" type="submit">Delete</button>
+            </form>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -47,8 +53,7 @@
     <table class="data">
         <thead><tr><th>Booking</th><th>Customer</th><th>Travelers</th><th>Status</th><th>Total</th></tr></thead>
         <tbody>
-        {% for b in m.bookings %}
-            {% if b.tour_id == record.id %}
+        {% for b in record.bookings %}
             <tr>
                 <td><a href="{% url 'bookings:detail' b.id %}">{{ b.number }}</a></td>
                 <td>{{ b.customer }}</td>
@@ -56,7 +61,8 @@
                 <td>{% include "components/status_badge.html" with status=b.status %}</td>
                 <td>{{ b.total|money }}</td>
             </tr>
-            {% endif %}
+        {% empty %}
+            <tr><td colspan="5">{% include "components/empty_state.html" with title="No bookings yet" body="Confirmed seats will appear here once bookings are recorded for this departure." %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
@@ -65,24 +71,28 @@
 <div class="panel" style="padding:0">
     <table class="data">
         <thead><tr><th>Name</th><th>Passport</th><th>Type</th></tr></thead>
-        <tbody>{% for t in m.travelers %}<tr><td>{{ t.name }}</td><td class="mono">{{ t.passport }}</td><td>{{ t.type }}</td></tr>{% endfor %}</tbody>
+        <tbody>
+        {% for t in record.travelers %}
+            <tr><td>{{ t.name }}</td><td class="mono">{{ t.passport }}</td><td>{{ t.type }}</td></tr>
+        {% empty %}
+            <tr><td colspan="3"><p class="muted" style="margin:.8rem">No traveler names on file yet.</p></td></tr>
+        {% endfor %}
+        </tbody>
     </table>
 </div>
 {% elif tab == 'services' %}
 <div class="panel">
     <div class="itinerary">
-        {% regroup m.itinerary by day as days %}
-        {% for day in days %}
-            <div class="it-day">{{ day.grouper }}</div>
-            {% for block in day.list %}
+        {% for line in record.services %}
             <div class="it-block">
                 <div>
-                    <strong>{{ block.title }}</strong>
-                    <div class="muted" style="font-size:.84rem">Supplier: {{ block.supplier }}</div>
+                    <strong>{{ line.title }}</strong>
+                    <div class="muted" style="font-size:.84rem">Supplier: {{ line.supplier }}</div>
                 </div>
-                <div>Est. {{ block.est|money }}</div>
+                <div>Est. {{ line.est|money }}</div>
             </div>
-            {% endfor %}
+        {% empty %}
+            <p class="muted">No planned supplier services on this departure.</p>
         {% endfor %}
     </div>
 </div>
@@ -91,16 +101,16 @@
     <table class="data">
         <thead><tr><th>Expense</th><th>Supplier</th><th>Category</th><th>Amount</th><th>Remaining</th></tr></thead>
         <tbody>
-        {% for e in m.expenses %}
-            {% if e.related == record.name %}
+        {% for e in record.expenses %}
             <tr {% if e.overdue %}class="is-overdue"{% endif %}>
-                <td><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
+                <td>{% if nav.finance %}<a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a>{% else %}{{ e.number }}{% endif %}</td>
                 <td>{{ e.supplier }}</td>
                 <td>{{ e.category|labelize }}</td>
                 <td>{{ e.amount|money }}</td>
                 <td>{{ e.remaining|money }}</td>
             </tr>
-            {% endif %}
+        {% empty %}
+            <tr><td colspan="5"><p class="muted" style="margin:.8rem">No expenses recorded against this tour.</p></td></tr>
         {% endfor %}
         </tbody>
     </table>
@@ -108,17 +118,21 @@
 {% elif tab == 'profit' %}
 <div class="panel">
     <div class="waterfall">
-        <div class="wf"><span>Revenue</span><div class="track"><i class="rev"></i></div><b>{{ record.revenue|money }}</b></div>
-        <div class="wf"><span>Costs</span><div class="track"><i class="cost"></i></div><b>{{ record.costs|money }}</b></div>
-        <div class="wf"><span>Profit</span><div class="track"><i class="profit"></i></div><b>{{ record.profit|money }}</b></div>
+        <div class="wf"><span>Revenue</span><div class="track"><i class="rev" style="width:100%"></i></div><b>{{ record.revenue|money }}</b></div>
+        <div class="wf"><span>Costs</span><div class="track"><i class="cost" style="width:{{ record.cost_pct }}%"></i></div><b>{{ record.costs|money }}</b></div>
+        <div class="wf"><span>Profit</span><div class="track"><i class="profit" style="width:{% if record.profit > 0 %}{{ record.margin }}{% else %}0{% endif %}%"></i></div><b>{{ record.profit|money }}</b></div>
     </div>
     <p style="margin-top:.8rem">Margin <strong>{{ record.margin }}%</strong></p>
+    {% if nav.finance %}
     <p><a href="{% url 'reports:profitability' %}?tour={{ record.id }}">Open full profitability</a></p>
+    {% endif %}
 </div>
 {% else %}
 <section class="panel">
-    {% for item in m.activity %}
+    {% for item in record.activity %}
         <div class="tl" style="margin-bottom:.6rem"><i></i><div>{{ item.text }}</div></div>
+    {% empty %}
+        <p class="muted">No activity recorded yet.</p>
     {% endfor %}
 </section>
 {% endif %}

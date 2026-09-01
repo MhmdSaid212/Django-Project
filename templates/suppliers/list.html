@@ -20,20 +20,25 @@
     <table class="data">
         <thead><tr><th>Supplier</th><th>Type</th><th>Contact</th><th>Location</th><th>Amount owed</th><th>Status</th></tr></thead>
         <tbody>
-        {% for s in m.suppliers %}
-            {% if not type_filter or s.type == type_filter %}
+        {% for s in suppliers %}
             <tr>
                 <td>
                     <a href="{% url 'suppliers:detail' s.id %}"><strong>{{ s.name }}</strong></a>
                     <div class="mono muted">{{ s.number }}</div>
                 </td>
                 <td><span class="badge {{ s.type|badge_class }}">{{ s.type_label }}</span></td>
-                <td>{{ s.contact }}<br><span class="muted">{{ s.phone }}</span></td>
-                <td>{{ s.city }}</td>
+                <td>{{ s.contact|default:"—" }}<br><span class="muted">{{ s.phone|default:"—" }}</span></td>
+                <td>{{ s.city|default:"—" }}</td>
                 <td><strong>{{ s.owed|money }}</strong></td>
                 <td>{% include "components/status_badge.html" with status=s.status %}</td>
             </tr>
-            {% endif %}
+        {% empty %}
+            <tr>
+                <td colspan="6">
+                    {% url 'suppliers:create' as supplier_create_url %}
+                    {% include "components/empty_state.html" with title="No suppliers yet" body="Add a hotel, transporter, guide, or other vendor to start booking services and tracking payables." cta="New supplier" cta_url=supplier_create_url %}
+                </td>
+            </tr>
         {% endfor %}
         </tbody>
     </table>

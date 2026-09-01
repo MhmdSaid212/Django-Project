@@ -4,25 +4,40 @@
     <div>
         <p class="tiny">Departures</p>
         <h1>{{ page_heading }}</h1>
+        <p>A tour is a dated run of a package — or a one-off trip. Seats live here.</p>
     </div>
 </div>
-<form class="panel form-grid" style="max-width:680px" onsubmit="event.preventDefault()">
-    <label>Tour name<input class="field" value="{{ record.name|default:'' }}"></label>
+<form method="post" class="panel form-grid" style="max-width:680px">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label>From package{{ form.package_id }}{{ form.package_id.errors }}</label>
+    <label>Tour name{{ form.name }}{{ form.name.errors }}</label>
     <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Destination city<input class="field" value="{{ record.city|default:'' }}"></label>
-        <label>Country<input class="field" value="{{ record.country|default:'' }}"></label>
+        <label>Destination city{{ form.city }}{{ form.city.errors }}</label>
+        <label>Country{{ form.country }}{{ form.country.errors }}</label>
     </div>
     <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Start date<input class="field" type="date"></label>
-        <label>End date<input class="field" type="date"></label>
+        <label>Start date{{ form.start_date }}{{ form.start_date.errors }}</label>
+        <label>End date{{ form.end_date }}{{ form.end_date.errors }}</label>
     </div>
     <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Capacity<input class="field" type="number" value="{{ record.capacity|default:25 }}"></label>
-        <label>Selling price / traveler<input class="field" value="{{ record.price|default:650 }}"></label>
+        <label>Capacity{{ form.capacity }}{{ form.capacity.errors }}</label>
+        <label>Selling price / traveler{{ form.selling_price_per_person }}{{ form.selling_price_per_person.errors }}</label>
     </div>
+    <label>Currency{{ form.currency }}{{ form.currency.errors }}</label>
+    <label>Included{{ form.included_services }}{{ form.included_services.errors }}</label>
+    <label>Excluded{{ form.excluded_services }}{{ form.excluded_services.errors }}</label>
+    <label>Description{{ form.description }}{{ form.description.errors }}</label>
+    {% if form.status %}
+    <label>Status{{ form.status }}{{ form.status.errors }}</label>
+    {% endif %}
     <div class="actions">
-        <button class="btn btn-warm" type="submit">Save tour</button>
+        <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save tour" }}</button>
+        {% if record %}
+        <a class="btn btn-ghost" href="{% url 'tours:detail' record.id %}">Cancel</a>
+        {% else %}
         <a class="btn btn-ghost" href="{% url 'tours:list' %}">Cancel</a>
+        {% endif %}
     </div>
 </form>
 {% endblock %}
