@@ -1,87 +1,426 @@
 {% extends "base.html" %}
-{% load tourops %}
-{% block content %}
-<div class="page-head">
-    <div>
-        <p class="tiny">Reservation control</p>
-        <h1>{{ record.number }}</h1>
-        <p>{{ record.customer }} · {{ record.product }} · {{ record.destination }}</p>
-    </div>
-    <div class="actions">
-        {% if record.status != 'CANCELLED' %}
-        <button class="btn btn-ghost" type="button" data-toast="3 seats returned to Cairo Discovery.">Cancel booking</button>
-        {% endif %}
-        <a class="btn btn-ok" href="{% url 'invoices:detail' 'inv-1042' %}">Open invoice</a>
-    </div>
-</div>
 
-<div class="metrics-4">
-    <div class="metric"><span class="tiny">Travel date</span><b style="font-size:1rem">{{ record.dates }}</b></div>
-    <div class="metric"><span class="tiny">Travelers</span><b>{{ record.travelers }}</b></div>
-    <div class="metric"><span class="tiny">Total</span><b>{{ record.total|money }}</b></div>
-    <div class="metric"><span class="tiny">Payment</span><b style="font-size:1rem">{% include "components/status_badge.html" with status=record.pay %}</b></div>
-</div>
+{% block title %}{{ record.number }}{% endblock %}
+{% block page_id %}booking-detail{% endblock %}
+{% block page_title %}Booking Details{% endblock %}
 
-<div class="stepper">
-    {% if record.status == 'CANCELLED' %}
-        <div class="step is-dead">Cancelled</div>
-    {% else %}
-        <div class="step {% if record.status != 'PENDING' %}is-done{% else %}is-now{% endif %}">Pending</div>
-        <div class="step {% if record.status == 'CONFIRMED' or record.status == 'COMPLETED' %}is-done{% endif %} {% if record.status == 'CONFIRMED' %}is-now{% endif %}">Confirmed</div>
-        <div class="step {% if record.status == 'COMPLETED' %}is-done is-now{% endif %}">Completed</div>
-    {% endif %}
-</div>
+{% block page_action %}
+<div class="flex items-center gap-2">
+    <button class="border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-lg">
+        Actions ▾
+    </button>
 
-<div class="split">
-    <div class="stack">
-        <section class="panel">
-            <div class="panel-h"><h2>Traveler information</h2></div>
-            <table class="data">
-                <thead><tr><th>Name</th><th>Type</th><th>Passport</th><th>Date of birth</th></tr></thead>
-                <tbody>
-                {% for t in m.travelers %}
-                    <tr><td>{{ t.name }}</td><td>{{ t.type }}</td><td class="mono">{{ t.passport }}</td><td>{{ t.dob }}</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>{{ record.kind|labelize }}</h2></div>
-            <p><strong>{{ record.product }}</strong></p>
-            <p class="muted">{{ record.destination }} · {{ record.dates }}</p>
-            <p class="muted" style="margin-top:.35rem">Package: {{ record.package }}</p>
-            <p style="margin-top:.6rem">
-                <a href="{% url 'tours:detail' record.tour_id %}">Open tour</a>
-            </p>
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>Invoice & payments</h2></div>
-            <p>Invoice <a href="{% url 'invoices:detail' 'inv-1042' %}">INV-1042</a> · Paid {{ record.paid|money }} of {{ record.total|money }}</p>
-            {% if record.remaining %}<p class="muted">{{ record.remaining|money }} remaining</p>{% endif %}
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>Notes</h2></div>
-            <p class="note">Family prefers a Nile-view room. Child seats requested for the airport transfer.</p>
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>Activity</h2></div>
-            <div class="timeline">
-                {% for item in m.activity %}
-                <div class="tl"><i></i><div>{{ item.text }}<div class="tiny" style="text-transform:none">{{ item.time }} · {{ item.who }}</div></div></div>
-                {% endfor %}
-            </div>
-        </section>
-    </div>
-    <div class="fin">
-        <p class="tiny" style="color:#c4b5a5">Pricing</p>
-        <div class="fin-row"><span>Unit price</span><span>$600</span></div>
-        <div class="fin-row"><span>{{ record.travelers }} × price</span><span>$2,400</span></div>
-        <div class="fin-row"><span>Subtotal</span><span>$2,400</span></div>
-        <div class="fin-row"><span>Discount</span><span>$0</span></div>
-        <div class="fin-row"><span>Tax (VAT 11%)</span><span>$0 included</span></div>
-        <div class="fin-row total"><span>Total</span><span>{{ record.total|money }}</span></div>
-        <div class="fin-row"><span>Paid</span><span>{{ record.paid|money }}</span></div>
-        <div class="fin-row remain"><span>Remaining</span><span>{{ record.remaining|money }}</span></div>
-    </div>
+    <button class="bg-brand-blue hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-lg">
+        Edit Booking
+    </button>
 </div>
 {% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div class="flex items-center gap-2 text-sm text-gray-500 mb-5">
+    <a href="{% url 'bookings:list' %}" class="hover:text-brand-blue">
+        Bookings
+    </a>
+    <span>/</span>
+    <span class="text-gray-800 font-medium">{{ record.number }}</span>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+
+    <!-- MAIN -->
+    <div class="space-y-6">
+
+        <!-- Booking Header -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-bold text-gray-900">
+                            {{ record.number }}
+                        </h2>
+
+                        {% if record.status == "CONFIRMED" %}
+                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                Confirmed
+                            </span>
+                        {% elif record.status == "PENDING" %}
+                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                                Pending
+                            </span>
+                        {% elif record.status == "CANCELLED" %}
+                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                Cancelled
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        Created for {{ record.customer }}
+                    </p>
+                </div>
+
+                <div class="text-sm text-gray-500">
+                    {{ record.kind }}
+                </div>
+
+            </div>
+
+            <!-- Booking Information -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-7 pt-6 border-t border-gray-100">
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wide">
+                        Customer
+                    </p>
+                    <p class="font-medium text-gray-900 mt-1">
+                        {{ record.customer }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wide">
+                        Destination
+                    </p>
+                    <p class="font-medium text-gray-900 mt-1">
+                        {{ record.destination }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wide">
+                        Travel Dates
+                    </p>
+                    <p class="font-medium text-gray-900 mt-1">
+                        {{ record.dates }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wide">
+                        Travelers
+                    </p>
+                    <p class="font-medium text-gray-900 mt-1">
+                        {{ record.travelers }}
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Progress -->
+            <div class="mt-7">
+
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+                    <span>Booking progress</span>
+                    <span>{{ record.status|title }}</span>
+                </div>
+
+                <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-brand-teal rounded-full w-3/4"></div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Travelers -->
+        <div class="bg-white rounded-xl border border-gray-200">
+
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="font-semibold text-gray-900">
+                    Travelers
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-1">
+                    {{ record.travelers }} travelers on this booking
+                </p>
+            </div>
+
+            <div class="divide-y divide-gray-100">
+
+                {% for traveler in m.travelers %}
+
+                    <div class="px-6 py-4 flex items-center justify-between">
+
+                        <div>
+                            <p class="font-medium text-gray-900">
+                                {{ traveler.name }}
+                            </p>
+
+                            <p class="text-sm text-gray-500 mt-1">
+                                {{ traveler.type }} · Passport {{ traveler.passport }}
+                            </p>
+                        </div>
+
+                        <div class="text-sm text-gray-500">
+                            DOB {{ traveler.dob }}
+                        </div>
+
+                    </div>
+
+                {% empty %}
+
+                    <div class="px-6 py-6 text-sm text-gray-500">
+                        No travelers found.
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+        <!-- Itinerary -->
+        <div class="bg-white rounded-xl border border-gray-200">
+
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="font-semibold text-gray-900">
+                    Itinerary
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-1">
+                    Services and activities included in the booking
+                </p>
+            </div>
+
+            <div class="divide-y divide-gray-100">
+
+                {% for item in m.itinerary %}
+
+                    <div class="px-6 py-4 flex items-center justify-between gap-4">
+
+                        <div>
+                            <p class="text-xs font-medium text-brand-blue">
+                                {{ item.day }}
+                            </p>
+
+                            <p class="font-medium text-gray-900 mt-1">
+                                {{ item.title }}
+                            </p>
+
+                            <p class="text-sm text-gray-500 mt-1">
+                                {{ item.supplier }}
+                            </p>
+                        </div>
+
+                        <div class="font-semibold text-gray-900 whitespace-nowrap">
+                            ${{ item.est }}
+                        </div>
+
+                    </div>
+
+                {% empty %}
+
+                    <div class="px-6 py-6 text-sm text-gray-500">
+                        No itinerary items found.
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+        <!-- Notes -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+            <h3 class="font-semibold text-gray-900">
+                Notes
+            </h3>
+
+            <p class="text-sm text-gray-500 mt-3">
+                No notes have been added to this booking yet.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="space-y-6">
+
+        <!-- Financial Summary -->
+        <div class="bg-navy text-white rounded-xl p-6">
+
+            <h3 class="font-semibold text-lg">
+                Booking Summary
+            </h3>
+
+            <div class="mt-6 space-y-4">
+
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-300">
+                        Booking total
+                    </span>
+
+                    <span class="font-medium">
+                        ${{ record.total }}
+                    </span>
+                </div>
+
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-300">
+                        Paid
+                    </span>
+
+                    <span class="font-medium text-brand-tealLight">
+                        ${{ record.paid }}
+                    </span>
+                </div>
+
+                <div class="border-t border-white/10 pt-4 flex justify-between">
+
+                    <span class="text-slate-300">
+                        Remaining
+                    </span>
+
+                    <span class="text-xl font-bold">
+                        ${{ record.remaining }}
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Tour -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+            <h3 class="font-semibold text-gray-900">
+                Tour
+            </h3>
+
+            <div class="mt-5">
+
+                <p class="font-medium text-gray-900">
+                    {{ record.product }}
+                </p>
+
+                <p class="text-sm text-gray-500 mt-1">
+                    {{ record.package }}
+                </p>
+
+                <div class="mt-4 pt-4 border-t border-gray-100">
+
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">
+                            Tour ID
+                        </span>
+
+                        <span class="font-medium">
+                            {{ record.tour_id }}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between text-sm mt-3">
+                        <span class="text-gray-500">
+                            Destination
+                        </span>
+
+                        <span class="font-medium">
+                            {{ record.destination }}
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Payment Status -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+            <div class="flex items-center justify-between">
+
+                <h3 class="font-semibold text-gray-900">
+                    Payment
+                </h3>
+
+                {% if record.pay == "PAID" %}
+
+                    <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+                        Paid
+                    </span>
+
+                {% elif record.pay == "PARTIALLY_PAID" %}
+
+                    <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                        Partially Paid
+                    </span>
+
+                {% else %}
+
+                    <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+                        Unpaid
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+            <div class="mt-5">
+
+                <div class="flex justify-between text-sm mb-2">
+
+                    <span class="text-gray-500">
+                        Payment progress
+                    </span>
+
+                    <span class="font-medium">
+                        ${{ record.paid }} / ${{ record.total }}
+                    </span>
+
+                </div>
+
+                <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+
+                    <div class="h-full bg-brand-teal rounded-full w-3/4"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+            <h3 class="font-semibold text-gray-900">
+                Quick Actions
+            </h3>
+
+            <div class="mt-4 space-y-2">
+
+                <a
+                    href="{% url 'invoices:list' %}"
+                    class="block w-full text-center border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2.5 rounded-lg"
+                >
+                    View Invoice
+                </a>
+
+                <a
+                    href="{% url 'payments:list' %}"
+                    class="block w-full text-center border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2.5 rounded-lg"
+                >
+                    View Payments
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+

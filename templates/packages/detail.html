@@ -24,16 +24,25 @@
     <div class="stack">
         <section class="panel">
             <h2>Included</h2>
+<<<<<<< HEAD
             <p style="margin-top:.5rem">{{ record.includes|default:"—" }}</p>
         </section>
         <section class="panel">
             <h2>Excluded</h2>
             <p style="margin-top:.5rem">{{ record.excluded|default:"—" }}</p>
+=======
+            <p style="margin-top:.5rem">{{ record.includes }}</p>
+        </section>
+        <section class="panel">
+            <h2>Excluded</h2>
+            <p style="margin-top:.5rem">{{ record.excluded }}</p>
+>>>>>>> dev1/UI-customer-booking
         </section>
         <section class="panel">
             <h2>Supplier plan</h2>
             <p class="muted" style="margin-top:.4rem">Typical service mix for this product. Costs become expenses when a departure is operated.</p>
             <div class="itinerary" style="margin-top:.7rem">
+<<<<<<< HEAD
                 {% for line in record.services %}
                 <div class="it-block">
                     <div>
@@ -55,11 +64,22 @@
                 <p class="muted" style="margin-top:.5rem">No dated tours yet. <a href="{% url 'tours:create' %}?package_id={{ record.id }}">Create a departure</a>.</p>
             {% endfor %}
         </section>
+=======
+                <div class="it-block"><div><strong>Hotel</strong><div class="muted">Partner hotel in {{ record.city }}</div></div><div>Included</div></div>
+                <div class="it-block"><div><strong>Transfers</strong><div class="muted">Airport and local moves</div></div><div>Included</div></div>
+                <div class="it-block"><div><strong>Guided experiences</strong><div class="muted">As listed in inclusions</div></div><div>Included</div></div>
+            </div>
+        </section>
+>>>>>>> dev1/UI-customer-booking
     </div>
     <div class="fin">
         <p class="tiny" style="color:#c4b5a5">From price</p>
         <div class="fin-row total"><span>Per person</span><span>{{ record.price|money }}</span></div>
+<<<<<<< HEAD
         <p class="muted" style="margin-top:.8rem;font-size:.82rem">No capacity bar — packages are not dated seat inventories. Default departure size: {{ record.default_capacity }}.</p>
+=======
+        <p class="muted" style="margin-top:.8rem;font-size:.82rem">No capacity bar — packages are not dated seat inventories.</p>
+>>>>>>> dev1/UI-customer-booking
     </div>
 </div>
 {% endblock %}

@@ -76,7 +76,14 @@ class SoftDeleteRepositoryMixin:
         )
 
     def restore(self, doc_id: str):
-        return self.collection.update_one(
-            {"_id": parse_object_id(doc_id), "is_deleted": True},
-            {"$set": restore_set()},
-        )
+     result = self.collection.update_one(
+        {"_id": parse_object_id(doc_id), "is_deleted": True},
+        {"$set": restore_set()},
+    )
+
+     if result.matched_count == 0:
+        return None
+
+     return self.collection.find_one({
+        "_id": parse_object_id(doc_id)
+    })

@@ -38,6 +38,7 @@ class BookingDocument:
     created_by: ObjectId
     created_at: datetime
     updated_at: datetime
+    updated_by: ObjectId
     travelers: list[Traveler] = field(default_factory=list)
     pricing: BookingPricing = field(default_factory=BookingPricing)
     booking_status: str = BookingStatus.PENDING.value

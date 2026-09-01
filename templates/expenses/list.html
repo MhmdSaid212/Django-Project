@@ -28,7 +28,11 @@
             <tr><th>Expense</th><th>Supplier</th><th>Related</th><th>Category</th><th>Amount</th><th>Paid</th><th>Remaining</th><th>Due</th><th>Status</th></tr>
         </thead>
         <tbody>
+<<<<<<< HEAD
         {% for e in expenses %}
+=======
+        {% for e in m.expenses %}
+>>>>>>> dev1/UI-customer-booking
             <tr class="{% if e.overdue %}is-overdue{% endif %}">
                 <td><a class="mono" href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
                 <td>{{ e.supplier }}</td>
@@ -40,6 +44,7 @@
                 <td>{{ e.due }}{% if e.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
                 <td>{% include "components/status_badge.html" with status=e.status %}</td>
             </tr>
+<<<<<<< HEAD
         {% empty %}
             <tr>
                 <td colspan="9">
@@ -47,6 +52,8 @@
                     {% include "components/empty_state.html" with title="No expenses yet" body="Record a supplier bill or overhead cost to start tracking payables." cta="New expense" cta_url=expense_create_url %}
                 </td>
             </tr>
+=======
+>>>>>>> dev1/UI-customer-booking
         {% endfor %}
         </tbody>
     </table>

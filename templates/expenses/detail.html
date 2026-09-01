@@ -25,7 +25,11 @@
     <div class="metric"><span class="tiny">Expense</span><b>{{ record.amount|money }}</b></div>
     <div class="metric"><span class="tiny">Paid</span><b>{{ record.paid|money }}</b></div>
     <div class="metric"><span class="tiny">Remaining</span><b>{{ record.remaining|money }}</b></div>
+<<<<<<< HEAD
     <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ record.due }}{% if record.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</b></div>
+=======
+    <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ record.due }}</b></div>
+>>>>>>> dev1/UI-customer-booking
 </div>
 <div class="two-col">
     <section class="panel">
@@ -35,6 +39,7 @@
             <dt>Scope</dt><dd>{{ record.scope|labelize }}</dd>
             <dt>Supplier</dt><dd>{{ record.supplier }}</dd>
             <dt>Related tour</dt><dd>{{ record.related }}</dd>
+<<<<<<< HEAD
             <dt>Expense date</dt><dd>{{ record.expense_date_display }}</dd>
             <dt>Currency</dt><dd>{{ record.currency }}</dd>
         </dl>
@@ -54,6 +59,19 @@
         {% empty %}
             <p class="muted" style="margin-top:.5rem">No payments recorded yet.</p>
         {% endfor %}
+=======
+        </dl>
+        <p class="muted" style="margin-top:.8rem">Invoice / receipt document: hotel_proforma_1041.pdf</p>
+    </section>
+    <section class="panel">
+        <h2>Supplier payments</h2>
+        {% for sp in m.supplier_payments %}
+            {% if sp.expense_id == record.id %}
+            <p style="margin-top:.5rem"><a href="{% url 'supplier_payments:detail' sp.id %}">{{ sp.number }}</a> · {{ sp.amount|money }} · {{ sp.date }}</p>
+            {% endif %}
+        {% endfor %}
+        {% if record.paid == 0 %}<p class="muted" style="margin-top:.5rem">No payments recorded yet.</p>{% endif %}
+>>>>>>> dev1/UI-customer-booking
     </section>
 </div>
 {% endblock %}
