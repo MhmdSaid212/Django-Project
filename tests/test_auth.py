@@ -98,12 +98,46 @@ def test_login_page_and_success(client):
     _create_user()
     response = client.get(reverse("accounts:login"))
     assert response.status_code == 200
+    assert b"Welcome back" in response.content
+    assert b"Forgot password?" in response.content
     response = client.post(
         reverse("accounts:login"),
         {"email": "owner@tourops.local", "password": "changeme1"},
     )
     assert response.status_code == 302
     assert reverse("dashboard:owner") in response["Location"]
+
+
+def test_password_reset_page_and_success(client):
+    _create_user()
+    response = client.get(reverse("accounts:password_reset"))
+    assert response.status_code == 200
+    assert b"Reset password" in response.content
+    response = client.post(
+        reverse("accounts:password_reset"),
+        {
+            "email": "owner@tourops.local",
+            "new_password": "newpass99",
+            "confirm_password": "newpass99",
+        },
+    )
+    assert response.status_code == 302
+    assert reverse("accounts:login") in response["Location"]
+    user = AuthService().authenticate("owner@tourops.local", "newpass99")
+    assert user["email"] == "owner@tourops.local"
+
+
+def test_api_password_reset(client):
+    _create_user()
+    response = client.post(
+        "/api/auth/password/reset/",
+        data=json.dumps({"email": "owner@tourops.local", "password": "apireset99"}),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    user = AuthService().authenticate("owner@tourops.local", "apireset99")
+    assert user["email"] == "owner@tourops.local"
 
 
 def test_login_rejects_open_redirect(client):

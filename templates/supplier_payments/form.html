@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Accounts payable</p>
+        <h1>{{ page_heading }}</h1>
+        <p>Pay against an expense bill. Amount cannot exceed remaining balance.</p>
+    </div>
+</div>
+
+{% if bill %}
+<section class="panel" style="margin-bottom:.85rem">
+    <p class="tiny">Selected bill</p>
+    <h2 style="margin:.2rem 0">{{ bill.supplier }}</h2>
+    <p class="muted">Expense <a href="{% url 'expenses:detail' bill.id %}">{{ bill.number }}</a></p>
+    <div class="metrics-4" style="margin-top:.8rem">
+        <div class="metric"><span class="tiny">Total</span><b>{{ bill.amount|money }}</b></div>
+        <div class="metric"><span class="tiny">Already paid</span><b>{{ bill.paid|money }}</b></div>
+        <div class="metric"><span class="tiny">Remaining</span><b>{{ bill.remaining|money }}</b></div>
+        <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ bill.due }}</b></div>
+    </div>
+</section>
+{% endif %}
+
+{% if form %}
+<form method="post" class="panel form-grid" style="max-width:640px">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% if not bill %}
+    <label>Expense{{ form.expense_id }}{{ form.expense_id.errors }}</label>
+    {% else %}
+    {{ form.expense_id }}{{ form.expense_id.errors }}
+    {% endif %}
+    <label>Payment amount{{ form.amount }}{{ form.amount.errors }}</label>
+    {% if bill %}
+    <p class="err-inline" data-sp-error>Amount cannot exceed the remaining supplier balance of {{ bill.remaining|money }}.</p>
+    <p>Remaining after payment: <strong data-sp-after>{{ bill.remaining|money }}</strong></p>
+    {% endif %}
+    <label>Method{{ form.payment_method }}{{ form.payment_method.errors }}</label>
+    <label>Payment date{{ form.payment_date }}{{ form.payment_date.errors }}</label>
+    <label>Reference{{ form.reference_number }}{{ form.reference_number.errors }}</label>
+    <label>Notes{{ form.notes }}{{ form.notes.errors }}</label>
+    {{ form.currency.as_hidden }}
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Record payment</button>
+        <a class="btn btn-ghost" href="{% url 'supplier_payments:list' %}">Cancel</a>
+    </div>
+</form>
+{% else %}
+{% url 'expenses:list' as expenses_url %}
+{% include "components/empty_state.html" with title="No open supplier bills" body="Create a supplier expense with a remaining balance before recording a payment." cta="View expenses" cta_url=expenses_url %}
+{% endif %}
+{% endblock %}

@@ -9,17 +9,18 @@
     </div>
     <div class="actions"><a class="btn btn-warm" href="{% url 'expenses:create' %}">New expense</a></div>
 </div>
-<div class="filters" data-chips>
-    <button type="button" class="chip is-on">All</button>
-    <button type="button" class="chip">Hotel</button>
-    <button type="button" class="chip">Transportation</button>
-    <button type="button" class="chip">Guide</button>
-    <button type="button" class="chip">Flight</button>
-    <button type="button" class="chip">Meals</button>
-    <button type="button" class="chip">Rent</button>
-    <button type="button" class="chip">Salary</button>
-    <button type="button" class="chip">Software</button>
-    <button type="button" class="chip">Other</button>
+<div class="filters">
+    <a class="chip {% if not category %}is-on{% endif %}" href="{% url 'expenses:list' %}{% if status %}?status={{ status }}{% endif %}">All</a>
+    {% for value, label in category_choices %}
+    <a class="chip {% if category == value %}is-on{% endif %}" href="?category={{ value }}{% if status %}&status={{ status }}{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>
+<div class="filters" style="margin-top:.5rem">
+    <a class="chip {% if not status and not overdue %}is-on{% endif %}" href="{% url 'expenses:list' %}{% if category %}?category={{ category }}{% endif %}">Any status</a>
+    {% for value, label in status_choices %}
+    <a class="chip {% if status == value %}is-on{% endif %}" href="?status={{ value }}{% if category %}&category={{ category }}{% endif %}">{{ label }}</a>
+    {% endfor %}
+    <a class="chip {% if overdue %}is-on{% endif %}" href="?overdue=1{% if category %}&category={{ category }}{% endif %}">Overdue</a>
 </div>
 <div class="panel" style="padding:0">
     <table class="data">
@@ -27,7 +28,7 @@
             <tr><th>Expense</th><th>Supplier</th><th>Related</th><th>Category</th><th>Amount</th><th>Paid</th><th>Remaining</th><th>Due</th><th>Status</th></tr>
         </thead>
         <tbody>
-        {% for e in m.expenses %}
+        {% for e in expenses %}
             <tr class="{% if e.overdue %}is-overdue{% endif %}">
                 <td><a class="mono" href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
                 <td>{{ e.supplier }}</td>
@@ -38,6 +39,13 @@
                 <td><strong>{{ e.remaining|money }}</strong></td>
                 <td>{{ e.due }}{% if e.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
                 <td>{% include "components/status_badge.html" with status=e.status %}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="9">
+                    {% url 'expenses:create' as expense_create_url %}
+                    {% include "components/empty_state.html" with title="No expenses yet" body="Record a supplier bill or overhead cost to start tracking payables." cta="New expense" cta_url=expense_create_url %}
+                </td>
             </tr>
         {% endfor %}
         </tbody>

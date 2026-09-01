@@ -42,6 +42,20 @@ def logout(request):
     return success_response({"signed_out": True})
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def password_reset(request):
+    try:
+        payload = _json_body(request)
+        user = AuthService().reset_password_by_email(
+            payload.get("email") or "",
+            payload.get("password") or payload.get("new_password") or "",
+        )
+    except TourOpsError as exc:
+        return from_exception(exc)
+    return success_response(present_user(user))
+
+
 def me(request):
     session_user = get_session_user(request)
     try:

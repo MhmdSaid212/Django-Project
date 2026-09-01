@@ -7,6 +7,7 @@ from apps.accounts.forms import (
     ChangePasswordForm,
     ChangeRoleForm,
     LoginForm,
+    PasswordResetRequestForm,
     ResetPasswordForm,
     StaffUserForm,
 )
@@ -63,6 +64,33 @@ def logout_view(request):
     clear_session_user(request)
     messages.success(request, "You have been signed out.")
     return redirect("accounts:login")
+
+
+@require_http_methods(["GET", "POST"])
+def password_reset_view(request):
+    if get_session_user(request):
+        return redirect("accounts:password")
+
+    form = PasswordResetRequestForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            AuthService().reset_password_by_email(
+                form.cleaned_data["email"],
+                form.cleaned_data["new_password"],
+            )
+        except DatabaseUnavailableError:
+            messages.error(request, "Cannot reach MongoDB. Check MONGODB_URI and that MongoDB is running.")
+        except TourOpsError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, "Password updated. You can sign in with your new password.")
+            return redirect("accounts:login")
+
+    return render(
+        request,
+        "accounts/password_reset.html",
+        {"form": form, "page_title": "Reset password"},
+    )
 
 
 @login_required

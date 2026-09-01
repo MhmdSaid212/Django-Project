@@ -1,25 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head"><div><h1>New expense</h1></div></div>
-<form class="panel form-grid" style="max-width:640px" onsubmit="event.preventDefault()">
-    <label>Supplier
-        <select class="field">{% for s in m.suppliers %}<option>{{ s.name }}</option>{% endfor %}<option>Overhead (no supplier)</option></select>
-    </label>
-    <label>Related tour / package
-        <select class="field">{% for t in m.tours %}<option>{{ t.name }}</option>{% endfor %}<option>General</option></select>
-    </label>
-    <label>Category
-        <select class="field">
-            <option>Hotel</option><option>Transportation</option><option>Guide</option>
-            <option>Flight</option><option>Meals</option><option>Rent</option>
-            <option>Salary</option><option>Software</option><option>Other</option>
-        </select>
-    </label>
-    <label>Amount<input class="field" type="number" value="1200"></label>
-    <label>Due date<input class="field" type="date"></label>
+<div class="page-head">
+    <div>
+        <p class="tiny">Expenses</p>
+        <h1>{{ page_heading }}</h1>
+        <p>Supplier bills and overhead. Tour-scoped costs must be linked to a tour.</p>
+    </div>
+</div>
+<form method="post" class="panel form-grid" style="max-width:640px">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label>Scope{{ form.expense_scope }}{{ form.expense_scope.errors }}</label>
+    <label>Category{{ form.category }}{{ form.category.errors }}</label>
+    <label>Supplier{{ form.supplier_id }}{{ form.supplier_id.errors }}</label>
+    <label>Related tour{{ form.tour_id }}{{ form.tour_id.errors }}</label>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Amount{{ form.amount }}{{ form.amount.errors }}</label>
+        <label>Currency{{ form.currency }}{{ form.currency.errors }}</label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Expense date{{ form.expense_date }}{{ form.expense_date.errors }}</label>
+        <label>Due date{{ form.due_date }}{{ form.due_date.errors }}</label>
+    </div>
+    <label>Description{{ form.description }}{{ form.description.errors }}</label>
+    <label>Receipt / invoice file{{ form.receipt_file }}{{ form.receipt_file.errors }}</label>
     <div class="actions">
-        <button class="btn btn-warm" type="submit">Save expense</button>
+        <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save expense" }}</button>
+        {% if record %}
+        <a class="btn btn-ghost" href="{% url 'expenses:detail' record.id %}">Cancel</a>
+        {% else %}
         <a class="btn btn-ghost" href="{% url 'expenses:list' %}">Cancel</a>
+        {% endif %}
     </div>
 </form>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const scope = document.querySelector('[name="expense_scope"]');
+    const tour = document.querySelector('[name="tour_id"]');
+    if (!scope || !tour) return;
+    const row = tour.closest("label");
+    function sync() {
+        const isTour = scope.value === "TOUR";
+        tour.disabled = !isTour;
+        if (row) row.style.opacity = isTour ? "1" : "0.55";
+        if (!isTour) tour.value = "";
+    }
+    scope.addEventListener("change", sync);
+    sync();
+})();
+</script>
 {% endblock %}

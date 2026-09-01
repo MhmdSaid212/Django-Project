@@ -8,7 +8,10 @@ from tests.fakes import FakeMongo
 def fake_mongo(monkeypatch):
     mongo = FakeMongo()
     monkeypatch.setattr("core.database.get_collection", mongo.get_collection)
+    monkeypatch.setattr("core.numbering.get_collection", mongo.get_collection)
     monkeypatch.setattr("apps.accounts.repositories.get_collection", mongo.get_collection)
+    monkeypatch.setattr("apps.expenses.repositories.get_collection", mongo.get_collection)
+    monkeypatch.setattr("apps.supplier_payments.repositories.get_collection", mongo.get_collection)
     return mongo
 
 

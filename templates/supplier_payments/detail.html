@@ -5,14 +5,24 @@
     <div>
         <p class="tiny">{{ record.number }}</p>
         <h1>{{ record.amount|money }}</h1>
-        <p>{{ record.supplier }} · {{ record.expense }}</p>
+        <p>{{ record.supplier }} · {% if record.expense_id %}<a href="{% url 'expenses:detail' record.expense_id %}">{{ record.expense }}</a>{% else %}{{ record.expense }}{% endif %}</p>
+    </div>
+    <div class="actions">
+        <form method="post" action="{% url 'supplier_payments:void' record.id %}" onsubmit="return confirm('Void {{ record.number }}? The expense balance will be recalculated.');">
+            {% csrf_token %}
+            <button class="btn btn-ghost" type="submit">Void payment</button>
+        </form>
     </div>
 </div>
 <section class="panel">
     <dl class="kv">
         <dt>Date</dt><dd>{{ record.date }}</dd>
         <dt>Method</dt><dd>{{ record.method|labelize }}</dd>
-        <dt>Reference</dt><dd class="mono">{{ record.ref }}</dd>
+        <dt>Reference</dt><dd class="mono">{{ record.ref|default:"—" }}</dd>
+        <dt>Currency</dt><dd>{{ record.currency }}</dd>
+        {% if record.notes %}
+        <dt>Notes</dt><dd>{{ record.notes }}</dd>
+        {% endif %}
     </dl>
 </section>
 {% endblock %}
