@@ -1,38 +1,67 @@
-{% extends "base.html" %}
+{% extends "base_invoices.html" %}
 {% load tourops %}
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Customer finance</p>
         <h1>Invoices</h1>
-        <p>What customers owe, what they’ve paid, and what is overdue.</p>
+        <p>Manage and track all your invoices</p>
     </div>
+    <a class="btn-blue" href="{% url 'invoices:create' %}">+ New Invoice</a>
 </div>
-<div class="panel" style="padding:0">
+
+<form method="get" class="filter-card">
+    <div class="fl">
+        <span class="lab">Status</span>
+        <select class="field" name="status" onchange="this.form.submit()">
+            {% for tab in status_tabs %}
+            <option value="{{ tab.value }}" {% if tab.active %}selected{% endif %}>{{ tab.label }} ({{ tab.count }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="fl" style="flex:1">
+        <span class="lab">Search</span>
+        <input class="field" style="width:100%" type="search" name="q" value="{{ search }}" placeholder="Search invoices…">
+    </div>
+    <button class="btn-soft" type="submit">Filters</button>
+</form>
+
+<div class="card-table">
     <table class="data">
         <thead>
             <tr>
-                <th>Invoice</th><th>Customer</th><th>Booking</th><th>Issue</th><th>Due</th>
-                <th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th>
+                <th style="width:34px"></th>
+                <th>Invoice</th><th>Customer</th><th>Booking</th>
+                <th>Issue Date</th><th>Due Date</th>
+                <th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th><th></th>
             </tr>
         </thead>
         <tbody>
-            {% for inv in m.invoices %}
+            {% for inv in rows %}
             <tr class="{% if inv.overdue %}is-overdue{% endif %}">
-                <td><a class="mono" href="{% url 'invoices:detail' inv.id %}"><strong>{{ inv.number }}</strong></a></td>
-                <td>{{ inv.customer }}</td>
-                <td>{{ inv.booking }}</td>
+                <td><input type="checkbox" aria-label="Select {{ inv.number }}"></td>
+                <td><a class="inv-id" href="{% url 'invoices:detail' inv.id %}">{{ inv.number }}</a></td>
+                <td>
+                    <span class="rowc">
+                        <span class="av" style="background:var(--navy)">{{ inv.customer|slice:":1"|upper }}</span>
+                        {{ inv.customer }}
+                    </span>
+                </td>
+                <td><a class="bk-id" href="#">{{ inv.booking }}</a></td>
                 <td>{{ inv.issue }}</td>
-                <td>{{ inv.due }}{% if inv.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
+                <td {% if inv.overdue %}style="color:#c2410c"{% endif %}>{{ inv.due }}</td>
                 <td>{{ inv.total|money }}</td>
-                <td>{{ inv.paid|money }}</td>
+                <td class="amt-paid">{{ inv.paid|money }}</td>
                 <td><strong>{{ inv.remaining|money }}</strong></td>
-                <td>{% include "components/status_badge.html" with status=inv.status %}</td>
+                <td><span class="pill {{ inv.status|lower }}{% if inv.overdue %} overdue{% endif %}">{% if inv.overdue %}OVERDUE{% else %}{{ inv.status }}{% endif %}</span></td>
+                <td style="color:#94a3b8;font-weight:800">⋮</td>
             </tr>
             {% empty %}
-            <tr><td colspan="9">{% include "components/empty_state.html" with title="No outstanding invoices" body="Nice work — every customer invoice is currently settled." %}</td></tr>
+            <tr><td colspan="11" style="text-align:center;padding:2rem;color:#94a3b8">No invoices found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
+    <div class="table-foot">
+        <span>Showing {{ rows|length }} of {{ total_count }} invoices</span>
+    </div>
 </div>
 {% endblock %}

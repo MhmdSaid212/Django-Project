@@ -1,0 +1,159 @@
+{% load static tourops %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ page_title }}{% endblock %} · {{ brand.name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <style>
+    /* ===== Invoices-only cool theme — scoped, does NOT affect other pages ===== */
+    .inv-theme.app-body{ background:#f6f8fb; }
+    .inv-theme .sidebar{ background:#0d1b2a; width:212px; }
+    .inv-theme .sidebar-brand{ border-bottom:0; padding:1.15rem 1rem; }
+    .inv-theme .sidebar-nav a{ color:#c3cdd8; border-left:0; border-radius:10px; margin:2px .55rem; padding:.55rem .8rem; font-weight:600; }
+    .inv-theme .sidebar-nav a:hover{ background:rgba(255,255,255,.06); color:#fff; }
+    .inv-theme .sidebar-nav a.is-active{ background:#14b8a6; color:#fff; }
+    .inv-theme .sidebar-nav a.is-active .nav-ico{ opacity:1; }
+    .inv-theme .nav-group{ display:flex; align-items:center; justify-content:space-between; color:#8ea0b2; font-weight:700; font-size:.86rem; padding:.55rem .8rem; margin:.35rem .55rem 0; }
+    .inv-theme .sidebar-foot{ border-top:1px solid rgba(255,255,255,.06); }
+    .inv-theme .sidebar-user strong{ color:#fff; font-size:.86rem; display:block; }
+    .inv-theme .sidebar-user small{ color:#8ea0b2; font-size:.74rem; }
+
+    /* top bar */
+    .inv-theme .navbar{ background:#fff; border-bottom:1px solid #e6ebf1; }
+    .inv-theme .search{ background:#f1f5f9; border:1px solid #e6ebf1; border-radius:10px; width:min(430px,40vw); }
+    .inv-theme .icon-btn{ background:#fff; border:1px solid #e6ebf1; color:#64748b; }
+    .inv-theme .icon-btn .badge-count{ position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 4px; background:#2563eb; color:#fff; border-radius:999px; font-size:.62rem; font-weight:800; display:grid; place-items:center; border:2px solid #fff; }
+
+    /* page head + primary button */
+    .inv-theme h1{ color:#0f2233; font-size:2rem; }
+    .inv-theme .btn-blue{ background:#2563eb; color:#fff; border:0; border-radius:10px; padding:.65rem 1.05rem; font-weight:700; font-size:.9rem; }
+    .inv-theme .btn-blue:hover{ filter:brightness(1.05); color:#fff; }
+
+    /* list filters */
+    .inv-theme .filter-card{ background:#fff; border:1px solid #e6ebf1; border-radius:14px; padding:1rem; display:flex; gap:.85rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem; }
+    .inv-theme .fl{ display:flex; flex-direction:column; gap:.3rem; }
+    .inv-theme .fl .lab{ font-size:.66rem; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+    .inv-theme .field{ border:1px solid #e2e8f0; border-radius:10px; background:#fff; padding:.55rem .7rem; font:inherit; min-width:170px; }
+    .inv-theme .btn-soft{ background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:.6rem .85rem; color:#334155; font-weight:600; font-size:.85rem; cursor:pointer; }
+
+    /* list table */
+    .inv-theme .card-table{ background:#fff; border:1px solid #e6ebf1; border-radius:14px; overflow:hidden; }
+    .inv-theme table.data th{ background:#fff; color:#94a3b8; border-bottom:1px solid #eef2f6; padding:.85rem .8rem; }
+    .inv-theme table.data td{ border-bottom:1px solid #f1f5f9; padding:.8rem; font-size:.88rem; color:#1e293b; }
+    .inv-theme table.data tr:hover td{ background:#f9fbfd; }
+    .inv-theme table.data tr.is-overdue td{ background:#fff8f5; }
+    .inv-theme a.inv-id, .inv-theme a.bk-id{ color:#2563eb; font-weight:700; }
+    .inv-theme .amt-paid{ color:#0ea371; font-weight:600; }
+    .inv-theme .rowc{ display:flex; align-items:center; gap:.55rem; }
+    .inv-theme .av{ width:30px; height:30px; border-radius:50%; display:inline-grid; place-items:center; color:#fff; font-size:.72rem; font-weight:700; }
+    .inv-theme .table-foot{ display:flex; justify-content:space-between; align-items:center; padding:.9rem 1rem; color:#64748b; font-size:.85rem; }
+
+    /* status pills (shared list + detail) */
+    .inv-theme .pill{ display:inline-flex; padding:.22rem .6rem; border-radius:999px; font-size:.68rem; font-weight:800; letter-spacing:.02em; }
+    .inv-theme .pill.partially_paid{ background:#fde7ef; color:#be185d; }
+    .inv-theme .pill.paid{ background:#dcfce7; color:#15803d; }
+    .inv-theme .pill.issued{ background:#e0edff; color:#1d4ed8; }
+    .inv-theme .pill.draft{ background:#eef2f6; color:#64748b; }
+    .inv-theme .pill.cancelled{ background:#fee2e2; color:#b91c1c; }
+    .inv-theme .pill.overdue{ background:#fff1e6; color:#c2410c; }
+
+    /* invoice detail sheet */
+    .inv-theme .btn-teal{ background:#0f9488; color:#fff; border:0; border-radius:10px; padding:.6rem 1rem; font-weight:700; }
+    .inv-theme .btn-teal:hover{ filter:brightness(1.06); color:#fff; }
+    .inv-theme .btn-out{ background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:.6rem 1rem; color:#334155; font-weight:600; cursor:pointer; }
+    .inv-theme .btn-out.dis{ color:#cbd5e1; border-color:#eef2f6; cursor:not-allowed; }
+    .inv-theme .sheet{ background:#fff; border:1px solid #e6ebf1; border-radius:16px; overflow:hidden; max-width:960px; }
+    .inv-theme .sheet-top{ background:#0d1b2a; color:#fff; padding:1.5rem 1.8rem; display:flex; justify-content:space-between; }
+    .inv-theme .sheet-brand{ font-size:1.6rem; font-weight:800; }
+    .inv-theme .sheet-contact{ font-size:.8rem; color:#c3cdd8; line-height:1.7; text-align:right; }
+    .inv-theme .sheet-body{ padding:1.6rem 1.8rem; }
+    .inv-theme .inv-word{ font-size:1.7rem; font-weight:800; color:#0f2233; margin-bottom:1rem; }
+    .inv-theme .meta-grid{ display:flex; justify-content:space-between; gap:2rem; margin-bottom:1.5rem; }
+    .inv-theme .kv{ display:grid; grid-template-columns:auto 1fr; gap:.4rem 1.4rem; font-size:.9rem; }
+    .inv-theme .kv dt{ color:#94a3b8; }
+    .inv-theme .kv dd{ margin:0; font-weight:600; color:#1e293b; }
+    .inv-theme .billto .lab{ color:#94a3b8; font-size:.8rem; }
+    .inv-theme .billto .name{ font-size:1.15rem; font-weight:800; color:#0f2233; }
+    .inv-theme .billto .sub{ color:#64748b; font-size:.85rem; }
+    .inv-theme table.li{ width:100%; border-collapse:collapse; margin-bottom:1rem; }
+    .inv-theme table.li th{ background:#0d1b2a; color:#fff; text-align:left; padding:.7rem .9rem; font-size:.75rem; letter-spacing:.03em; }
+    .inv-theme table.li th.r, .inv-theme table.li td.r{ text-align:right; }
+    .inv-theme table.li td{ padding:.9rem; border-bottom:1px solid #f1f5f9; font-size:.9rem; }
+    .inv-theme .tot{ max-width:340px; margin-left:auto; }
+    .inv-theme .tot .row{ display:flex; justify-content:space-between; padding:.35rem 0; font-size:.92rem; }
+    .inv-theme .tot .row.disc{ color:#dc2626; }
+    .inv-theme .tot .grand{ background:#eef7f6; border-radius:8px; padding:.55rem .8rem; font-weight:800; color:#0f766e; font-size:1.05rem; margin-top:.4rem; }
+    .inv-theme .tot .remain{ background:#eef7f6; border-radius:8px; padding:.55rem .8rem; font-weight:800; color:#0f766e; font-size:1.05rem; margin-top:.5rem; display:flex; justify-content:space-between; }
+        .inv-theme .hamb{ background:#fff; border:1px solid #e6ebf1; border-radius:8px; width:36px; height:36px; display:grid; place-items:center; color:#334155; cursor:pointer; flex-shrink:0; }
+        .inv-theme .navbar-actions{ flex-shrink:0; }
+    /* detail footer actions */
+    .inv-theme .sheet-foot{ display:flex; justify-content:space-between; align-items:center; gap:1rem; border-top:1px solid #eef2f6; margin-top:1.6rem; padding-top:1.2rem; flex-wrap:wrap; }
+    .inv-theme .foot-actions{ display:flex; align-items:center; gap:.55rem; }
+    .inv-theme .foot-lab{ color:#94a3b8; font-size:.85rem; margin-right:.3rem; }
+    .inv-theme .thanks{ color:#0f766e; font-size:.85rem; font-weight:700; text-align:right; }
+    .inv-theme .thanks span{ color:#94a3b8; font-weight:500; }
+    .inv-theme .info-note{ background:#eff6ff; border:1px solid #dbeafe; color:#1e40af; border-radius:12px; padding:.85rem 1rem; font-size:.86rem; margin-bottom:1rem; max-width:960px; }
+    .inv-theme .ct-head{ padding:1rem 1.1rem; border-bottom:1px solid #eef2f6; font-weight:700; color:#0f2233; }
+    .inv-theme .ct-head small{ display:block; color:#94a3b8; font-weight:500; font-size:.82rem; margin-top:.15rem; }
+    .inv-theme .card-table{ max-width:960px; }
+    
+    </style>
+</head>
+<body class="app-body inv-theme">
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="sidebar-brand" href="{% url nav.dashboard %}">
+            <img src="{% static 'images/logo-dark.png' %}" alt="{{ brand.name }}" style="height:34px;width:auto;">
+        </a>
+        <nav class="sidebar-nav">
+            <a class="{% nav_active 'dashboard' %}" href="{% url nav.dashboard %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg><span>Dashboard</span></a>
+            <a class="{% nav_active 'bookings' %}" href="{% url 'bookings:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>Bookings</span></a>
+            <a class="{% nav_active 'customers' %}" href="{% url 'customers:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M4 19c.8-3 2.8-4.5 5-4.5S13.2 16 14 19"/></svg><span>Customers</span></a>
+            <a class="{% nav_active 'tours' %}" href="{% url 'tours:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17c4-9 14-9 18 0"/><circle cx="12" cy="17" r="1.4"/></svg><span>Tours</span></a>
+            <a class="{% nav_active 'suppliers' %}" href="{% url 'suppliers:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V9l8-5 8 5v11"/></svg><span>Suppliers</span></a>
+            <div class="nav-group">Finance <span>⌄</span></div>
+            <a class="{% nav_active 'invoices' %}" href="{% url 'invoices:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h8l5 5v13H7z"/><path d="M9 13h6M9 17h4"/></svg><span>Invoices</span></a>
+            <a class="{% nav_active 'payments' %}" href="{% url 'payments:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg><span>Payments</span></a>
+            <a class="{% nav_active 'expenses' %}" href="{% url 'expenses:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M7 8h7a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8"/></svg><span>Expenses</span></a>
+            <a class="{% nav_active 'reports' %}" href="{% url 'reports:list' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h10l4 4v12H5z"/><path d="M9 13h6"/></svg><span>Reports</span></a>
+            <div class="nav-group">Support <span>⌄</span></div>
+            <a class="{% nav_active 'accounts' %}" href="{% url 'accounts:settings' %}"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-foot">
+            <div class="sidebar-user">
+                <span class="avatar warm">{{ current_user_initial|default:"A" }}</span>
+                <span><strong>{{ current_user_name|default:"Guest" }}</strong><small>{{ current_role|labelize|default:"Preview" }}</small></span>
+            </div>
+        </div>
+    </aside>
+    <div class="app-main">
+          <header class="navbar">
+            <button class="hamb" type="button" data-sidebar-collapse title="Toggle sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div class="navbar-actions" style="margin-left:auto">
+                <span class="search">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+                    <input type="search" placeholder="Search bookings, invoices, customers…">
+                </span>
+                <button class="icon-btn" title="Notifications">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V10a6 6 0 1 1 12 0v6l2 2H4l2-2z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+                    <span class="badge-count">3</span>
+                </button>
+                <button class="icon-btn" title="Help">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.5 1.5c0 1.5-2 2-2 3"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>
+                </button>
+            </div>
+        </header>
+        <main class="app-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+<script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>
