@@ -22,11 +22,15 @@
                 {% if nav.ops %}
                 <a href="{% url 'bookings:create' %}">Booking</a>
                 <a href="{% url 'customers:create' %}">Customer</a>
+                <a href="{% url 'tours:create' %}">Tour</a>
+                <a href="{% url 'packages:create' %}">Package</a>
+                <a href="{% url 'suppliers:create' %}">Supplier</a>
                 {% endif %}
                 {% if nav.finance %}
                 <a href="{% url 'invoices:list' %}">Invoice</a>
                 <a href="{% url 'payments:list' %}">Payment</a>
                 <a href="{% url 'expenses:create' %}">Expense</a>
+                <a href="{% url 'supplier_payments:create' %}">Supplier payment</a>
                 {% endif %}
             </div>
         </div>

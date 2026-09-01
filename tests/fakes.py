@@ -69,9 +69,29 @@ class FakeCollection:
     def update_one(self, query, update):
         for document in self.docs:
             if self._matches(document, query or {}):
-                document.update(update.get("$set", {}))
+                self._apply_update(document, update)
                 return FakeUpdateResult(1, 1)
         return FakeUpdateResult(0, 0)
+
+    def find_one_and_update(self, query, update, upsert=False, return_document=None):
+        target = None
+        for document in self.docs:
+            if self._matches(document, query or {}):
+                target = document
+                break
+        if target is None:
+            if not upsert:
+                return None
+            target = copy.deepcopy(query or {})
+            target.setdefault("_id", ObjectId())
+            self.docs.append(target)
+        self._apply_update(target, update)
+        return copy.deepcopy(target)
+
+    def _apply_update(self, document: dict, update: dict) -> None:
+        for key, amount in (update.get("$inc") or {}).items():
+            document[key] = (document.get(key) or 0) + amount
+        document.update(update.get("$set") or {})
 
     def count_documents(self, query=None):
         return sum(1 for document in self.docs if self._matches(document, query or {}))

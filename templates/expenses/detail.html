@@ -8,8 +8,16 @@
         <p>{{ record.supplier }} · {{ record.related }}</p>
     </div>
     <div class="actions">
-        {% if record.remaining %}
-        <a class="btn btn-warm" href="{% url 'supplier_payments:list' %}">Pay supplier</a>
+        {% include "components/status_badge.html" with status=record.status %}
+        {% if record.has_remaining %}
+        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">Pay supplier</a>
+        {% endif %}
+        <a class="btn btn-ghost" href="{% url 'expenses:edit' record.id %}">Edit</a>
+        {% if not record.has_payments %}
+        <form method="post" action="{% url 'expenses:delete' record.id %}" onsubmit="return confirm('Delete {{ record.number }}?');">
+            {% csrf_token %}
+            <button class="btn btn-ghost" type="submit">Delete</button>
+        </form>
         {% endif %}
     </div>
 </div>
@@ -17,7 +25,7 @@
     <div class="metric"><span class="tiny">Expense</span><b>{{ record.amount|money }}</b></div>
     <div class="metric"><span class="tiny">Paid</span><b>{{ record.paid|money }}</b></div>
     <div class="metric"><span class="tiny">Remaining</span><b>{{ record.remaining|money }}</b></div>
-    <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ record.due }}</b></div>
+    <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ record.due }}{% if record.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</b></div>
 </div>
 <div class="two-col">
     <section class="panel">
@@ -27,17 +35,25 @@
             <dt>Scope</dt><dd>{{ record.scope|labelize }}</dd>
             <dt>Supplier</dt><dd>{{ record.supplier }}</dd>
             <dt>Related tour</dt><dd>{{ record.related }}</dd>
+            <dt>Expense date</dt><dd>{{ record.expense_date_display }}</dd>
+            <dt>Currency</dt><dd>{{ record.currency }}</dd>
         </dl>
-        <p class="muted" style="margin-top:.8rem">Invoice / receipt document: hotel_proforma_1041.pdf</p>
+        {% if record.description %}
+        <p style="margin-top:.8rem">{{ record.description }}</p>
+        {% endif %}
+        {% if record.receipt_file %}
+        <p class="muted" style="margin-top:.8rem">Invoice / receipt document: {{ record.receipt_file }}</p>
+        {% else %}
+        <p class="muted" style="margin-top:.8rem">No receipt file attached.</p>
+        {% endif %}
     </section>
     <section class="panel">
         <h2>Supplier payments</h2>
-        {% for sp in m.supplier_payments %}
-            {% if sp.expense_id == record.id %}
+        {% for sp in record.payments %}
             <p style="margin-top:.5rem"><a href="{% url 'supplier_payments:detail' sp.id %}">{{ sp.number }}</a> · {{ sp.amount|money }} · {{ sp.date }}</p>
-            {% endif %}
+        {% empty %}
+            <p class="muted" style="margin-top:.5rem">No payments recorded yet.</p>
         {% endfor %}
-        {% if record.paid == 0 %}<p class="muted" style="margin-top:.5rem">No payments recorded yet.</p>{% endif %}
     </section>
 </div>
 {% endblock %}
