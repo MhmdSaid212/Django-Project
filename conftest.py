@@ -13,6 +13,9 @@ def fake_mongo(monkeypatch):
     monkeypatch.setattr("apps.expenses.repositories.get_collection", mongo.get_collection)
     monkeypatch.setattr("apps.supplier_payments.repositories.get_collection", mongo.get_collection)
     monkeypatch.setattr("apps.reports.repositories.get_collection", mongo.get_collection)
+    monkeypatch.setattr("apps.suppliers.repositories.get_collection", mongo.get_collection)
+    monkeypatch.setattr("apps.packages.repositories.get_collection", mongo.get_collection)
+    monkeypatch.setattr("apps.tours.repositories.get_collection", mongo.get_collection)
     return mongo
 
 

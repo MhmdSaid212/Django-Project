@@ -5,38 +5,61 @@
     <div>
         <p class="tiny">{{ record.code }}</p>
         <h1>{{ record.name }}</h1>
-        <p>{{ record.city }} · {{ record.duration }}</p>
+        <p>{{ record.city }}{% if record.country %} · {{ record.country }}{% endif %} · {{ record.duration }}</p>
     </div>
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
-        <a class="btn btn-warm" href="{% url 'bookings:create' %}">Book package</a>
+        <a class="btn btn-warm" href="{% url 'tours:create' %}?package_id={{ record.id }}">Create departure</a>
+        <a class="btn btn-ghost" href="{% url 'bookings:create' %}?package_id={{ record.id }}">Book package</a>
         <a class="btn btn-ghost" href="{% url 'packages:edit' record.id %}">Edit</a>
+        {% if not record.tours %}
+        <form method="post" action="{% url 'packages:delete' record.id %}" onsubmit="return confirm('Delete {{ record.name }}?');">
+            {% csrf_token %}
+            <button class="btn btn-ghost" type="submit">Delete</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 <div class="two-col">
     <div class="stack">
         <section class="panel">
             <h2>Included</h2>
-            <p style="margin-top:.5rem">{{ record.includes }}</p>
+            <p style="margin-top:.5rem">{{ record.includes|default:"—" }}</p>
         </section>
         <section class="panel">
             <h2>Excluded</h2>
-            <p style="margin-top:.5rem">{{ record.excluded }}</p>
+            <p style="margin-top:.5rem">{{ record.excluded|default:"—" }}</p>
         </section>
         <section class="panel">
             <h2>Supplier plan</h2>
             <p class="muted" style="margin-top:.4rem">Typical service mix for this product. Costs become expenses when a departure is operated.</p>
             <div class="itinerary" style="margin-top:.7rem">
-                <div class="it-block"><div><strong>Hotel</strong><div class="muted">Partner hotel in {{ record.city }}</div></div><div>Included</div></div>
-                <div class="it-block"><div><strong>Transfers</strong><div class="muted">Airport and local moves</div></div><div>Included</div></div>
-                <div class="it-block"><div><strong>Guided experiences</strong><div class="muted">As listed in inclusions</div></div><div>Included</div></div>
+                {% for line in record.services %}
+                <div class="it-block">
+                    <div>
+                        <strong>{{ line.title }}</strong>
+                        <div class="muted">{{ line.supplier }} · {{ line.type_label }}</div>
+                    </div>
+                    <div>Est. {{ line.est|money }}</div>
+                </div>
+                {% empty %}
+                <p class="muted" style="margin-top:.5rem">No supplier lines yet. Add them via the API or when you operate a tour.</p>
+                {% endfor %}
             </div>
+        </section>
+        <section class="panel">
+            <h2>Departures</h2>
+            {% for tour in record.tours %}
+                <p style="margin-top:.45rem"><a href="{% url 'tours:detail' tour.id %}">{{ tour.name }}</a> · {{ tour.dates }} · {{ tour.status|labelize }}</p>
+            {% empty %}
+                <p class="muted" style="margin-top:.5rem">No dated tours yet. <a href="{% url 'tours:create' %}?package_id={{ record.id }}">Create a departure</a>.</p>
+            {% endfor %}
         </section>
     </div>
     <div class="fin">
         <p class="tiny" style="color:#c4b5a5">From price</p>
         <div class="fin-row total"><span>Per person</span><span>{{ record.price|money }}</span></div>
-        <p class="muted" style="margin-top:.8rem;font-size:.82rem">No capacity bar — packages are not dated seat inventories.</p>
+        <p class="muted" style="margin-top:.8rem;font-size:.82rem">No capacity bar — packages are not dated seat inventories. Default departure size: {{ record.default_capacity }}.</p>
     </div>
 </div>
 {% endblock %}

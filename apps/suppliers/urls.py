@@ -11,6 +11,7 @@ urlpatterns = [
     path("transportation/", views.transportation, name="transportation"),
     path("tour-guides/", views.tour_guides, name="tour_guides"),
     path("other/", views.other_suppliers, name="other"),
-    path("<str:id>/", views.supplier_detail, name="detail"),
     path("<str:id>/edit/", views.supplier_edit, name="edit"),
+    path("<str:id>/delete/", views.supplier_delete, name="delete"),
+    path("<str:id>/", views.supplier_detail, name="detail"),
 ]

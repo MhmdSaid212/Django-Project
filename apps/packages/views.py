@@ -1,36 +1,159 @@
-from core.constants import UserRole
-from core.permissions import login_required, role_required
-from core.wireframes import record, wireframe
+from django.contrib import messages
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_http_methods, require_POST
+
+from apps.packages.forms import PackageForm, initial_from_package
+from apps.packages.services import PackageService
+from core.access import OPERATIONS_ROLES
+from core.exceptions import DatabaseUnavailableError, TourOpsError
+from core.permissions import get_session_user, login_required, role_required
+
+
+def _unavailable(request, next_name="packages:list"):
+    messages.error(request, "Cannot reach MongoDB. Check MONGODB_URI and that MongoDB is running.")
+    return redirect(next_name)
+
+
+def _form_payload(form: PackageForm) -> dict:
+    data = form.cleaned_data
+    payload = {
+        "name": data["name"],
+        "city": data.get("city"),
+        "country": data.get("country"),
+        "duration_days": data["duration_days"],
+        "selling_price_per_person": data["selling_price_per_person"],
+        "currency": data.get("currency"),
+        "default_capacity": data["default_capacity"],
+        "included_services": data.get("included_services"),
+        "excluded_services": data.get("excluded_services"),
+        "description": data.get("description"),
+    }
+    if data.get("status"):
+        payload["status"] = data["status"]
+    return payload
 
 
 @login_required
-@role_required(UserRole.TRAVEL_AGENT, UserRole.OWNER_ADMIN)
+@role_required(*OPERATIONS_ROLES)
 def package_list(request):
-    return wireframe(request, "packages/list.html", "Packages", heading="Travel packages")
-
-
-@login_required
-@role_required(UserRole.TRAVEL_AGENT, UserRole.OWNER_ADMIN)
-def package_create(request):
-    return wireframe(request, "packages/form.html", "Create package", heading="New package")
-
-
-@login_required
-@role_required(UserRole.TRAVEL_AGENT, UserRole.OWNER_ADMIN)
-def package_detail(request, id):
-    row = record("package", id)
-    return wireframe(
+    try:
+        packages = PackageService().list_presented()
+    except DatabaseUnavailableError:
+        messages.error(request, "Cannot reach MongoDB. Packages are unavailable.")
+        packages = []
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
+        packages = []
+    return render(
         request,
-        "packages/detail.html",
-        row["name"],
-        heading=row["name"],
-        crumbs=[{"label": "Packages", "url": "/packages/"}, {"label": row["code"], "url": ""}],
-        record=row,
+        "packages/list.html",
+        {
+            "page_title": "Packages",
+            "page_heading": "Travel packages",
+            "packages": packages,
+        },
     )
 
 
 @login_required
-@role_required(UserRole.TRAVEL_AGENT, UserRole.OWNER_ADMIN)
+@role_required(*OPERATIONS_ROLES)
+@require_http_methods(["GET", "POST"])
+def package_create(request):
+    form = PackageForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            package = PackageService().create(actor_id=get_session_user(request)["id"], **_form_payload(form))
+        except DatabaseUnavailableError:
+            return _unavailable(request)
+        except TourOpsError as extra:
+            messages.error(request, extra.message)
+        else:
+            messages.success(request, f"Created {package['package_code']}.")
+            return redirect("packages:detail", id=str(package["_id"]))
+    return render(
+        request,
+        "packages/form.html",
+        {
+            "form": form,
+            "page_title": "New package",
+            "page_heading": "New package",
+            "submit_label": "Save package",
+        },
+    )
+
+
+@login_required
+@role_required(*OPERATIONS_ROLES)
+def package_detail(request, id):
+    try:
+        record = PackageService().get_presented(id)
+    except DatabaseUnavailableError:
+        return _unavailable(request)
+    except TourOpsError:
+        messages.error(request, "Package not found.")
+        return redirect("packages:list")
+    return render(
+        request,
+        "packages/detail.html",
+        {
+            "page_title": record["name"],
+            "page_heading": record["name"],
+            "crumbs": [
+                {"label": "Packages", "url": reverse("packages:list")},
+                {"label": record["code"], "url": ""},
+            ],
+            "record": record,
+        },
+    )
+
+
+@login_required
+@role_required(*OPERATIONS_ROLES)
+@require_http_methods(["GET", "POST"])
 def package_edit(request, id):
-    row = record("package", id)
-    return wireframe(request, "packages/form.html", "Edit package", heading="Edit " + row["name"], record=row)
+    service = PackageService()
+    try:
+        record = service.get_presented(id, include_extras=False)
+    except DatabaseUnavailableError:
+        return _unavailable(request)
+    except TourOpsError:
+        messages.error(request, "Package not found.")
+        return redirect("packages:list")
+    form = PackageForm(request.POST or None, initial=initial_from_package(record), include_status=True)
+    if request.method == "POST" and form.is_valid():
+        try:
+            service.update(id, actor_id=get_session_user(request)["id"], **_form_payload(form))
+        except DatabaseUnavailableError:
+            return _unavailable(request)
+        except TourOpsError as extra:
+            messages.error(request, extra.message)
+        else:
+            messages.success(request, f"Updated {record['code']}.")
+            return redirect("packages:detail", id=id)
+    return render(
+        request,
+        "packages/form.html",
+        {
+            "form": form,
+            "page_title": f"Edit {record['name']}",
+            "page_heading": f"Edit {record['name']}",
+            "submit_label": "Save changes",
+            "record": record,
+        },
+    )
+
+
+@login_required
+@role_required(*OPERATIONS_ROLES)
+@require_POST
+def package_delete(request, id):
+    try:
+        PackageService().soft_delete(id, actor_id=get_session_user(request)["id"])
+    except DatabaseUnavailableError:
+        return _unavailable(request)
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
+        return redirect("packages:detail", id=id)
+    messages.success(request, "Package deleted.")
+    return redirect("packages:list")

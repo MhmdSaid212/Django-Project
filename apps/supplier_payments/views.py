@@ -75,7 +75,10 @@ def supplier_payment_create(request):
         if bill and not bill["has_remaining"]:
             messages.info(request, f"{bill['number']} is already paid in full.")
             return redirect("expenses:detail", id=bill["id"])
-        choices = service.open_expense_choices(include_id=expense_id or None)
+        choices = service.open_expense_choices(
+            supplier_id=request.GET.get("supplier_id") or None,
+            include_id=expense_id or None,
+        )
     except DatabaseUnavailableError:
         return _unavailable(request)
 
