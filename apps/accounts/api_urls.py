@@ -8,6 +8,7 @@ urlpatterns = [
     path("auth/login/", api.login, name="login"),
     path("auth/logout/", api.logout, name="logout"),
     path("auth/me/", api.me_view, name="me"),
+    path("auth/password/reset/", api.password_reset, name="password_reset"),
     path("users/", api.users_collection, name="users"),
     path("users/<str:id>/", api.users_detail, name="user_detail"),
     path("users/<str:id>/status/", api.users_status, name="user_status"),

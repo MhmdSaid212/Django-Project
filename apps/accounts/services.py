@@ -71,6 +71,22 @@ class AuthService:
         )
         return self._require_user(user["_id"])
 
+    def reset_password_by_email(self, email: str, new_password: str) -> dict:
+        """Self-service staff reset by email (no mailer yet). Unknown emails raise a generic error."""
+        user = self.repository.find_by_email(normalize_email(email))
+        if not user:
+            raise ValidationError("No active staff account found for that email.")
+        if user.get("status") != UserStatus.ACTIVE.value:
+            raise PermissionDeniedError("This account is inactive.")
+        validate_password(new_password)
+        if check_password(new_password, user.get("password_hash", "")):
+            raise ValidationError("New password must be different from the current password.")
+        self.repository.update(
+            user["_id"],
+            {"password_hash": self.hash_password(new_password), "updated_at": utcnow()},
+        )
+        return self._require_user(user["_id"])
+
     @staticmethod
     def hash_password(raw_password: str) -> str:
         return make_password(raw_password)

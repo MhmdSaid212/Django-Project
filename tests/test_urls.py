@@ -12,4 +12,6 @@ def test_key_api_routes_reverse():
     assert reverse("dashboard_api:owner") == "/api/dashboard/owner/"
     assert reverse("accounts_api:login") == "/api/auth/login/"
     assert reverse("accounts_api:me") == "/api/auth/me/"
+    assert reverse("accounts_api:password_reset") == "/api/auth/password/reset/"
     assert reverse("accounts_api:users") == "/api/users/"
+    assert reverse("accounts:password_reset") == "/password/reset/"
