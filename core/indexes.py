@@ -20,6 +20,8 @@ RECOMMENDED_INDEXES = [
     (Collections.RECEIPTS, [("receipt_number", 1)], True, None),
     (Collections.REFUNDS, [("refund_number", 1)], True, None),
     (Collections.EXPENSES, [("expense_number", 1)], True, None),
+    (Collections.EXPENSES, [("tour_id", 1)], False, None),
+    (Collections.EXPENSES, [("supplier_id", 1)], False, None),
     (Collections.SUPPLIER_PAYMENTS, [("supplier_payment_number", 1)], True, None),
     (Collections.AUDIT_LOGS, [("entity_type", 1), ("entity_id", 1)], False, None),
     (Collections.NOTIFICATIONS, [("user_id", 1), ("is_read", 1)], False, None),

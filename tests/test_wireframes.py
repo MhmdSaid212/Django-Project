@@ -29,7 +29,7 @@ def test_wireframe_pages_render(owner_session):
         ("refunds:list", None),
         ("refunds:detail", ["ref-1012"]),
         ("expenses:list", None),
-        ("expenses:detail", ["exp-1041"]),
+        ("expenses:create", None),
         ("supplier_payments:list", None),
         ("finance:customer_balances", None),
         ("reports:list", None),
