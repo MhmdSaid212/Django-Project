@@ -31,6 +31,7 @@ def test_wireframe_pages_render(owner_session):
         ("expenses:list", None),
         ("expenses:create", None),
         ("supplier_payments:list", None),
+        ("supplier_payments:create", None),
         ("finance:customer_balances", None),
         ("reports:list", None),
         ("reports:profitability", None),
