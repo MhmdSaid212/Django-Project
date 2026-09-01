@@ -1,10 +1,3 @@
-"""
-MongoDB access for bookings.
-
-OWNER: Dev 1 — Customer & Booking Operations
-
-Do not hard-delete booking financial history. Use soft_delete().
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections

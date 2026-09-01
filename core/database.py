@@ -1,10 +1,3 @@
-"""
-Reusable MongoDB client for TourOps.
-
-Decision: one MongoClient per process, not per request.
-PyMongo's MongoClient is a thread-safe connection pool.
-Creating a new client on every view would leak sockets and slow the app down.
-"""
 from __future__ import annotations
 
 import logging
@@ -24,7 +17,6 @@ _client: Optional[MongoClient] = None
 
 
 def get_client() -> MongoClient:
-    """Return the process-wide MongoClient, creating it on first use."""
     global _client
     if _client is None:
         try:
@@ -40,17 +32,14 @@ def get_client() -> MongoClient:
 
 
 def get_database() -> Database:
-    """Return the TourOps database (name from MONGODB_DB_NAME)."""
     return get_client()[settings.MONGODB_DB_NAME]
 
 
 def get_collection(name: str) -> Collection:
-    """Return a named collection. Use core.constants.Collections values."""
     return get_database()[name]
 
 
 def ping() -> bool:
-    """Return True if MongoDB responds to ping. Used by health checks."""
     try:
         get_client().admin.command("ping")
         return True
@@ -60,7 +49,6 @@ def ping() -> bool:
 
 
 def close_client() -> None:
-    """Close the process-wide client. Useful in tests."""
     global _client
     if _client is not None:
         _client.close()

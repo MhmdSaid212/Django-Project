@@ -1,8 +1,3 @@
-"""
-User document contract.
-
-This is NOT a Django model. The `users` collection is the source of truth.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +15,7 @@ class UserDocument:
     last_name: str
     email: str
     password_hash: str
-    role: str  # UserRole
+    role: str
     created_at: datetime
     updated_at: datetime
     phone: Optional[str] = None
@@ -35,7 +30,6 @@ class UserDocument:
     ALLOWED_STATUSES = {item.value for item in UserStatus}
 
 
-# Example document (passwords must be hashed; never log them):
 USER_DOCUMENT_EXAMPLE = {
     "_id": "ObjectId",
     "first_name": "Amina",

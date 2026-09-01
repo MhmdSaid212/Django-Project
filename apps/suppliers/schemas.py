@@ -1,24 +1,3 @@
-"""
-Supplier document contract. NOT a Django model.
-
-OWNER: Dev 2 — Travel Products & Suppliers
-Collection: suppliers
-
-Hotels, transportation, and tour guides are still one collection.
-supplier_type chooses which extra block is filled:
-
-    HOTEL            → hotel_info
-    TRANSPORTATION   → transportation_info
-    TOUR_GUIDE       → tour_guide_info
-    AIRLINE          → airline_info
-    ACTIVITY_PROVIDER → activity_info
-    RESTAURANT       → restaurant_info
-    INSURANCE        → insurance_info
-    OTHER            → other_info
-
-Shared fields (name, phone, address, bank) always live on the root.
-The unused type blocks stay null. Do not create hotels / guides collections.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -46,7 +25,7 @@ from core.schemas import (
 class SupplierDocument:
     supplier_number: str
     name: str
-    supplier_type: str  # SupplierType
+    supplier_type: str
     created_by: ObjectId
     created_at: datetime
     updated_at: datetime
@@ -86,7 +65,6 @@ class SupplierDocument:
     }
 
 
-# Example: adding a hotel fills hotel_info only.
 SUPPLIER_HOTEL_EXAMPLE = {
     "_id": "ObjectId",
     "supplier_number": "SUP-1001",

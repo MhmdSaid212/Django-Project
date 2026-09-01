@@ -1,14 +1,4 @@
-"""
-Application exceptions.
-
-Keep this list small. Feature apps may add their own errors that inherit
-from TourOpsError so views can map them to JSON consistently.
-"""
-
-
 class TourOpsError(Exception):
-    """Base error for TourOps business and infrastructure failures."""
-
     code = "TOUROPS_ERROR"
     http_status = 400
 

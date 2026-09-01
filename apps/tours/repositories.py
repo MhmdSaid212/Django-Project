@@ -1,10 +1,3 @@
-"""
-MongoDB access for tours.
-
-OWNER: Dev 2 — Travel Products & Suppliers
-
-Queries exclude soft-deleted rows by default. Never call delete_one().
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections

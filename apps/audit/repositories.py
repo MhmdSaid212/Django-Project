@@ -1,11 +1,3 @@
-"""
-MongoDB access for audit logs.
-
-OWNER: Shared — Owner/Admin UI, all developers write logs
-
-Audit logs are append-only. Do not update, hard-delete, or soft-delete them.
-Never log passwords or secrets.
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections

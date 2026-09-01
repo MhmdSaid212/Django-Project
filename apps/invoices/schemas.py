@@ -1,14 +1,3 @@
-"""
-Invoice document contract. NOT a Django model.
-
-OWNER: Dev 3 — Customer Finance
-Collection: invoices
-
-Formula:
-    taxable_amount = subtotal - discount.amount
-    total_amount = taxable_amount + tax.amount
-    remaining_amount = total_amount - paid_amount - refunded_amount  (confirm with Dev 3)
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -1,4 +1,3 @@
-"""System settings document contract. Owner/Admin maintains this later."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,12 +14,6 @@ from core.schemas import AgencyInfo
 
 @dataclass
 class TaxSettings:
-    """Legacy fallback display. Named, dated tax rules live in `taxes`.
-
-    Prefer `SystemSettingsDocument.default_tax_id`. Keep this embed only so
-    older readers still see a name/rate if the pointer is unset.
-    """
-
     name: str = DEFAULT_TAX_NAME
     default_rate: Decimal = ZERO
     enabled: bool = True

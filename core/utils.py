@@ -1,4 +1,3 @@
-"""Small shared helpers that are not money, DB, or permissions."""
 from __future__ import annotations
 
 from datetime import datetime, timezone

@@ -1,12 +1,3 @@
-"""
-TourOps Django settings.
-
-Architecture decision:
-- MongoDB (via PyMongo) is the primary application database.
-- Django ORM models.py files are intentionally NOT used for business collections.
-- Signed-cookie sessions are used so we do not need a SQL database for login sessions.
-  Production teams may later switch to Redis or a MongoDB session backend.
-"""
 import os
 from pathlib import Path
 
@@ -29,9 +20,7 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-# ---------------------------------------------------------------------------
-# MongoDB — application database (not Django ORM)
-# ---------------------------------------------------------------------------
+
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "tourops")
 
@@ -39,7 +28,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Feature apps — each team owns a vertical slice. No Django ORM models.
+
     "apps.accounts",
     "apps.taxes",
     "apps.attachments",
@@ -64,6 +53,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "core.middleware.SessionIntegrityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -93,9 +83,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-# No SQL DATABASES required for business data.
-# Django still expects a default DATABASES key for a few contrib checks;
-# we point it at a local sqlite file that is NOT used for TourOps collections.
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -103,12 +91,15 @@ DATABASES = {
     }
 }
 
-# Sessions: signed cookies so login works without relying on SQLite as a real store.
-# The sqlite file above exists only to keep Django happy; do not put business data there.
+
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 hours
+SESSION_COOKIE_AGE = 60 * 60 * 8
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = not DEBUG
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 
@@ -127,6 +118,10 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "dashboard:home"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
-# Demo seed user (development only). Change immediately in any shared environment.
+
 DEMO_OWNER_EMAIL = os.getenv("DEMO_OWNER_EMAIL", "owner@tourops.local")
 DEMO_OWNER_PASSWORD = os.getenv("DEMO_OWNER_PASSWORD", "changeme")
+DEMO_AGENT_EMAIL = os.getenv("DEMO_AGENT_EMAIL", "agent@tourops.local")
+DEMO_AGENT_PASSWORD = os.getenv("DEMO_AGENT_PASSWORD", "changeme")
+DEMO_ACCOUNTANT_EMAIL = os.getenv("DEMO_ACCOUNTANT_EMAIL", "accountant@tourops.local")
+DEMO_ACCOUNTANT_PASSWORD = os.getenv("DEMO_ACCOUNTANT_PASSWORD", "changeme")

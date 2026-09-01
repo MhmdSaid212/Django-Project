@@ -1,10 +1,3 @@
-"""
-MongoDB access for expenses.
-
-OWNER: Dev 4 — Business Finance & Reports
-
-Queries exclude soft-deleted rows by default. Never call delete_one().
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections

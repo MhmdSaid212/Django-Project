@@ -1,7 +1,3 @@
-"""JSON API placeholders.
-
-OWNER: Dev 3 — Customer Finance
-"""
 from core.responses import not_implemented
 
 def list_refunds(request, **kwargs):

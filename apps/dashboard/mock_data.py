@@ -1,5 +1,3 @@
-"""Realistic sample data for TourOps HTML wireframes. Not persisted."""
-
 from __future__ import annotations
 
 

@@ -1,20 +1,20 @@
-"""Template context available on every page."""
 from datetime import datetime
 
 from apps.dashboard.mock_data import MOCK
+from core.access import (
+    can_access_finance,
+    can_access_operations,
+    dashboard_for_role,
+    is_owner,
+)
 from core.constants import UserRole
 from core.permissions import get_session_user
+
 
 BRAND = {
     "name": "TourOps",
     "subtitle": "Travel Agency Operations & Finance",
     "tagline": "From Booking to Balance",
-}
-
-DASHBOARD_BY_ROLE = {
-    UserRole.TRAVEL_AGENT.value: "dashboard:agent",
-    UserRole.ACCOUNTANT.value: "dashboard:accountant",
-    UserRole.OWNER_ADMIN.value: "dashboard:owner",
 }
 
 
@@ -41,7 +41,6 @@ def current_user(request):
 
 
 def navigation(request):
-    """Role-aware sidebar flags. Templates hide sections the role cannot see."""
     user = get_session_user(request)
     role = user.get("role") if user else None
     hour = datetime.now().hour
@@ -56,12 +55,12 @@ def navigation(request):
         "nav": {
             "is_agent": role == UserRole.TRAVEL_AGENT,
             "is_accountant": role == UserRole.ACCOUNTANT,
-            "is_owner": role == UserRole.OWNER_ADMIN,
-            "ops": role in {UserRole.TRAVEL_AGENT, UserRole.OWNER_ADMIN},
-            "finance": role in {UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN},
-            "system": role == UserRole.OWNER_ADMIN,
+            "is_owner": is_owner(request),
+            "ops": can_access_operations(request),
+            "finance": can_access_finance(request),
+            "system": is_owner(request),
             "role": role,
-            "dashboard": DASHBOARD_BY_ROLE.get(role, "dashboard:home"),
+            "dashboard": dashboard_for_role(role) if role else "dashboard:home",
         },
         "greeting": greeting,
         "greeting_name": first or "there",

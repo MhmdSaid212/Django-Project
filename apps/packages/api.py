@@ -1,7 +1,3 @@
-"""JSON API placeholders.
-
-OWNER: Dev 2 — Travel Products & Suppliers
-"""
 from core.responses import not_implemented
 
 def list_packages(request, **kwargs):

@@ -1,10 +1,3 @@
-"""
-MongoDB access for invoices.
-
-OWNER: Dev 3 — Customer Finance
-
-Queries exclude soft-deleted rows by default. Never call delete_one().
-"""
 from pymongo.collection import Collection
 
 from core.constants import Collections

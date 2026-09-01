@@ -1,16 +1,3 @@
-"""
-Tax document contract. NOT a Django model.
-
-OWNER: Platform / Owner-Admin
-Collection: taxes
-
-BR-TAX-01: multiple named taxes with percentage, effective date, and
-ACTIVE/INACTIVE. Example: "VAT 11%" from 2026-01-01 vs a later rate.
-
-system_settings.default_tax_id points at the current default.
-Bookings and invoices snapshot tax name, rate, and amount at issue time
-(optional tax_id). Changing a tax later must not rewrite issued invoices.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,21 +1,3 @@
-"""
-Tour document contract. NOT a Django model.
-
-OWNER: Dev 2 — Travel Products & Suppliers
-Collection: tours
-
-A tour is a dated, bookable departure. It MAY reference a package
-(template) via optional package_id. A tour can also be a standalone product.
-Clients book tours only — never packages.
-
-Available seats MUST be derived:
-    available_seats = capacity - booked_seats
-Never store available_seats as the source of truth.
-
-When package_id is set, copy selling price / inclusions / planned services from
-the package, then set start_date, end_date, and capacity for this departure.
-When package_id is null, the tour is a standalone sellable product.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
