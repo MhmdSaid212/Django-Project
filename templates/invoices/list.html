@@ -53,7 +53,13 @@
                 <td class="amt-paid">{{ inv.paid|money }}</td>
                 <td><strong>{{ inv.remaining|money }}</strong></td>
                 <td><span class="pill {{ inv.status|lower }}{% if inv.overdue %} overdue{% endif %}">{% if inv.overdue %}OVERDUE{% else %}{{ inv.status }}{% endif %}</span></td>
-                <td style="color:#94a3b8;font-weight:800">⋮</td>
+                <td>
+                    {% if inv.status == 'DRAFT' %}
+                    <a class="btn-mini teal" href="{% url 'invoices:detail' inv.id %}">Edit</a>
+                    {% elif inv.status != 'CANCELLED' %}
+                    <a class="btn-mini warn" href="{% url 'invoices:reissue' inv.id %}">Refund &amp; Reissue</a>
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
             <tr><td colspan="11" style="text-align:center;padding:2rem;color:#94a3b8">No invoices found.</td></tr>

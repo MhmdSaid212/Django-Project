@@ -71,7 +71,6 @@ _MOCK_RECORDS = {
     },
 }
 
-
 def _fmt_date(value):
     if not value:
         return "--"
@@ -251,3 +250,32 @@ def invoice_create(request):
         "bookings": bookings,
     }
     return render(request, "invoices/create.html", context)
+
+
+# TEMP: auth disabled for local preview -- restore before merging
+# @login_required
+# @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+def invoice_reissue(request, id):
+    """Guided flow: refund payments -> cancel this invoice -> generate a new one."""
+    if USE_MOCK_DATA:
+        record = dict(_MOCK_RECORDS.get(id, _MOCK_RECORDS["1"]))
+    else:
+        record = present_invoice(InvoiceService()._get_raw(id))
+        record["number"] = record["invoice_number"]
+
+    # Mock payment + tier calc for the refund step
+    paid = record.get("paid", 0) or 0
+    tier_pct = 70
+    refund = round(paid * tier_pct / 100, 2)
+    retained = round(paid - refund, 2)
+    context = {
+        "page_title": "Refund & Reissue " + record["number"],
+        "page_heading": record["number"],
+        "record": record,
+        "has_payment": paid > 0,
+        "paid": paid,
+        "tier_label": "15–29 days · 70%",
+        "refund": refund,
+        "retained": retained,
+    }
+    return render(request, "invoices/reissue.html", context)

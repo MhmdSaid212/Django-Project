@@ -12,6 +12,7 @@ urlpatterns = [
     path("", views.invoice_list, name="list"),
     path("new/", views.invoice_create, name="create"),
     path("<str:id>/", views.invoice_detail, name="detail"),
+    path("<str:id>/reissue/", views.invoice_reissue, name="reissue"),
     path("<str:id>/print/", views.invoice_print, name="print"),
     # --- PREVIEW ONLY, no database calls — remove these two lines + preview.py when done ---
     # path("preview/", preview.preview_invoice_list, name="preview_list"),
