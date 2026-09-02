@@ -55,7 +55,8 @@ def present_tour(
     destination = document.get("destination") or {}
     capacity = int(document.get("capacity") or 0)
     booked = int(document.get("booked_seats") or 0)
-    available = available_seats(capacity, booked)
+    held = int(document.get("held_seats") or 0)
+    available = available_seats(capacity, booked, held)
     pct = min(int(round(booked / capacity * 100)), 100) if capacity else 0
     price = to_money(document.get("selling_price_per_person"))
     revenue = to_money(price * booked)
@@ -84,6 +85,8 @@ def present_tour(
         "capacity": capacity,
         "booked": booked,
         "booked_seats": booked,
+        "held": held,
+        "held_seats": held,
         "available": available,
         "pct": pct,
         "price": price,
@@ -315,7 +318,8 @@ class TourService:
                     "total": total,
                 }
             )
-            for person in document.get("travelers") or []:
+            if document.get("booking_status") != "CANCELLED":
+             for person in document.get("travelers") or []:
                 if not isinstance(person, dict):
                     continue
                 travelers.append(
