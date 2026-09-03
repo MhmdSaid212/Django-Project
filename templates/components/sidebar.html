@@ -1,13 +1,8 @@
-{% load tourops %}
+{% load tourops static %}
 <aside class="sidebar" id="sidebar">
     <a class="sidebar-brand" href="{% url nav.dashboard %}">
-        <span class="brand-mark">T</span>
-        <span>
-            <strong>{{ brand.name }}</strong>
-            <small>{{ brand.tagline }}</small>
-        </span>
+        <img src="{% static 'images/logo-dark.png' %}" alt="{{ brand.name }}" style="height:42px;width:auto;">
     </a>
-
     <nav class="sidebar-nav">
         <p class="nav-label">Main</p>
         <a class="{% nav_active 'dashboard' %}" href="{% url nav.dashboard %}">

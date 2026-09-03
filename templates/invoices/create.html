@@ -1,0 +1,47 @@
+{% extends "base_invoices.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head" style="margin-bottom:1rem">
+    <div>
+        <h1>Create Invoice</h1>
+        <p>Select a confirmed booking to generate its invoice.</p>
+    </div>
+</div>
+
+<div class="info-note">
+    Invoices are generated from confirmed bookings — pricing, discount and tax come from the booking.
+    Only confirmed bookings without a live invoice are shown.
+</div>
+
+<div class="card-table">
+    <div class="ct-head">
+        Confirmed bookings awaiting invoice
+        <small>{{ bookings|length }} available</small>
+    </div>
+    <table class="data">
+        <thead>
+            <tr><th>Booking</th><th>Customer</th><th>Tour</th><th>Travelers</th><th>Amount</th><th>Booking Status</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for b in bookings %}
+            <tr>
+                <td><a class="bk-id" href="#">{{ b.number }}</a></td>
+                <td>
+                    <span class="rowc">
+                        <span class="av" style="background:{{ b.avatar }}">{{ b.customer|slice:":1"|upper }}</span>
+                        {{ b.customer }}
+                    </span>
+                </td>
+                <td>{{ b.tour }}</td>
+                <td>{{ b.travelers }}</td>
+                <td>{{ b.amount|money }}</td>
+                <td><span class="pill paid">CONFIRMED</span></td>
+                <td><a class="btn-teal" href="#" style="padding:.45rem .8rem;font-size:.82rem">Generate Invoice</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">No confirmed bookings awaiting an invoice.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
