@@ -1,137 +1,24 @@
 {% extends "base.html" %}
 {% load tourops %}
 {% block content %}
-<div class="profile-hero">
-    <span class="avatar lg warm">{{ record.initials }}</span>
+<div class="page-head">
     <div>
         <p class="tiny">{{ record.number }}</p>
         <h1>{{ record.name }}</h1>
-        <p class="muted">{{ record.phone }} · {{ record.email }} · {{ record.city }}, {{ record.country }}</p>
+        <p class="muted">{{ record.email }} · {{ record.phone|default:"—" }}</p>
     </div>
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
-        <a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>
-        <a class="btn btn-ghost" href="{% url 'customers:edit' record.id %}">Edit</a>
+        <a class="btn btn-warm" href="{% url 'bookings:create' %}?customer_id={{ record.id }}">Create booking</a>
+        <a class="btn btn-ghost" href="{% url 'customers:list' %}">Back</a>
     </div>
 </div>
-
-<div class="tabs">
-    <a class="{% if tab == 'overview' %}is-on{% endif %}" href="?tab=overview">Overview</a>
-    <a class="{% if tab == 'bookings' %}is-on{% endif %}" href="?tab=bookings">Bookings</a>
-    <a class="{% if tab == 'invoices' %}is-on{% endif %}" href="?tab=invoices">Invoices</a>
-    <a class="{% if tab == 'payments' %}is-on{% endif %}" href="?tab=payments">Payments</a>
-    <a class="{% if tab == 'documents' %}is-on{% endif %}" href="?tab=documents">Documents</a>
-    <a class="{% if tab == 'activity' %}is-on{% endif %}" href="?tab=activity">Activity</a>
-</div>
-
-{% if tab == 'overview' %}
-<div class="metrics-4">
-    <div class="metric"><span class="tiny">Upcoming trip</span><b style="font-size:.95rem">{{ record.upcoming|default:"None scheduled" }}</b></div>
-    <div class="metric"><span class="tiny">Balance</span><b>{{ record.balance|money }}</b></div>
-    <div class="metric"><span class="tiny">Bookings</span><b>{{ record.bookings }}</b></div>
-    <div class="metric"><span class="tiny">Lifetime spending</span><b>{{ record.lifetime|money }}</b></div>
-</div>
-<div class="two-col">
-    <section class="panel">
-        <div class="panel-h"><h2>Financial timeline</h2></div>
-        <div class="timeline">
-            {% for ev in m.customer_timeline %}
-            <div class="tl">
-                <i></i>
-                <div>
-                    <strong>{{ ev.label }}</strong>
-                    {% if ev.amount %}<span class="{% if ev.sign == '+' %}ledger-in{% else %}muted{% endif %}">{{ ev.amount|money }}</span>{% endif %}
-                    <div class="tiny" style="text-transform:none">{{ ev.date }}</div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    <div class="stack">
-        <section class="panel">
-            <h2>Contact</h2>
-            <dl class="kv" style="margin-top:.7rem">
-                <dt>Phone</dt><dd>{{ record.phone }}</dd>
-                <dt>Email</dt><dd>{{ record.email }}</dd>
-                <dt>City</dt><dd>{{ record.city }}, {{ record.country }}</dd>
-            </dl>
-        </section>
-        <section class="panel">
-            <h2>Travel documents</h2>
-            <dl class="kv" style="margin-top:.7rem">
-                <dt>Passport</dt><dd>{{ record.passport }}</dd>
-                <dt>Expiry</dt><dd>{{ record.passport_expiry }}</dd>
-                <dt>Emergency</dt><dd>{{ record.emergency }}</dd>
-            </dl>
-        </section>
-    </div>
-</div>
-{% elif tab == 'bookings' %}
-<div class="panel" style="padding:0">
-    <table class="data">
-        <thead><tr><th>Booking</th><th>Product</th><th>Dates</th><th>Status</th><th>Remaining</th></tr></thead>
-        <tbody>
-        {% for b in m.bookings %}
-            {% if b.customer_id == record.id %}
-            <tr>
-                <td><a href="{% url 'bookings:detail' b.id %}">{{ b.number }}</a></td>
-                <td>{{ b.product }}</td>
-                <td>{{ b.dates }}</td>
-                <td>{% include "components/status_badge.html" with status=b.status %}</td>
-                <td>{{ b.remaining|money }}</td>
-            </tr>
-            {% endif %}
-        {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% elif tab == 'invoices' %}
-<div class="panel" style="padding:0">
-    <table class="data">
-        <thead><tr><th>Invoice</th><th>Due</th><th>Total</th><th>Remaining</th><th>Status</th></tr></thead>
-        <tbody>
-        {% for inv in m.invoices %}
-            {% if inv.customer_id == record.id %}
-            <tr>
-                <td><a href="{% url 'invoices:detail' inv.id %}">{{ inv.number }}</a></td>
-                <td>{{ inv.due }}</td>
-                <td>{{ inv.total|money }}</td>
-                <td>{{ inv.remaining|money }}</td>
-                <td>{% include "components/status_badge.html" with status=inv.status %}</td>
-            </tr>
-            {% endif %}
-        {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% elif tab == 'payments' %}
-<div class="panel" style="padding:0">
-    <table class="data">
-        <thead><tr><th>Payment</th><th>Invoice</th><th>Date</th><th>Amount</th><th>Method</th></tr></thead>
-        <tbody>
-        {% for p in m.payments %}
-            {% if p.customer == record.name %}
-            <tr>
-                <td><a href="{% url 'payments:detail' p.id %}">{{ p.number }}</a></td>
-                <td>{{ p.invoice }}</td>
-                <td>{{ p.date }}</td>
-                <td>{{ p.amount|money }}</td>
-                <td>{{ p.method|labelize }}</td>
-            </tr>
-            {% endif %}
-        {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% elif tab == 'documents' %}
-{% include "components/empty_state.html" with title="No files attached" body="Passport scans and signed forms will appear here." %}
-{% else %}
 <section class="panel">
-    <div class="timeline">
-        {% for item in m.activity %}
-        <div class="tl"><i></i><div>{{ item.who }} — {{ item.text }}<div class="tiny" style="text-transform:none">{{ item.time }}</div></div></div>
-        {% endfor %}
-    </div>
+    <dl class="kv">
+        <dt>City</dt><dd>{{ record.city|default:"—" }}</dd>
+        <dt>Country</dt><dd>{{ record.country|default:"—" }}</dd>
+        <dt>Passport</dt><dd>{{ record.passport|default:"—" }}</dd>
+        <dt>Nationality</dt><dd>{{ record.nationality|default:"—" }}</dd>
+    </dl>
 </section>
-{% endif %}
 {% endblock %}

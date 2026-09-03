@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Operations</p>
+        <h1>{{ page_heading }}</h1>
+        <p>Record what the supplier agreed to provide after you contacted them outside TourOps. This is not a bill.</p>
+    </div>
+</div>
+<form method="post" class="panel form-grid" style="max-width:760px" data-reservation-form data-hotel-mode="{{ hotel_mode|default:'auto' }}" data-occupancy="{{ occupancy_json|default:'{}'|safe }}" data-supplier-types="{{ supplier_types_json|default:'{}'|safe }}">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% if form.tour_id.is_hidden %}
+        <p><span class="tiny">Tour</span><br><strong>{{ locked_tour_label|default:"Selected tour" }}</strong></p>
+        {{ form.tour_id }}
+    {% else %}
+        <label>Tour{{ form.tour_id }}{{ form.tour_id.errors }}</label>
+    {% endif %}
+    {% if form.supplier_id.is_hidden %}
+        <p><span class="tiny">Supplier</span><br><strong>{{ locked_supplier_label|default:"Selected supplier" }}</strong></p>
+        {{ form.supplier_id }}
+    {% else %}
+        <label>Supplier{{ form.supplier_id }}{{ form.supplier_id.errors }}</label>
+    {% endif %}
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Start{{ form.start_date }}{{ form.start_date.errors }}</label>
+        <label>End{{ form.end_date }}{{ form.end_date.errors }}</label>
+    </div>
+    <label>Release / cutoff date{{ form.release_date }}{{ form.release_date.errors }}</label>
+
+    <div class="callout callout-info">
+        Tour capacity is travelers. Hotel quantity is rooms. Beds = rooms × occupancy. Never treat 15 twins as 15 people.
+    </div>
+
+    <div data-hotel-fields>
+        <h2>Hotel room allocation</h2>
+        <p class="muted">Quantity is rooms. Occupancy is guests per room. Beds calculate automatically.</p>
+        <table class="data alloc-table">
+            <thead><tr><th>Room type</th><th>Quantity</th><th>Occupancy</th><th>Beds</th></tr></thead>
+            <tbody data-alloc-body>
+            {% for line in alloc_rows %}
+            <tr>
+                <td>
+                    <select class="field" name="alloc_{{ forloop.counter0 }}_type" data-alloc-type>
+                        <option value="">—</option>
+                        {% for value, label in room_types %}
+                        <option value="{{ value }}" {% if line.room_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input class="field" type="number" min="1" name="alloc_{{ forloop.counter0 }}_qty" value="{{ line.quantity }}" data-alloc-qty></td>
+                <td><input class="field" type="number" min="1" name="alloc_{{ forloop.counter0 }}_occ" value="{{ line.occupancy }}" placeholder="auto" data-alloc-occ></td>
+                <td data-alloc-beds class="mono">—</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>Total rooms</strong></td>
+                    <td data-alloc-rooms><strong>0</strong></td>
+                    <td></td>
+                    <td data-alloc-total-beds><strong>0</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div data-other-fields>
+        <label>Quantity / vehicle or guide count{{ form.quantity }}{{ form.quantity.errors }}</label>
+        <p class="muted">Use this for coaches, guides and other non-hotel services.</p>
+    </div>
+    <label>Confirmation number{{ form.confirmation_number }}{{ form.confirmation_number.errors }}</label>
+    <label>Status{{ form.status }}{{ form.status.errors }}</label>
+    <label>Notes{{ form.notes }}{{ form.notes.errors }}</label>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save reservation" }}</button>
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:list' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

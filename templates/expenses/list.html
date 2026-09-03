@@ -1,43 +1,81 @@
 {% extends "base.html" %}
 {% load tourops %}
 {% block content %}
+<div class="callout callout-info" style="margin-bottom:1rem;display:flex;gap:.65rem;align-items:flex-start">
+    <span aria-hidden="true" style="font-weight:700">ℹ</span>
+    <span><strong>Expense</strong> = cost incurred. <strong>Supplier payment</strong> = cash sent. Tour profit uses expenses.</span>
+</div>
+
 <div class="page-head">
     <div>
-        <p class="tiny">Cost incurred</p>
         <h1>Expenses</h1>
-        <p>Supplier bills and overhead — not the same as a planned tour service.</p>
+        <p>Costs incurred — not cash out</p>
     </div>
-    <div class="actions"><a class="btn btn-warm" href="{% url 'expenses:create' %}">New expense</a></div>
+    <div class="actions">
+        <a class="btn btn-warm" href="{% url 'expenses:create' %}">+ New Expense</a>
+    </div>
 </div>
-<div class="filters">
-    <a class="chip {% if not category %}is-on{% endif %}" href="{% url 'expenses:list' %}{% if status %}?status={{ status }}{% endif %}">All</a>
-    {% for value, label in category_choices %}
-    <a class="chip {% if category == value %}is-on{% endif %}" href="?category={{ value }}{% if status %}&status={{ status }}{% endif %}">{{ label }}</a>
-    {% endfor %}
-</div>
-<div class="filters" style="margin-top:.5rem">
-    <a class="chip {% if not status and not overdue %}is-on{% endif %}" href="{% url 'expenses:list' %}{% if category %}?category={{ category }}{% endif %}">Any status</a>
-    {% for value, label in status_choices %}
-    <a class="chip {% if status == value %}is-on{% endif %}" href="?status={{ value }}{% if category %}&category={{ category }}{% endif %}">{{ label }}</a>
-    {% endfor %}
-    <a class="chip {% if overdue %}is-on{% endif %}" href="?overdue=1{% if category %}&category={{ category }}{% endif %}">Overdue</a>
-</div>
+
+<section class="panel filter-toolbar">
+    <div class="filter-group">
+        <span class="tiny">Scope</span>
+        <div class="filters" style="margin:0">
+            <a class="chip {% if not scope %}is-on{% endif %}" href="?{% if status %}status={{ status }}{% endif %}{% if category %}{% if status %}&{% endif %}category={{ category }}{% endif %}">All</a>
+            {% for value, label in scope_choices %}
+            <a class="chip {% if scope == value %}is-on{% endif %}" href="?scope={{ value }}{% if status %}&status={{ status }}{% endif %}{% if category %}&category={{ category }}{% endif %}">{{ value }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="filter-group">
+        <span class="tiny">Status</span>
+        <div class="filters" style="margin:0">
+            {% for value, label in status_choices %}
+            <a class="chip chip-{% if value == 'PAID' %}ok{% elif value == 'PARTIALLY_PAID' %}warn{% else %}bad{% endif %} {% if status == value %}is-on{% endif %}" href="?status={{ value }}{% if scope %}&scope={{ scope }}{% endif %}{% if category %}&category={{ category }}{% endif %}">{{ value }}</a>
+            {% endfor %}
+            <a class="chip chip-bad {% if overdue %}is-on{% endif %}" href="?overdue=1{% if scope %}&scope={{ scope }}{% endif %}{% if category %}&category={{ category }}{% endif %}">OVERDUE</a>
+        </div>
+    </div>
+    <div class="filter-group">
+        <span class="tiny">Category</span>
+        <form method="get" class="filters" style="margin:0">
+            {% if scope %}<input type="hidden" name="scope" value="{{ scope }}">{% endif %}
+            {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+            <select class="field" name="category" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for value, label in category_choices %}
+                <option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</section>
+
 <div class="panel" style="padding:0">
     <table class="data">
         <thead>
-            <tr><th>Expense</th><th>Supplier</th><th>Related</th><th>Category</th><th>Amount</th><th>Paid</th><th>Remaining</th><th>Due</th><th>Status</th></tr>
+            <tr>
+                <th>Exp#</th>
+                <th>Description</th>
+                <th>Supplier</th>
+                <th>Tour</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Paid</th>
+                <th>Remaining</th>
+                <th>Status</th>
+            </tr>
         </thead>
         <tbody>
         {% for e in expenses %}
             <tr class="{% if e.overdue %}is-overdue{% endif %}">
                 <td><a class="mono" href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
-                <td>{{ e.supplier }}</td>
+                <td>{{ e.description|default:"—" }}</td>
+                <td>{{ e.supplier|default:"—" }}</td>
                 <td>{{ e.related }}</td>
-                <td><span class="category">{{ e.category|labelize }}</span></td>
+                <td><span class="category">{{ e.category }}</span></td>
                 <td>{{ e.amount|money }}</td>
                 <td>{{ e.paid|money }}</td>
                 <td><strong>{{ e.remaining|money }}</strong></td>
-                <td>{{ e.due }}{% if e.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
                 <td>{% include "components/status_badge.html" with status=e.status %}</td>
             </tr>
         {% empty %}
@@ -50,5 +88,10 @@
         {% endfor %}
         </tbody>
     </table>
+    {% if expenses %}
+    <div class="table-foot">
+        <span class="muted">Showing 1 to {{ expenses|length }} of {{ expenses|length }} expenses</span>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

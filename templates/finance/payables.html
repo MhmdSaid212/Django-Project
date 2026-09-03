@@ -5,25 +5,46 @@
     <div>
         <p class="tiny">AP aging</p>
         <h1>Accounts payable</h1>
-        <p>Open supplier expenses waiting to be paid.</p>
+        <p>{{ lead }}</p>
     </div>
-    <a class="btn btn-ghost" href="{% url 'supplier_payments:list' %}">Pay suppliers</a>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'expenses:list' %}">Expenses</a>
+        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}">Pay supplier</a>
+    </div>
 </div>
+{% include "finance/_nav.html" %}
+
+{% if report %}
 <div class="panel" style="padding:0">
     <table class="data">
-        <thead><tr><th>Expense</th><th>Supplier</th><th>Due</th><th>Remaining</th></tr></thead>
+        <thead>
+            <tr><th>Expense</th><th>Supplier</th><th>Related</th><th>Due</th><th>Remaining</th><th>Status</th><th></th></tr>
+        </thead>
         <tbody>
-        {% for e in m.expenses %}
-            {% if e.remaining %}
+        {% for e in report.expenses %}
             <tr class="{% if e.overdue %}is-overdue{% endif %}">
-                <td><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
-                <td>{{ e.supplier }}</td>
-                <td>{{ e.due }}</td>
+                <td><a class="mono" href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a></td>
+                <td>{% if e.supplier_id %}<a href="{% url 'suppliers:detail' e.supplier_id %}">{{ e.supplier }}</a>{% else %}{{ e.supplier }}{% endif %}</td>
+                <td>{{ e.related }}</td>
+                <td>{{ e.due }}{% if e.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
                 <td><strong>{{ e.remaining|money }}</strong></td>
+                <td>{% include "components/status_badge.html" with status=e.status %}</td>
+                <td>
+                    {% if e.has_remaining %}
+                    <a class="btn btn-sm btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ e.id }}">Pay</a>
+                    {% endif %}
+                </td>
             </tr>
-            {% endif %}
+        {% empty %}
+            <tr>
+                <td colspan="7">
+                    {% url 'expenses:create' as expense_create_url %}
+                    {% include "components/empty_state.html" with title="No open payables" body="Supplier bills with a remaining balance will appear here." cta="New expense" cta_url=expense_create_url %}
+                </td>
+            </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
+{% endif %}
 {% endblock %}

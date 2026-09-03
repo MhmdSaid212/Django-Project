@@ -33,6 +33,24 @@
         });
     }
 
+    const drops = Array.prototype.slice.call(document.querySelectorAll("details.nav-drop"));
+    function closeDrops(except) {
+        drops.forEach(function (drop) {
+            if (drop !== except) drop.removeAttribute("open");
+        });
+    }
+    drops.forEach(function (drop) {
+        drop.addEventListener("toggle", function () {
+            if (drop.open) closeDrops(drop);
+        });
+    });
+    document.addEventListener("click", function (event) {
+        if (!event.target.closest("details.nav-drop")) closeDrops();
+    });
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeDrops();
+    });
+
     document.querySelectorAll("[data-chips]").forEach(function (group) {
         group.addEventListener("click", function (event) {
             const chip = event.target.closest(".chip");
@@ -200,4 +218,100 @@
             });
         });
     });
+
+    document.querySelectorAll("[data-copy-email]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            const source = document.querySelector("[data-email-copy]");
+            const text = source ? source.textContent : "";
+            if (!text) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+            }
+            const toast = document.getElementById("app-toast");
+            if (toast) {
+                toast.textContent = "Email copied. The supplier does not use TourOps.";
+                toast.classList.add("show");
+                setTimeout(function () {
+                    toast.classList.remove("show");
+                }, 2800);
+            }
+        });
+    });
+
+    const reservationForm = document.querySelector("[data-reservation-form]");
+    if (reservationForm) {
+        let occupancy = {};
+        let types = {};
+        try {
+            occupancy = JSON.parse(reservationForm.getAttribute("data-occupancy") || "{}");
+            types = JSON.parse(reservationForm.getAttribute("data-supplier-types") || "{}");
+        } catch (err) {
+            occupancy = {};
+            types = {};
+        }
+        const hotelFields = reservationForm.querySelector("[data-hotel-fields]");
+        const otherFields = reservationForm.querySelector("[data-other-fields]");
+        const supplierSelect = reservationForm.querySelector('[name="supplier_id"]');
+        const mode = reservationForm.getAttribute("data-hotel-mode") || "auto";
+
+        function isHotel() {
+            if (mode === "hotel") return true;
+            if (mode === "other") return false;
+            const id = supplierSelect ? supplierSelect.value : "";
+            return (types[id] || "") === "HOTEL";
+        }
+
+        function toggleSections() {
+            const hotel = isHotel();
+            const selected = supplierSelect && supplierSelect.value;
+            const showHotel = mode === "hotel" || (mode === "auto" && (!selected || hotel));
+            const showOther = mode === "other" || (mode === "auto" && selected && !hotel);
+            if (hotelFields) hotelFields.hidden = !showHotel;
+            if (otherFields) otherFields.hidden = !showOther;
+        }
+
+        function recalc() {
+            let rooms = 0;
+            let beds = 0;
+            reservationForm.querySelectorAll("[data-alloc-body] tr").forEach(function (row) {
+                const type = row.querySelector("[data-alloc-type]");
+                const qtyEl = row.querySelector("[data-alloc-qty]");
+                const occEl = row.querySelector("[data-alloc-occ]");
+                const bedEl = row.querySelector("[data-alloc-beds]");
+                const qty = Number((qtyEl && qtyEl.value) || 0);
+                let occ = Number((occEl && occEl.value) || 0);
+                if (type && type.value && !occ) {
+                    occ = Number(occupancy[type.value] || 1);
+                    if (occEl && !occEl.value) occEl.placeholder = String(occ);
+                }
+                const lineBeds = type && type.value && qty ? qty * (occ || 1) : 0;
+                if (bedEl) bedEl.textContent = lineBeds ? String(lineBeds) : "—";
+                if (type && type.value && qty) {
+                    rooms += qty;
+                    beds += lineBeds;
+                }
+            });
+            const roomTotal = reservationForm.querySelector("[data-alloc-rooms]");
+            const bedTotal = reservationForm.querySelector("[data-alloc-total-beds]");
+            if (roomTotal) roomTotal.innerHTML = "<strong>" + rooms + "</strong>";
+            if (bedTotal) bedTotal.innerHTML = "<strong>" + beds + "</strong>";
+        }
+
+        reservationForm.addEventListener("change", function (event) {
+            const type = event.target.closest("[data-alloc-type]");
+            if (type) {
+                const row = type.closest("tr");
+                const occEl = row && row.querySelector("[data-alloc-occ]");
+                if (occEl && !occEl.value && occupancy[type.value]) {
+                    occEl.value = occupancy[type.value];
+                }
+            }
+            toggleSections();
+            recalc();
+        });
+        reservationForm.addEventListener("input", recalc);
+        if (supplierSelect) supplierSelect.addEventListener("change", toggleSections);
+        toggleSections();
+        recalc();
+    }
 })();

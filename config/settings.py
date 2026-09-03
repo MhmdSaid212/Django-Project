@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.refunds",
     "apps.expenses",
     "apps.supplier_payments",
+    "apps.supplier_reservations",
     "apps.finance",
     "apps.reports",
     "apps.dashboard",
@@ -111,6 +112,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

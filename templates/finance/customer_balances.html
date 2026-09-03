@@ -3,33 +3,51 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Who owes us</p>
-        <h1>Customer balances</h1>
-        <p>Calculated: invoiced − paid + refunds. Not stored as a collection.</p>
+        <h1>Customer Balances</h1>
+        <p>Calculated from invoices, payments, refunds — never typed</p>
     </div>
-    <div class="view-switch">
-        <a class="is-on" href="{% url 'finance:customer_balances' %}">Customers</a>
-        <a href="{% url 'finance:supplier_balances' %}">Suppliers</a>
-    </div>
+    <a class="btn btn-ghost" href="{% url 'finance:receivables' %}{{ query }}">Open invoices</a>
 </div>
+{% include "finance/_nav.html" %}
+
+{% if report %}
 <div class="panel" style="padding:0">
     <table class="data">
-        <thead><tr><th>Customer</th><th>Total invoiced</th><th>Paid</th><th>Refunded</th><th>Outstanding</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Customer</th>
+                <th>Open invoices</th>
+                <th>Balance</th>
+                <th>Flags</th>
+            </tr>
+        </thead>
         <tbody>
+        {% for row in report.customers %}
             <tr>
-                <td><a href="{% url 'customers:detail' 'cus-1001' %}">Fatima Ghazzawi</a></td>
-                <td>$2,400</td><td>$1,980</td><td>$0</td><td><strong>$420</strong></td>
+                <td><strong>{{ row.customer }}</strong></td>
+                <td>{{ row.count }}</td>
+                <td>
+                    {% if row.outstanding %}
+                    <strong class="ledger-out">{{ row.outstanding|money }}</strong>
+                    {% else %}
+                    <strong>{{ row.outstanding|money }}</strong>
+                    {% endif %}
+                </td>
+                <td>{% if row.overdue %}<span class="badge b-bad">OVERDUE</span>{% else %}<span class="badge b-ok">CURRENT</span>{% endif %}</td>
             </tr>
+        {% empty %}
             <tr>
-                <td><a href="{% url 'customers:detail' 'cus-1002' %}">Sarah Ahmad</a></td>
-                <td>$1,780</td><td>$1,780</td><td>$150</td><td><strong>$0</strong></td>
+                <td colspan="4">
+                    {% include "components/empty_state.html" with title="No customer balances" body="Customers with open invoice balances will appear here." %}
+                </td>
             </tr>
-            <tr>
-                <td><a href="{% url 'customers:detail' 'cus-1003' %}">Omar Khalil</a></td>
-                <td>$1,698</td><td>$0</td><td>$0</td><td><strong>$1,698</strong></td>
-            </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
-<p class="muted" style="margin-top:.8rem">Click a customer to open their profile statement.</p>
+{% endif %}
+
+<div class="callout callout-info" style="margin-top:1rem">
+    Balances are calculated live. Do not store editable balances.
+</div>
 {% endblock %}

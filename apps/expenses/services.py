@@ -5,6 +5,8 @@ from decimal import Decimal
 
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
 from apps.expenses.repositories import ExpenseRepository
 from apps.expenses.schemas import ExpenseDocument
 from apps.expenses.validators import (
@@ -17,6 +19,8 @@ from apps.expenses.validators import (
     validate_category,
     validate_scope,
 )
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
 from core.constants import Collections, DEFAULT_CURRENCY, ExpenseScope
 from core.exceptions import DatabaseUnavailableError, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal128, to_money
@@ -114,6 +118,7 @@ def present_supplier_payment(document: dict) -> dict:
         "date": _display_date(document.get("payment_date")),
         "payment_date": document.get("payment_date"),
         "ref": document.get("reference_number") or "",
+        "notes": document.get("notes") or "",
         "expense_id": serialize_id(document.get("expense_id")),
     }
 
@@ -229,7 +234,26 @@ class ExpenseService:
         except PyMongoError as exc:
             raise DatabaseUnavailableError("Could not save the expense.") from exc
         document["_id"] = result.inserted_id
-        return self.get(document["_id"])
+        saved = self.get(document["_id"])
+        number = saved.get("expense_number") or ""
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.CREATED.value,
+            entity_type="expenses",
+            entity_id=saved["_id"],
+            description=f"Created expense {number}.",
+            after={"expense_number": number, "amount": str(to_money(saved.get("amount"))), "category": saved.get("category")},
+        )
+        safe_notify_roles(
+            FINANCE_NOTIFY_ROLES,
+            type=NotificationType.EXPENSE.value,
+            title=f"Expense {number}",
+            message=f"A new {saved.get('category', 'expense').replace('_', ' ').lower()} expense was recorded.",
+            related_entity_type="expenses",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
+        return saved
 
     def update(self, expense_id, *, actor_id=None, **changes) -> dict:
         document = self.get(expense_id)
@@ -296,7 +320,17 @@ class ExpenseService:
             self.repository.update(document["_id"], updates)
         except PyMongoError as exc:
             raise DatabaseUnavailableError("Could not update the expense.") from exc
-        return self.get(document["_id"])
+        saved = self.get(document["_id"])
+        number = saved.get("expense_number") or document.get("expense_number") or ""
+        safe_audit(
+            actor_id=actor_id or document.get("created_by"),
+            action=AuditAction.UPDATED.value,
+            entity_type="expenses",
+            entity_id=saved["_id"],
+            description=f"Updated expense {number}.",
+            after={"fields": sorted(k for k in updates.keys() if k != "updated_at")},
+        )
+        return saved
 
     def sync_paid_amount(self, expense_id, paid_amount) -> dict:
         document = self.get(expense_id)
@@ -327,6 +361,14 @@ class ExpenseService:
             raise DatabaseUnavailableError("Could not delete the expense.") from exc
         if result.matched_count != 1:
             raise NotFoundError("Expense not found.")
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.DELETED.value,
+            entity_type="expenses",
+            entity_id=document["_id"],
+            description=f"Deleted expense {document.get('expense_number') or ''}.",
+            before={"expense_number": document.get("expense_number")},
+        )
 
     def list_for_tour(self, tour_id) -> list[dict]:
         tour = self.repository.find_tour(tour_id)

@@ -16,7 +16,7 @@ urlpatterns = [
     path("", method_view(*ALL_ROLES, GET=api.list_suppliers, POST=api.create_supplier), name="collection"),
     path("<str:id>/expenses/", method_view(*FINANCE_ROLES, GET=expenses_for_supplier), name="expenses"),
     path(
-        "<str:supplier_id>/payments/",
+        "<str:id>/payments/",
         method_view(
             *FINANCE_ROLES,
             GET=supplier_payments_for_supplier,

@@ -3,69 +3,30 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Customer book</p>
+        <p class="tiny">Traveler book</p>
         <h1>Customers</h1>
-        <p>Who is traveling, what they booked, and how much they still owe.</p>
+        <p>Who is traveling with you.</p>
     </div>
     <div class="actions">
         <a class="btn btn-warm" href="{% url 'customers:create' %}">New customer</a>
     </div>
 </div>
-
-<div class="metrics-4">
-    <div class="metric"><span class="tiny">Total</span><b>{{ m.customers|length }}</b></div>
-    <div class="metric"><span class="tiny">Active</span><b>3</b></div>
-    <div class="metric"><span class="tiny">With outstanding balance</span><b>2</b></div>
-    <div class="metric"><span class="tiny">Outstanding AR</span><b>{{ m.kpis.ar|money }}</b></div>
-</div>
-
-<div class="filters" data-chips>
-    <input class="field" placeholder="Search name, phone, CUS number…" style="min-width:220px">
-    <button type="button" class="chip is-on">All</button>
-    <button type="button" class="chip">Active</button>
-    <button type="button" class="chip">Inactive</button>
-    <button type="button" class="chip">Has balance</button>
-    <button type="button" class="chip">Has upcoming booking</button>
-    <button type="button" class="chip">Recent</button>
-</div>
-
 <div class="panel" style="padding:0">
-    <div class="table-wrap">
-        <table class="data">
-            <thead>
-                <tr>
-                    <th>Customer</th>
-                    <th>Contact</th>
-                    <th>Upcoming booking</th>
-                    <th>Balance</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in m.customers %}
-                <tr>
-                    <td>
-                        <div class="row-main">
-                            <span class="avatar {% cycle 'warm' 'teal' '' 'warm' %}">{{ c.initials }}</span>
-                            <div>
-                                <a href="{% url 'customers:detail' c.id %}"><strong>{{ c.name }}</strong></a>
-                                <small class="mono">{{ c.number }}</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>{{ c.phone }}<br><span class="muted">{{ c.email }}</span></td>
-                    <td>{% if c.upcoming %}{{ c.upcoming }}{% else %}<span class="muted">None</span>{% endif %}</td>
-                    <td><strong>{% if c.balance %}{{ c.balance|money }}{% else %}—{% endif %}</strong></td>
-                    <td>{% include "components/status_badge.html" with status=c.status %}</td>
-                    <td>
-                        <a class="btn btn-ghost btn-sm" href="{% url 'bookings:create' %}">Book</a>
-                        <a class="btn btn-ghost btn-sm" href="{% url 'customers:edit' c.id %}">Edit</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <table class="data">
+        <thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th>City</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for c in customers %}
+            <tr>
+                <td><a href="{% url 'customers:detail' c.id %}"><strong>{{ c.name }}</strong></a><div class="mono muted">{{ c.number }}</div></td>
+                <td>{{ c.email }}</td>
+                <td>{{ c.phone|default:"—" }}</td>
+                <td>{{ c.city|default:"—" }}</td>
+                <td>{% include "components/status_badge.html" with status=c.status %}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="5">{% url 'customers:create' as create_url %}{% include "components/empty_state.html" with title="No customers yet" body="Add a traveler before you can book a tour." cta="New customer" cta_url=create_url %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

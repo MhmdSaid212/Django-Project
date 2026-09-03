@@ -3,11 +3,12 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Accounts payable</p>
-        <h1>Supplier payments</h1>
-        <p>Pay against an expense bill. Amount cannot exceed remaining balance.</p>
+        <h1>Supplier Payments</h1>
+        <p>Cash out against expenses — does not change profit</p>
     </div>
-    <div class="actions"><a class="btn btn-warm" href="{% url 'supplier_payments:create' %}">Record payment</a></div>
+    <div class="actions">
+        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}">+ Record payment</a>
+    </div>
 </div>
 
 {% if bill %}
@@ -33,17 +34,27 @@
 
 <div class="panel" style="padding:0">
     <table class="data">
-        <thead><tr><th>Payment</th><th>Supplier</th><th>Expense</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref</th></tr></thead>
+        <thead>
+            <tr>
+                <th>SP#</th>
+                <th>Date</th>
+                <th>Supplier</th>
+                <th>Expense</th>
+                <th>Method</th>
+                <th>Amount</th>
+                <th>Reference</th>
+            </tr>
+        </thead>
         <tbody>
         {% for sp in payments %}
             <tr>
                 <td><a class="mono" href="{% url 'supplier_payments:detail' sp.id %}">{{ sp.number }}</a></td>
+                <td>{{ sp.date }}</td>
                 <td>{{ sp.supplier }}</td>
                 <td>{% if sp.expense_id %}<a href="{% url 'expenses:detail' sp.expense_id %}">{{ sp.expense }}</a>{% else %}{{ sp.expense }}{% endif %}</td>
+                <td><span class="chip is-on" style="cursor:default">{{ sp.method }}</span></td>
                 <td>{{ sp.amount|money }}</td>
-                <td>{{ sp.date }}</td>
-                <td>{{ sp.method|labelize }}</td>
-                <td class="mono">{{ sp.ref }}</td>
+                <td class="mono">{{ sp.ref|default:"—" }}</td>
             </tr>
         {% empty %}
             <tr>
@@ -55,5 +66,14 @@
         {% endfor %}
         </tbody>
     </table>
+    {% if payments %}
+    <div class="table-foot">
+        <span class="muted">Showing 1 to {{ payments|length }} of {{ payments|length }} entries</span>
+    </div>
+    {% endif %}
+</div>
+
+<div class="callout callout-info" style="margin-top:1rem">
+    Sum of this page is cash leaving, not company cost.
 </div>
 {% endblock %}

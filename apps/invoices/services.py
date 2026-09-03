@@ -14,24 +14,19 @@ from decimal import Decimal
 
 from bson import ObjectId
 
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
+from apps.bookings.repositories import BookingRepository
 from apps.invoices.repositories import InvoiceRepository
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
 from core.constants import Collections, InvoiceStatus
 from core.database import get_collection
-from core.exceptions import NotFoundError, TourOpsError, ValidationError
+from core.exceptions import BusinessRuleViolation, ConflictError, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal, to_decimal128, to_money
 from core.numbering import next_number
 from core.soft_delete import stamp_new
 from core.utils import parse_object_id, serialize_id, utcnow
-
-
-class ConflictError(TourOpsError):
-    code = "CONFLICT"
-    http_status = 409
-
-
-class BusinessRuleViolation(TourOpsError):
-    code = "BUSINESS_RULE_VIOLATION"
-    http_status = 422
 
 
 def compute_status(total: Decimal, paid: Decimal, refunded: Decimal) -> str:
@@ -89,9 +84,7 @@ class InvoiceService:
 
     # ---- create from a confirmed booking (the main path) -------------------
     def create_for_booking(self, booking_id: str, *, created_by: str, due_days: int = 14) -> dict:
-        booking = get_collection(Collections.BOOKINGS).find_one(
-            {"_id": parse_object_id(booking_id, field="booking_id"), "is_deleted": {"$ne": True}}
-        )
+        booking = BookingRepository().find_by_id(booking_id)
         if not booking:
             raise NotFoundError("Booking not found.")
         if booking.get("booking_status") != "CONFIRMED":
@@ -147,13 +140,38 @@ class InvoiceService:
         })
         result = self.repository.insert(doc)
         doc["_id"] = result.inserted_id
-        return present_invoice(doc)
+        presented = present_invoice(doc)
+        safe_audit(
+            actor_id=created_by,
+            action=AuditAction.CREATED.value,
+            entity_type="invoices",
+            entity_id=doc["_id"],
+            description=f"Issued invoice {presented.get('invoice_number')}.",
+            after={"invoice_number": presented.get("invoice_number"), "total_amount": presented.get("total_amount")},
+        )
+        safe_notify_roles(
+            FINANCE_NOTIFY_ROLES,
+            type=NotificationType.PAYMENT.value,
+            title=f"Invoice {presented.get('invoice_number')}",
+            message=f"Invoice {presented.get('invoice_number')} was issued for {presented.get('total_amount')}.",
+            related_entity_type="invoices",
+            related_entity_id=doc["_id"],
+            exclude_user_id=created_by,
+        )
+        return presented
 
-    def cancel(self, doc_id: str) -> dict:
+    def cancel(self, doc_id: str, *, actor_id=None) -> dict:
         doc = self._get_raw(doc_id)
         if to_decimal(doc.get("paid_amount", 0)) > ZERO:
             raise BusinessRuleViolation("A paid invoice cannot be cancelled. Record a refund instead.")
         self.repository.update(doc_id, {"status": InvoiceStatus.CANCELLED.value})
+        safe_audit(
+            actor_id=actor_id or doc.get("created_by"),
+            action=AuditAction.CANCELLED.value,
+            entity_type="invoices",
+            entity_id=doc["_id"],
+            description=f"Cancelled invoice {doc.get('invoice_number')}.",
+        )
         return self.get(doc_id)
 
     # ---- rollup recompute, called by PaymentService/RefundService ----------

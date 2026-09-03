@@ -36,6 +36,9 @@ class ReceiptService:
             raise NotFoundError("Receipt not found.")
         return present_receipt(doc)
 
+    def list_items(self, **filters) -> list[dict]:
+        return [present_receipt(doc) for doc in self.repository.list_receipts(**filters)]
+
     def for_payment(self, payment_id: str) -> dict:
         doc = self.repository.find_by_payment(payment_id)
         if not doc:

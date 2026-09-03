@@ -3,22 +3,63 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Accounts payable partners</p>
-        <h1>{{ page_heading }}</h1>
-        <p>Hotels, transport, guides, and other vendors — one directory, type-specific profiles.</p>
+        <p class="tiny">Vendor directory</p>
+        <h1>Suppliers</h1>
+        <p>Manage hotels, transportation companies, guides, restaurants and other travel service providers. Suppliers do not log in to TourOps.</p>
     </div>
     <div class="actions"><a class="btn btn-warm" href="{% url 'suppliers:create' %}">New supplier</a></div>
 </div>
+
+<div class="metrics-4" style="margin-bottom:1rem">
+    <div class="metric"><span class="tiny">Total suppliers</span><b>{{ stats.total|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Active</span><b>{{ stats.active|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Hotels</span><b>{{ stats.hotels|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Transport</span><b>{{ stats.transport|default:0 }}</b></div>
+</div>
+<div class="metrics-4" style="margin-bottom:1rem">
+    <div class="metric"><span class="tiny">Guides</span><b>{{ stats.guides|default:0 }}</b></div>
+    {% if nav.finance %}
+    <div class="metric"><span class="tiny">Outstanding payables</span><b>{{ stats.owed|money }}</b></div>
+    {% endif %}
+</div>
+
+<form class="filters" method="get">
+    <input class="field" name="q" value="{{ q }}" placeholder="Search by name, code or email…" style="min-width:220px">
+    <select class="field" name="status">
+        <option value="">All statuses</option>
+        <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Active</option>
+        <option value="INACTIVE" {% if status_filter == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+    </select>
+    {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
+    <button class="btn btn-ghost" type="submit">Filter</button>
+</form>
+
 <div class="filters">
     <a class="chip {% if not type_filter %}is-on{% endif %}" href="{% url 'suppliers:list' %}">All</a>
-    <a class="chip {% if type_filter == 'HOTEL' %}is-on{% endif %}" href="{% url 'suppliers:hotels' %}">Hotel</a>
-    <a class="chip {% if type_filter == 'TRANSPORTATION' %}is-on{% endif %}" href="{% url 'suppliers:transportation' %}">Transportation</a>
-    <a class="chip {% if type_filter == 'TOUR_GUIDE' %}is-on{% endif %}" href="{% url 'suppliers:tour_guides' %}">Guide</a>
+    <a class="chip {% if type_filter == 'HOTEL' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=HOTEL">Hotels</a>
+    <a class="chip {% if type_filter == 'TRANSPORTATION' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=TRANSPORTATION">Transportation</a>
+    <a class="chip {% if type_filter == 'TOUR_GUIDE' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=TOUR_GUIDE">Guides</a>
+    <a class="chip {% if type_filter == 'AIRLINE' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=AIRLINE">Airlines</a>
+    <a class="chip {% if type_filter == 'ACTIVITY_PROVIDER' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=ACTIVITY_PROVIDER">Activities</a>
+    <a class="chip {% if type_filter == 'RESTAURANT' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=RESTAURANT">Restaurants</a>
+    <a class="chip {% if type_filter == 'INSURANCE' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=INSURANCE">Insurance</a>
     <a class="chip {% if type_filter == 'OTHER' %}is-on{% endif %}" href="{% url 'suppliers:other' %}">Other</a>
 </div>
+
 <div class="panel" style="padding:0">
     <table class="data">
-        <thead><tr><th>Supplier</th><th>Type</th><th>Contact</th><th>Location</th><th>Amount owed</th><th>Status</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Supplier</th>
+                <th>Type</th>
+                <th>Contact</th>
+                <th>Tours</th>
+                <th>Open reservations</th>
+                {% if nav.finance %}<th>Amount owed</th>{% endif %}
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
         <tbody>
         {% for s in suppliers %}
             <tr>
@@ -27,16 +68,23 @@
                     <div class="mono muted">{{ s.number }}</div>
                 </td>
                 <td><span class="badge {{ s.type|badge_class }}">{{ s.type_label }}</span></td>
-                <td>{{ s.contact|default:"—" }}<br><span class="muted">{{ s.phone|default:"—" }}</span></td>
-                <td>{{ s.city|default:"—" }}</td>
-                <td><strong>{{ s.owed|money }}</strong></td>
+                <td>{{ s.contact|default:"—" }}<br><span class="muted">{{ s.phone|default:"—" }}{% if s.email %} · {{ s.email }}{% endif %}</span></td>
+                <td>{{ s.tour_count|default:0 }}</td>
+                <td>{{ s.open_reservations|default:0 }}</td>
+                {% if nav.finance %}<td><strong>{{ s.owed|money }}</strong></td>{% endif %}
                 <td>{% include "components/status_badge.html" with status=s.status %}</td>
+                <td class="row-actions">
+                    <a href="{% url 'suppliers:detail' s.id %}">View</a>
+                    <a href="{% url 'suppliers:edit' s.id %}">Edit</a>
+                    {% if nav.ops %}<a href="{% url 'supplier_reservations:create' %}?supplier_id={{ s.id }}">Create reservation</a>{% endif %}
+                    {% if nav.finance %}<a href="{% url 'expenses:list' %}">Expenses</a>{% endif %}
+                </td>
             </tr>
         {% empty %}
             <tr>
-                <td colspan="6">
+                <td colspan="8">
                     {% url 'suppliers:create' as supplier_create_url %}
-                    {% include "components/empty_state.html" with title="No suppliers yet" body="Add a hotel, transporter, guide, or other vendor to start booking services and tracking payables." cta="New supplier" cta_url=supplier_create_url %}
+                    {% include "components/empty_state.html" with title="No suppliers yet" body="Add a hotel, transporter, guide, or other vendor. They will never log in — you record arrangements after contacting them outside TourOps." cta="New supplier" cta_url=supplier_create_url %}
                 </td>
             </tr>
         {% endfor %}

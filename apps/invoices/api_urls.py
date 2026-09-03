@@ -10,9 +10,10 @@ app_name = "invoices_api"
 urlpatterns = [
     path("", method_view(*FINANCE_ROLES, GET=api.list_invoices, POST=api.create_invoice), name="collection"),
     path(
-        "<str:invoice_id>/payments/",
+        "<str:id>/payments/",
         method_view(*FINANCE_ROLES, GET=payments_for_invoice, POST=create_payment_for_invoice),
         name="payments",
     ),
+    path("<str:id>/cancel/", method_view(*FINANCE_ROLES, POST=api.cancel_invoice), name="cancel"),
     path("<str:id>/", method_view(*FINANCE_ROLES, GET=api.get_invoice, PATCH=api.patch_invoice), name="detail"),
 ]

@@ -1,5 +1,7 @@
-<header class="navbar">
+{% load tourops %}
+<header class="navbar topbar">
     <button type="button" class="nav-toggle" data-sidebar-toggle aria-label="Toggle menu">☰</button>
+
     <div class="navbar-title">
         {% if crumbs %}
         <div class="crumbs">
@@ -9,48 +11,67 @@
             {% endfor %}
         </div>
         {% endif %}
-        <strong>{{ page_heading }}</strong>
+        {% if page_heading %}<strong>{{ page_heading }}</strong>{% endif %}
     </div>
-    <div class="search" role="search">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input type="search" placeholder="Search bookings, customers, invoices…" aria-label="Global search">
-    </div>
+
     <div class="navbar-actions">
-        <div class="rel">
-            <button type="button" class="btn btn-warm btn-sm" data-quick-create>+ Create</button>
-            <div class="quick" data-quick-menu>
-                {% if nav.ops %}
-                <a href="{% url 'bookings:create' %}">Booking</a>
-                <a href="{% url 'customers:create' %}">Customer</a>
-                <a href="{% url 'tours:create' %}">Tour</a>
-                <a href="{% url 'packages:create' %}">Package</a>
-                <a href="{% url 'suppliers:create' %}">Supplier</a>
+        <details class="nav-drop">
+            <summary class="icon-btn" data-notes-toggle aria-label="Notifications" title="Notifications">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V10a6 6 0 1 1 12 0v6l2 2H4l2-2z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+                {% if unread_count %}
+                <span class="note-count" aria-label="{{ unread_count }} unread">{{ unread_count }}</span>
                 {% endif %}
-                {% if nav.finance %}
-                <a href="{% url 'invoices:list' %}">Invoice</a>
-                <a href="{% url 'payments:list' %}">Payment</a>
-                <a href="{% url 'expenses:create' %}">Expense</a>
-                <a href="{% url 'supplier_payments:create' %}">Supplier payment</a>
+            </summary>
+            <div class="flyout notes-menu" data-notes-menu>
+                <div class="flyout-head">
+                    <strong>Notifications</strong>
+                    {% if unread_count %}<span>{{ unread_count }} unread</span>{% else %}<span>You're up to date</span>{% endif %}
+                </div>
+                {% if nav_notifications %}
+                    {% for n in nav_notifications %}
+                    <a class="notes-item {% if n.unread %}is-unread{% endif %}" href="{% url 'notifications:open' n.id %}">
+                        <span class="notes-item-dot" aria-hidden="true"></span>
+                        <span>
+                            <strong>{{ n.title }}</strong>
+                            <small>{{ n.body }}</small>
+                        </span>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="notes-empty">No notifications yet.</p>
                 {% endif %}
+                <a class="flyout-foot" href="{% url 'notifications:list' %}">View all notifications</a>
             </div>
-        </div>
-        <a class="icon-btn" href="{% url 'notifications:list' %}" aria-label="Notifications">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V10a6 6 0 1 1 12 0v6l2 2H4l2-2z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
-            {% if unread_count %}<span class="dot"></span>{% endif %}
-        </a>
+        </details>
+
         {% if current_user %}
-            <div class="user-chip">
+        <details class="nav-drop">
+            <summary class="profile-btn" data-profile-toggle>
                 <span class="avatar">{{ current_user_initial }}</span>
-                <span>
+                <span class="profile-meta">
                     <strong>{{ current_user_name }}</strong>
-                    <small>{{ current_role }}</small>
+                    <small>{{ current_role|labelize }}</small>
                 </span>
+                <svg class="profile-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </summary>
+            <div class="flyout profile-menu" data-profile-menu>
+                <div class="profile-menu-head">
+                    <span class="avatar">{{ current_user_initial }}</span>
+                    <div>
+                        <strong>{{ current_user_name }}</strong>
+                        <small>{% if current_user.email %}{{ current_user.email }}{% else %}{{ current_role|labelize }}{% endif %}</small>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:password' %}">Change password</a>
+                {% if nav.system %}
+                <a href="{% url 'accounts:settings' %}">Settings</a>
+                {% endif %}
+                <form method="post" action="{% url 'accounts:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit">Log out</button>
+                </form>
             </div>
-            <a class="btn btn-ghost btn-sm" href="{% url 'accounts:password' %}">Password</a>
-            <form method="post" action="{% url 'accounts:logout' %}" style="margin:0">
-                {% csrf_token %}
-                <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
-            </form>
+        </details>
         {% endif %}
     </div>
 </header>

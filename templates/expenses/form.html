@@ -5,6 +5,11 @@
         <p class="tiny">Expenses</p>
         <h1>{{ page_heading }}</h1>
         <p>Supplier bills and overhead. Tour-scoped costs must be linked to a tour.</p>
+        {% if from_reservation %}
+        <div class="callout callout-info" style="margin-top:.8rem;max-width:640px">
+            A confirmed reservation does not create this bill. Enter the amount, dates and supplier invoice reference from the invoice you received.
+        </div>
+        {% endif %}
     </div>
 </div>
 <form method="post" class="panel form-grid" style="max-width:640px">

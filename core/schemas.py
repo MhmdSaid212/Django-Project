@@ -116,6 +116,11 @@ class Traveler:
     first_name: str = ""
     last_name: str = ""
     passport_number: Optional[str] = None
+    nationality: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    room_type: Optional[str] = None
+    room_number: Optional[str] = None
+    hotel_reservation_id: Optional[ObjectId] = None
 
 
 @dataclass

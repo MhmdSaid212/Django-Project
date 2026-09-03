@@ -203,6 +203,14 @@ class TourService:
             expenses=expenses,
         )
         presented["activity"] = self._activity(document, bookings or [], expenses or [])
+        if include_extras:
+            from apps.supplier_reservations.services import SupplierReservationService
+
+            presented["reservations"] = SupplierReservationService().list_for_tour(document["_id"])
+            presented["accommodation"] = SupplierReservationService().accommodation_snapshot(document["_id"])
+        else:
+            presented["reservations"] = []
+            presented["accommodation"] = {}
         return presented
 
     def availability(self) -> list[dict]:
@@ -246,6 +254,13 @@ class TourService:
         except PyMongoError as extra:
             raise DatabaseUnavailableError("Could not update the tour.") from extra
         return self.get(existing["_id"])
+
+    def adjust_booked_seats(self, tour_id, delta: int) -> dict:
+        document = self.get(tour_id)
+        booked = int(document.get("booked_seats") or 0) + int(delta)
+        if booked < 0:
+            booked = 0
+        return self.update(tour_id, booked_seats=booked)
 
     def soft_delete(self, tour_id, *, actor_id) -> None:
         document = self.get(tour_id)

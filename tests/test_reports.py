@@ -186,7 +186,21 @@ def test_agent_forbidden_from_reports(agent_session):
 
 
 def test_accountant_can_open_report_pages(accountant_session):
-    for name in ("reports:list", "reports:expenses", "reports:revenue", "reports:profit_loss", "reports:profitability"):
+    for name in (
+        "reports:list",
+        "reports:expenses",
+        "reports:revenue",
+        "reports:profit_loss",
+        "reports:profitability",
+        "reports:payments",
+        "reports:refunds",
+        "reports:transactions",
+        "finance:receivables",
+        "finance:payables",
+        "finance:customer_balances",
+        "finance:supplier_balances",
+        "dashboard:accountant",
+    ):
         assert accountant_session.get(reverse(name)).status_code == 200
 
 
@@ -219,3 +233,31 @@ def test_html_expense_breakdown_renders_totals(owner_session, fake_mongo):
     assert response.status_code == 200
     assert b"Overhead" in response.content
     assert b"$1,400" in response.content
+
+
+def test_html_business_finance_and_reports_hub(owner_session, fake_mongo):
+    expense, _tour, supplier = _create_tour_expense(fake_mongo)
+    payables = owner_session.get(reverse("finance:payables"))
+    assert payables.status_code == 200
+    assert expense["expense_number"].encode() in payables.content
+    assert b"Business finance" in payables.content or b"Accounts payable" in payables.content
+
+    balances = owner_session.get(reverse("finance:supplier_balances"))
+    assert balances.status_code == 200
+    assert supplier["name"].encode() in balances.content
+
+    hub = owner_session.get(reverse("reports:list"))
+    assert hub.status_code == 200
+    assert b"Transactions" in hub.content
+    assert b"Financial Reports" in hub.content
+    assert b"logo-dark.png" in hub.content
+
+    owner = owner_session.get(reverse("dashboard:owner"))
+    assert owner.status_code == 200
+    assert b"Receivables" in owner.content
+    assert b"Tour profitability" in owner.content
+
+    accountant = owner_session.get(reverse("dashboard:accountant"))
+    assert accountant.status_code == 200
+    assert b"Receivables" in accountant.content
+    assert b"Business finance" in accountant.content

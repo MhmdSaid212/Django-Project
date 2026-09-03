@@ -4,6 +4,8 @@ from django.contrib.auth.hashers import check_password, make_password
 from pymongo.errors import DuplicateKeyError
 
 from apps.accounts.constants import ROLE_LABELS
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
 from apps.accounts.repositories import UserRepository
 from apps.accounts.schemas import UserDocument
 from apps.accounts.validators import normalize_email, validate_password
@@ -56,6 +58,13 @@ class AuthService:
             raise PermissionDeniedError("This account is inactive.")
 
         self.repository.update_last_login(user["_id"], utcnow())
+        safe_audit(
+            actor_id=user["_id"],
+            action=AuditAction.LOGIN.value,
+            entity_type="users",
+            entity_id=user["_id"],
+            description="Signed in.",
+        )
         return user
 
     def change_password(self, user_id, current_password: str, new_password: str) -> dict:
@@ -126,6 +135,7 @@ class UserService:
         password: str,
         role: str,
         phone: str | None = None,
+        actor_id=None,
     ) -> dict:
         first_name = (first_name or "").strip()
         last_name = (last_name or "").strip()
@@ -159,6 +169,14 @@ class UserService:
         except DuplicateKeyError as exc:
             raise ValidationError("A user with this email already exists.") from exc
         document["_id"] = result.inserted_id
+        safe_audit(
+            actor_id=actor_id or document["_id"],
+            action=AuditAction.CREATED.value,
+            entity_type="users",
+            entity_id=document["_id"],
+            description=f"Created staff user {email} ({role}).",
+            after={"email": email, "role": role},
+        )
         return document
 
     def set_status(self, user_id, status: str, *, actor_id) -> dict:
@@ -174,7 +192,17 @@ class UserService:
         ):
             raise ValidationError("Cannot deactivate the last Owner / Admin.")
         self.repository.update(user["_id"], {"status": status, "updated_at": utcnow()})
-        return self.get_user(user["_id"])
+        saved = self.get_user(user["_id"])
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.STATUS_CHANGED.value,
+            entity_type="users",
+            entity_id=saved["_id"],
+            description=f"Changed status for {saved.get('email')} to {status}.",
+            before={"status": user.get("status")},
+            after={"status": status},
+        )
+        return saved
 
     def change_role(self, user_id, role: str, *, actor_id) -> dict:
         if role not in UserDocument.ALLOWED_ROLES:
@@ -189,7 +217,17 @@ class UserService:
         ):
             raise ValidationError("Cannot change the role of the last Owner / Admin.")
         self.repository.update(user["_id"], {"role": role, "updated_at": utcnow()})
-        return self.get_user(user["_id"])
+        saved = self.get_user(user["_id"])
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.ROLE_CHANGED.value,
+            entity_type="users",
+            entity_id=saved["_id"],
+            description=f"Changed role for {saved.get('email')} to {role}.",
+            before={"role": user.get("role")},
+            after={"role": role},
+        )
+        return saved
 
     def reset_password(self, user_id, new_password: str, *, actor_id) -> dict:
         user = self.get_user(user_id)

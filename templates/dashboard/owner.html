@@ -1,1 +1,127 @@
-{% extends "dashboard/command.html" %}
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="bazaar dash">
+    <div class="dash-hero">
+        <section class="dash-hero-main">
+            <div class="dash-kicker">
+                <span>{{ brand.name }}</span>
+                <span>·</span>
+                <span>{{ today_label }}</span>
+            </div>
+            <h1>{{ greeting }}, {{ greeting_name }}</h1>
+            <p class="lead">A warm look across the whole agency — tours that earn, cash that moves, and balances still open.</p>
+            {% if dash %}
+            <div class="dash-figure {% if dash.revenue.profit < 0 %}is-down{% endif %}">
+                <div>
+                    <span class="tiny" style="color:#E8C37A">Gross profit</span>
+                    <strong>{{ dash.revenue.profit|money }}</strong>
+                </div>
+                <div class="dash-pills">
+                    <span class="dash-pill">Revenue <b>{{ dash.revenue.revenue|money }}</b></span>
+                    <span class="dash-pill">Costs <b>{{ dash.revenue.costs|money }}</b></span>
+                    <span class="dash-pill">Net cash <b>{{ dash.summary.net|money }}</b></span>
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        <aside class="dash-hero-side">
+            <form class="dash-tile dash-month" method="get">
+                <label class="tiny" style="flex:1">Month
+                    <input class="field" type="month" name="month" value="{{ filters.month }}">
+                </label>
+                <button class="btn btn-ghost" type="submit">Show</button>
+            </form>
+            {% if dash %}
+            <a class="dash-tile clay" href="{% url 'finance:receivables' %}" style="color:inherit">
+                <span class="tiny">Receivables</span>
+                <b>{{ dash.summary.receivables.total|money }}</b>
+                <p class="muted" style="font-size:.8rem;margin-top:.2rem">Still to collect from customers</p>
+            </a>
+            <a class="dash-tile sea" href="{% url 'finance:payables' %}" style="color:inherit">
+                <span class="tiny">Payables</span>
+                <b>{{ dash.summary.payables.total|money }}</b>
+                <p class="muted" style="font-size:.8rem;margin-top:.2rem">Still to pay suppliers</p>
+            </a>
+            {% endif %}
+        </aside>
+    </div>
+
+    {% if dash %}
+    <div class="bazaar-ribbon">
+        <span>Revenue <b>{{ dash.revenue.revenue|money }}</b></span>
+        <span>Costs <b>{{ dash.revenue.costs|money }}</b></span>
+        <span>Profit <b>{{ dash.revenue.profit|money }}</b></span>
+        <span>Cash net <b>{{ dash.summary.net|money }}</b></span>
+    </div>
+
+    {% include "dashboard/_flow.html" %}
+
+    {% if desk %}
+    <section class="dash-card" style="margin:0.9rem 0">
+        <div class="panel-h">
+            <h2>Supplier operations</h2>
+            <a class="tiny" href="{% url 'dashboard:agent' %}">Open ops desk</a>
+        </div>
+        <div class="metrics-4" style="margin-top:.6rem">
+            <div class="metric"><span class="tiny">Requested</span><b>{{ desk.requested|default:0 }}</b></div>
+            <div class="metric"><span class="tiny">Confirmed</span><b>{{ desk.confirmed|default:0 }}</b></div>
+            <div class="metric"><span class="tiny">Upcoming</span><b>{{ desk.upcoming|default:0 }}</b></div>
+            <div class="metric"><span class="tiny">Bed shortages</span><b>{{ desk.shortage_count|default:0 }}</b></div>
+        </div>
+    </section>
+    {% endif %}
+
+    <div class="dash-grid">
+        {% include "dashboard/_attention.html" %}
+        <div class="stack">
+            <section class="dash-card bazaar-arch">
+                <div class="panel-h">
+                    <h2>Tour margin</h2>
+                    <a class="tiny" href="{% url 'reports:profitability' %}">Tour profitability</a>
+                </div>
+                <div class="tour-meter">
+                    {% for t in dash.top_tours %}
+                    <a href="{% url 'reports:profitability' %}?tour={{ t.id }}{% if filters.month %}&month={{ filters.month }}{% endif %}">
+                        <div class="row">
+                            <strong>{{ t.name }}</strong>
+                            <span class="mono">{{ t.margin }}%</span>
+                        </div>
+                        <div class="track"><i style="width:{% if t.margin %}{{ t.margin }}{% else %}0{% endif %}%"></i></div>
+                    </a>
+                    {% empty %}
+                    <p class="muted">No tour profitability yet.</p>
+                    {% endfor %}
+                </div>
+                {% if dash.low_tours %}
+                <p class="tiny" style="margin:1rem 0 .5rem">Watch these</p>
+                <div class="tour-meter">
+                    {% for t in dash.low_tours %}
+                    <a href="{% url 'reports:profitability' %}?tour={{ t.id }}{% if filters.month %}&month={{ filters.month }}{% endif %}">
+                        <div class="row">
+                            <span>{{ t.name }}</span>
+                            <span class="mono">{{ t.margin }}%</span>
+                        </div>
+                        <div class="track low"><i style="width:{% if t.margin %}{{ t.margin }}{% else %}0{% endif %}%"></i></div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+            <section class="dash-card">
+                <div class="panel-h"><h2>Jump to</h2></div>
+                <div class="dash-jumps">
+                    <a class="btn btn-warm" href="{% url 'reports:list' %}">Reports</a>
+                    <a class="btn btn-ghost" href="{% url 'finance:customer_balances' %}">Balances</a>
+                    <a class="btn btn-ghost" href="{% url 'accounts:users' %}">Users</a>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    {% include "dashboard/_ledger.html" %}
+    {% else %}
+    {% include "components/empty_state.html" with title="Dashboard unavailable" body="Start MongoDB and refresh to load live owner KPIs." %}
+    {% endif %}
+</div>
+{% endblock %}

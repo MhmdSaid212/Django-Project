@@ -1,9 +1,13 @@
+from collections import OrderedDict
+
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.packages.services import PackageService
+from apps.supplier_reservations.constants import SERVICE_TYPE_LABELS
+from apps.supplier_reservations.services import SupplierReservationService
 from apps.tours.forms import TourForm, initial_from_package, initial_from_tour
 from apps.tours.services import TourService
 from core.access import OPERATIONS_ROLES
@@ -39,6 +43,27 @@ def _form_payload(form: TourForm) -> dict:
 
 def _package_choices():
     return PackageService().list_options()
+
+
+def _reservation_groups(rows):
+    buckets = OrderedDict((key, []) for key in SERVICE_TYPE_LABELS)
+    extra = []
+    for row in rows or []:
+        if row.get("is_cancelled"):
+            continue
+        key = row.get("service_type")
+        if key in buckets:
+            buckets[key].append(row)
+        else:
+            extra.append(row)
+    groups = [
+        {"key": key, "label": SERVICE_TYPE_LABELS[key], "rows": items}
+        for key, items in buckets.items()
+        if items
+    ]
+    if extra:
+        groups.append({"key": "OTHER", "label": "Other", "rows": extra})
+    return groups
 
 
 @login_required
@@ -105,16 +130,23 @@ def tour_create(request):
 @role_required(*OPERATIONS_ROLES)
 def tour_detail(request, id):
     tab = (request.GET.get("tab") or "overview").strip().lower()
-    allowed = {"overview", "bookings", "travelers", "services", "expenses", "profit", "activity"}
+    allowed = {"overview", "bookings", "travelers", "services", "reservations", "rooming", "expenses", "profit", "activity"}
     if tab not in allowed:
         tab = "overview"
     try:
         record = TourService().get_presented(id)
+        record["planned_ops"] = SupplierReservationService().match_planned(
+            record.get("services") or [],
+            record.get("reservations") or [],
+        )
+        record["reservation_groups"] = _reservation_groups(record.get("reservations") or [])
     except DatabaseUnavailableError:
         return _unavailable(request)
     except TourOpsError:
         messages.error(request, "Tour not found.")
         return redirect("tours:list")
+    if tab == "rooming":
+        return redirect("supplier_reservations:rooming", tour_id=id)
     return render(
         request,
         "tours/detail.html",
@@ -129,6 +161,12 @@ def tour_detail(request, id):
             "tab": tab,
         },
     )
+
+
+@login_required
+@role_required(*OPERATIONS_ROLES)
+def tour_rooming(request, id):
+    return redirect("supplier_reservations:rooming", tour_id=id)
 
 
 @login_required

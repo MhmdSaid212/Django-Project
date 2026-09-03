@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Operations</p>
+        <h1>Rooming lists</h1>
+        <p>Assign confirmed travelers to hotel rooms. Lists are prepared by the travel agent, not by the supplier.</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:list' %}">Supplier reservations</a>
+    </div>
+</div>
+
+{% for item in listings %}
+<section class="panel" style="margin-bottom:.85rem">
+    <div class="panel-h">
+        <div>
+            <h2>{{ item.name }}</h2>
+            <p class="muted">{{ item.dates }}{% if item.code %} · {{ item.code }}{% endif %}</p>
+        </div>
+        <a class="btn btn-warm" href="{% url 'supplier_reservations:rooming' item.id %}">Open rooming list</a>
+    </div>
+    <div class="metrics-4" style="margin-top:.8rem">
+        <div class="metric"><span class="tiny">Confirmed travelers</span><b>{{ item.snapshot.confirmed_travelers|default:0 }}</b></div>
+        <div class="metric"><span class="tiny">Beds</span><b>{{ item.snapshot.bed_capacity|default:0 }}</b></div>
+        <div class="metric"><span class="tiny">{{ item.snapshot.capacity_label|default:"Accommodation" }}</span><b>{% if item.snapshot.shortage_travelers %}{{ item.snapshot.shortage_travelers }}{% elif item.snapshot.unused_beds %}{{ item.snapshot.unused_beds }}{% else %}—{% endif %}</b></div>
+        <div class="metric"><span class="tiny">Hotels</span><b>{{ item.hotels|length }}</b></div>
+    </div>
+    {% for hotel in item.hotels %}
+        <p style="margin-top:.45rem">{{ hotel.supplier }} · {{ hotel.allocation_label }} · {{ hotel.bed_capacity }} beds {% include "components/status_badge.html" with status=hotel.status %}</p>
+    {% endfor %}
+</section>
+{% empty %}
+{% include "components/empty_state.html" with title="No hotel reservations yet" body="Rooming lists appear after you record a hotel reservation for a tour." %}
+{% endfor %}
+{% endblock %}

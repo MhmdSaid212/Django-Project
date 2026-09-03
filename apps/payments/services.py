@@ -11,11 +11,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from apps.invoices.services import BusinessRuleViolation, InvoiceService
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
+from apps.invoices.services import InvoiceService
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
 from apps.payments.repositories import PaymentRepository
 from core.constants import Collections, PaymentMethod, PaymentRecordStatus
 from core.database import get_collection
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import BusinessRuleViolation, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal, to_decimal128, to_money
 from core.numbering import next_number
 from core.soft_delete import stamp_new
@@ -100,7 +104,25 @@ class PaymentService:
         self._issue_receipt(doc)
         self.invoices.recompute_rollups(invoice_id)
         _sync_booking_payment_status(invoice.get("booking_id"))
-        return present_payment(doc)
+        presented = present_payment(doc)
+        safe_audit(
+            actor_id=recorded_by,
+            action=AuditAction.CREATED.value,
+            entity_type="payments",
+            entity_id=doc["_id"],
+            description=f"Recorded payment {presented.get('payment_number')}.",
+            after={"payment_number": presented.get("payment_number"), "amount": presented.get("amount")},
+        )
+        safe_notify_roles(
+            FINANCE_NOTIFY_ROLES,
+            type=NotificationType.PAYMENT.value,
+            title=f"Payment {presented.get('payment_number')}",
+            message=f"A customer payment of {presented.get('amount')} was recorded.",
+            related_entity_type="payments",
+            related_entity_id=doc["_id"],
+            exclude_user_id=recorded_by,
+        )
+        return presented
 
     def void(self, payment_id: str, *, actor_id: str) -> dict:
         doc = self.repository.find_by_id(payment_id)
@@ -112,6 +134,13 @@ class PaymentService:
         # Voided money no longer counts — recompute the invoice + booking.
         self.invoices.recompute_rollups(serialize_id(doc["invoice_id"]))
         _sync_booking_payment_status(doc.get("booking_id"))
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.VOIDED.value,
+            entity_type="payments",
+            entity_id=doc["_id"],
+            description=f"Voided payment {doc.get('payment_number')}.",
+        )
         return self.get(payment_id)
 
     # ---- receipt auto-issue (no public POST for receipts) ------------------

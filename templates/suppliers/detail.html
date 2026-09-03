@@ -6,12 +6,17 @@
     <div>
         <p class="type-pill">{{ record.type_label }} · {{ record.number }}</p>
         <h1>{{ record.name }}</h1>
-        <p class="muted">{{ record.contact|default:"—" }} · {{ record.phone|default:"—" }} · {{ record.city|default:"—" }}</p>
+        <p class="muted">{{ record.contact|default:"—" }} · {{ record.phone|default:"—" }} · {{ record.email|default:"—" }}</p>
+        <p class="tiny" style="text-transform:none;margin-top:.35rem">This supplier is not a TourOps user. Contact them by email, phone or WhatsApp and record the result here.</p>
     </div>
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
+        {% if nav.ops %}
+        <a class="btn btn-warm" href="{% url 'supplier_reservations:create' %}?supplier_id={{ record.id }}">Create reservation</a>
+        {% endif %}
         {% if nav.finance %}
-        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}?supplier_id={{ record.id }}">Record payment</a>
+        <a class="btn btn-ghost" href="{% url 'expenses:create' %}?supplier_id={{ record.id }}">Record bill</a>
+        <a class="btn btn-ghost" href="{% url 'supplier_payments:create' %}?supplier_id={{ record.id }}">Record payment</a>
         {% endif %}
         <a class="btn btn-ghost" href="{% url 'suppliers:edit' record.id %}">Edit</a>
         {% if not record.has_balance %}
@@ -22,104 +27,158 @@
         {% endif %}
     </div>
 </div>
+
 <div class="metrics-4">
-    <div class="metric"><span class="tiny">Current balance</span><b>{{ record.owed|money }}</b></div>
-    <div class="metric"><span class="tiny">Payment terms</span><b style="font-size:1rem">{{ record.terms|default:"—" }}</b></div>
-    <div class="metric"><span class="tiny">Bank</span><b style="font-size:.85rem">{{ record.bank }}</b></div>
-    <div class="metric"><span class="tiny">Email</span><b style="font-size:.85rem">{{ record.email|default:"—" }}</b></div>
+    <div class="metric"><span class="tiny">Active tours</span><b>{{ record.tours|length }}</b></div>
+    <div class="metric"><span class="tiny">Upcoming reservations</span><b>{{ record.upcoming_reservations|length }}</b></div>
+    <div class="metric"><span class="tiny">Open bills</span><b>{{ record.open_bill_count|default:0 }}</b></div>
+    {% if nav.finance %}
+    <div class="metric"><span class="tiny">Total outstanding</span><b>{{ record.owed|money }}</b></div>
+    {% else %}
+    <div class="metric"><span class="tiny">Open reservations</span><b>{{ record.open_reservation_count|default:0 }}</b></div>
+    {% endif %}
 </div>
 
-{% if record.type == 'HOTEL' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Hotel details</h2>
+<div class="tabs">
+    <a class="{% if tab == 'overview' %}is-on{% endif %}" href="?tab=overview">Overview</a>
+    <a class="{% if tab == 'tours' %}is-on{% endif %}" href="?tab=tours">Tours</a>
+    <a class="{% if tab == 'reservations' %}is-on{% endif %}" href="?tab=reservations">Reservations</a>
+    {% if nav.finance %}
+    <a class="{% if tab == 'expenses' %}is-on{% endif %}" href="?tab=expenses">Expenses</a>
+    <a class="{% if tab == 'payments' %}is-on{% endif %}" href="?tab=payments">Payments</a>
+    {% endif %}
+    <a class="{% if tab == 'activity' %}is-on{% endif %}" href="?tab=activity">Activity</a>
+</div>
+
+{% if tab == 'overview' %}
+<section class="panel">
+    <h2>Profile</h2>
     <dl class="kv" style="margin-top:.7rem">
-        <dt>Stars</dt><dd>{{ record.stars }}</dd>
-        <dt>Rooms</dt><dd>{{ record.rooms }}</dd>
-        <dt>Board</dt><dd>{{ record.board }}</dd>
-        <dt>Check-in</dt><dd>{{ record.checkin }}</dd>
-        <dt>Check-out</dt><dd>{{ record.checkout }}</dd>
-        {% if record.room_types %}<dt>Room types</dt><dd>{{ record.room_types }}</dd>{% endif %}
-        {% if record.amenities %}<dt>Amenities</dt><dd>{{ record.amenities }}</dd>{% endif %}
+        <dt>Address</dt><dd>{{ record.street|default:"" }}{% if record.city %} {{ record.city }}{% endif %}{% if record.country %}, {{ record.country }}{% endif %}{% if not record.city and not record.country %}—{% endif %}</dd>
+        <dt>Phone</dt><dd>{{ record.phone|default:"—" }}</dd>
+        <dt>Email</dt><dd>{{ record.email|default:"—" }}</dd>
+        <dt>Payment terms</dt><dd>{{ record.terms|default:"—" }}</dd>
+        {% if nav.finance %}<dt>Bank</dt><dd>{{ record.bank }}</dd>{% endif %}
     </dl>
 </section>
+
+{% if record.type == 'HOTEL' %}
+<section class="panel" style="margin-top:.85rem">
+    <h2>Hotel information</h2>
+    <p class="muted" style="margin:.3rem 0 .6rem">Property profile only — this is not tour allotment.</p>
+    <dl class="kv">
+        <dt>Stars</dt><dd>{{ record.stars }}</dd>
+        <dt>Rooms on property</dt><dd>{{ record.rooms }}</dd>
+        <dt>Board</dt><dd>{{ record.board }}</dd>
+        <dt>Check-in / out</dt><dd>{{ record.checkin }} / {{ record.checkout }}</dd>
+        {% if record.room_types %}<dt>Room types</dt><dd>{{ record.room_types }}</dd>{% endif %}
+    </dl>
 {% elif record.type == 'TRANSPORTATION' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Fleet</h2>
+<section class="panel" style="margin-top:.85rem"><h2>Fleet</h2>
     <dl class="kv" style="margin-top:.7rem">
-        <dt>Vehicle type</dt><dd>{{ record.vehicle }}</dd>
+        <dt>Vehicle</dt><dd>{{ record.vehicle }}</dd>
         <dt>Fleet size</dt><dd>{{ record.fleet }}</dd>
         <dt>Seats / vehicle</dt><dd>{{ record.seats }}</dd>
-        {% if record.license_number %}<dt>License</dt><dd>{{ record.license_number }}</dd>{% endif %}
-        {% if record.coverage_areas %}<dt>Coverage</dt><dd>{{ record.coverage_areas }}</dd>{% endif %}
     </dl>
-</section>
 {% elif record.type == 'TOUR_GUIDE' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Guide profile</h2>
+<section class="panel" style="margin-top:.85rem"><h2>Guide profile</h2>
     <dl class="kv" style="margin-top:.7rem">
         <dt>Languages</dt><dd>{{ record.languages }}</dd>
         <dt>Years</dt><dd>{{ record.years }}</dd>
         <dt>Specialties</dt><dd>{{ record.specialties }}</dd>
-        {% if record.license_number %}<dt>License</dt><dd>{{ record.license_number }}</dd>{% endif %}
     </dl>
-</section>
-{% elif record.type == 'AIRLINE' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Airline</h2>
-    <dl class="kv" style="margin-top:.7rem">
-        <dt>IATA</dt><dd>{{ record.iata_code|default:"—" }}</dd>
-        <dt>Alliance</dt><dd>{{ record.alliance|default:"—" }}</dd>
-    </dl>
-</section>
-{% elif record.type == 'ACTIVITY_PROVIDER' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Activity</h2>
-    <dl class="kv" style="margin-top:.7rem">
-        <dt>Kinds</dt><dd>{{ record.activity_kinds|default:"—" }}</dd>
-        <dt>Duration</dt><dd>{{ record.typical_duration_hours }}</dd>
-        <dt>Location</dt><dd>{{ record.location|default:"—" }}</dd>
-    </dl>
-</section>
-{% elif record.type == 'RESTAURANT' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Restaurant</h2>
-    <dl class="kv" style="margin-top:.7rem">
-        <dt>Cuisine</dt><dd>{{ record.cuisine|default:"—" }}</dd>
-        <dt>Seating</dt><dd>{{ record.seating_capacity }}</dd>
-        <dt>Meals</dt><dd>{{ record.meal_types|default:"—" }}</dd>
-    </dl>
-</section>
-{% elif record.type == 'INSURANCE' %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Insurance</h2>
-    <dl class="kv" style="margin-top:.7rem">
-        <dt>Policies</dt><dd>{{ record.policy_types|default:"—" }}</dd>
-        <dt>Coverage</dt><dd>{{ record.coverage_notes|default:"—" }}</dd>
-    </dl>
-</section>
-{% elif record.details %}
-<section class="panel" style="margin-bottom:.85rem">
-    <h2>Details</h2>
-    <p style="margin-top:.6rem">{{ record.details }}</p>
-</section>
 {% endif %}
+</section>
 
-<div class="two-col">
+<div class="two-col" style="margin-top:.85rem">
     <section class="panel">
-        <h2>Related tours</h2>
-        {% for tour in record.tours %}
-            <p style="margin-top:.5rem"><a href="{% url 'tours:detail' tour.id %}">{{ tour.name }}</a>{% if tour.code %} · {{ tour.code }}{% endif %}</p>
+        <h2>Upcoming operations</h2>
+        {% for r in record.upcoming_reservations %}
+            <p style="margin-top:.65rem">
+                <a href="{% url 'supplier_reservations:detail' r.id %}"><strong>{{ r.tour }}</strong></a>
+                <span class="muted"> · {{ r.dates }}</span><br>
+                {% if r.is_hotel %}{{ r.allocation_label }} · {{ r.bed_capacity }} beds{% else %}{{ r.service_label }}{% endif %}
+                {% include "components/status_badge.html" with status=r.status %}
+            </p>
         {% empty %}
-            <p class="muted" style="margin-top:.5rem">No linked tours yet.</p>
+            <p class="muted" style="margin-top:.5rem">No upcoming reservations.</p>
         {% endfor %}
     </section>
     <section class="panel">
-        <h2>Open expenses</h2>
-        {% for e in record.open_expenses %}
-            <p style="margin-top:.45rem"><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a> · {{ e.remaining|money }} remaining</p>
-        {% empty %}
-            <p class="muted" style="margin-top:.5rem">No open expenses.</p>
-        {% endfor %}
+        <h2>Finance</h2>
+        {% if nav.finance %}
+            <p class="tiny">Amount owed is calculated from unpaid expense remainders. It cannot be typed.</p>
+            <p style="margin:.5rem 0 1rem"><strong>{{ record.owed|money }}</strong> outstanding</p>
+            {% for e in record.open_expenses %}
+                <p style="margin-top:.45rem"><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a> · {{ e.amount|money }} · remaining {{ e.remaining|money }} · {% include "components/status_badge.html" with status=e.payment_status %}</p>
+            {% empty %}
+                {% include "components/empty_state.html" with title="No supplier bill recorded" body="Reservations are operational records. Create an expense only after the supplier sends a bill." %}
+            {% endfor %}
+        {% else %}
+            <p class="muted">Finance for this supplier is available to accountants and owners.</p>
+        {% endif %}
     </section>
 </div>
+
+{% elif tab == 'tours' %}
+<section class="panel">
+    {% for tour in record.tours %}
+        <p style="margin-top:.5rem"><a href="{% url 'tours:detail' tour.id %}?tab=reservations">{{ tour.name }}</a>{% if tour.code %} · {{ tour.code }}{% endif %}</p>
+    {% empty %}
+        <p class="muted">No tours currently list this supplier on planned services or reservations.</p>
+    {% endfor %}
+</section>
+
+{% elif tab == 'reservations' %}
+<div class="actions" style="margin-bottom:.8rem">
+    {% if nav.ops %}<a class="btn btn-warm" href="{% url 'supplier_reservations:create' %}?supplier_id={{ record.id }}">Create reservation</a>{% endif %}
+</div>
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Reservation</th><th>Tour</th><th>Dates</th><th>Allocation</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for r in record.reservations %}
+            <tr>
+                <td><a class="mono" href="{% url 'supplier_reservations:detail' r.id %}">{{ r.number }}</a></td>
+                <td>{% if r.tour_id %}<a href="{% url 'tours:detail' r.tour_id %}?tab=reservations">{{ r.tour }}</a>{% else %}{{ r.tour }}{% endif %}</td>
+                <td>{{ r.dates }}</td>
+                <td>{% if r.is_hotel %}{{ r.allocation_label }}{% else %}{{ r.quantity|default:"—" }}{% endif %}</td>
+                <td>{% include "components/status_badge.html" with status=r.status %}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="5">{% include "components/empty_state.html" with title="No reservations yet" body="A planned service on a tour is not a reservation. Record the arrangement after you contact this supplier." %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% elif tab == 'expenses' and nav.finance %}
+<section class="panel">
+    <p class="tiny">Open bills</p>
+    {% for e in record.open_expenses %}
+        <p style="margin-top:.5rem"><a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a> · {{ e.amount|money }} · paid {{ e.paid|default:e.paid_amount|money }} · remaining {{ e.remaining|money }}</p>
+    {% empty %}
+        {% include "components/empty_state.html" with title="No supplier bill recorded" body="A confirmed reservation does not create an expense." %}
+    {% endfor %}
+</section>
+
+{% elif tab == 'payments' and nav.finance %}
+<section class="panel">
+    <p style="margin-bottom:1rem">Amount owed <strong>{{ record.owed|money }}</strong> <span class="muted">— calculated, not editable</span></p>
+    {% for p in record.payments %}
+        <p style="margin-top:.45rem"><a href="{% url 'supplier_payments:detail' p.id %}">{{ p.number }}</a> · {{ p.amount|money }}{% if p.expense_number %} · {{ p.expense_number }}{% endif %}</p>
+    {% empty %}
+        <p class="muted">No supplier payments recorded.</p>
+    {% endfor %}
+</section>
+
+{% else %}
+<section class="panel">
+    {% for item in record.activity %}
+        <div class="tl" style="margin-bottom:.6rem"><i></i><div>{{ item.description }}<div class="tiny" style="text-transform:none">{{ item.date }} {{ item.time }} · {{ item.who }}</div></div></div>
+    {% empty %}
+        <p class="muted">No activity recorded yet.</p>
+    {% endfor %}
+</section>
+{% endif %}
 {% endblock %}

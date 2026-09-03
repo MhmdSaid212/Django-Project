@@ -1,59 +1,108 @@
 {% extends "base.html" %}
 {% load tourops %}
 {% block content %}
+<div class="callout callout-info" style="margin-bottom:1rem;display:flex;gap:.65rem;align-items:flex-start">
+    <span aria-hidden="true" style="font-weight:700">ℹ</span>
+    <span>Recording expense moves profit. Paying later moves cash only.</span>
+</div>
+
 <div class="page-head">
     <div>
-        <p class="tiny">{{ record.number }}</p>
-        <h1>{{ record.amount|money }}</h1>
-        <p>{{ record.supplier }} · {{ record.related }}</p>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;margin-bottom:.35rem">
+            <h1 class="mono" style="font-size:1.45rem">{{ record.number }}</h1>
+            {% include "components/status_badge.html" with status=record.status %}
+            <strong style="font-size:1.35rem;letter-spacing:-.02em">{{ record.amount|money }}</strong>
+        </div>
+        <p class="muted" style="display:flex;flex-wrap:wrap;gap:1rem">
+            <span>Supplier <strong>{{ record.supplier }}</strong></span>
+            <span>Tour <strong>{{ record.related }}</strong></span>
+        </p>
     </div>
     <div class="actions">
-        {% include "components/status_badge.html" with status=record.status %}
-        {% if record.has_remaining %}
-        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">Pay supplier</a>
-        {% endif %}
+        <a class="btn btn-ghost" href="{% url 'expenses:list' %}">← Back to expenses</a>
         <a class="btn btn-ghost" href="{% url 'expenses:edit' record.id %}">Edit</a>
-        {% if not record.has_payments %}
-        <form method="post" action="{% url 'expenses:delete' record.id %}" onsubmit="return confirm('Delete {{ record.number }}?');">
-            {% csrf_token %}
-            <button class="btn btn-ghost" type="submit">Delete</button>
-        </form>
-        {% endif %}
     </div>
 </div>
-<div class="metrics-4">
-    <div class="metric"><span class="tiny">Expense</span><b>{{ record.amount|money }}</b></div>
-    <div class="metric"><span class="tiny">Paid</span><b>{{ record.paid|money }}</b></div>
-    <div class="metric"><span class="tiny">Remaining</span><b>{{ record.remaining|money }}</b></div>
-    <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ record.due }}{% if record.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</b></div>
-</div>
+
 <div class="two-col">
     <section class="panel">
-        <h2>Details</h2>
-        <dl class="kv" style="margin-top:.6rem">
-            <dt>Category</dt><dd>{{ record.category|labelize }}</dd>
-            <dt>Scope</dt><dd>{{ record.scope|labelize }}</dd>
-            <dt>Supplier</dt><dd>{{ record.supplier }}</dd>
-            <dt>Related tour</dt><dd>{{ record.related }}</dd>
-            <dt>Expense date</dt><dd>{{ record.expense_date_display }}</dd>
-            <dt>Currency</dt><dd>{{ record.currency }}</dd>
+        <div class="form-grid" style="margin-top:.2rem">
+            <label>Scope
+                <input class="field" value="{{ record.scope }}" readonly>
+            </label>
+            <label>Category
+                <input class="field" value="{{ record.category }}" readonly>
+            </label>
+            <label style="grid-column:1/-1">Description
+                <input class="field" value="{{ record.description|default:'' }}" readonly>
+            </label>
+            <label>Expense date
+                <input class="field" value="{{ record.expense_date_display }}" readonly>
+            </label>
+            <label>Due date
+                <input class="field" value="{{ record.due }}" readonly>
+            </label>
+            <label>Amount
+                <input class="field" value="{{ record.amount }}" readonly>
+            </label>
+            <label>Currency
+                <input class="field" value="{{ record.currency }}" readonly>
+            </label>
+        </div>
+    </section>
+
+    <aside class="panel">
+        <h2>Summary</h2>
+        <dl class="kv" style="margin-top:.75rem">
+            <dt>Amount</dt><dd>{{ record.amount|money }}</dd>
+            <dt>Paid</dt><dd>{{ record.paid|money }}</dd>
+            <dt>Remaining</dt><dd><strong>{{ record.remaining|money }}</strong></dd>
+            <dt>Status</dt><dd>{% include "components/status_badge.html" with status=record.status %}</dd>
         </dl>
-        {% if record.description %}
-        <p style="margin-top:.8rem">{{ record.description }}</p>
+        <p class="callout callout-info" style="margin-top:1rem">payment_status is calculated — not a dropdown.</p>
+        {% if record.has_remaining %}
+        <p style="margin-top:1rem">
+            <a class="btn btn-ok" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">Record supplier payment</a>
+        </p>
         {% endif %}
-        {% if record.receipt_file %}
-        <p class="muted" style="margin-top:.8rem">Invoice / receipt document: {{ record.receipt_file }}</p>
-        {% else %}
-        <p class="muted" style="margin-top:.8rem">No receipt file attached.</p>
+        {% if not record.has_payments %}
+        <form method="post" action="{% url 'expenses:delete' record.id %}" onsubmit="return confirm('Delete {{ record.number }}?');" style="margin-top:.75rem">
+            {% csrf_token %}
+            <button class="btn btn-ghost" type="submit">Soft delete</button>
+        </form>
         {% endif %}
-    </section>
-    <section class="panel">
-        <h2>Supplier payments</h2>
+    </aside>
+</div>
+
+<section class="panel" style="margin-top:1rem;padding:0">
+    <div class="panel-h" style="padding:1rem 1.1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+        <h2>Payments</h2>
+        {% if record.has_remaining %}
+        <a class="btn btn-sm btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">+ Add payment</a>
+        {% endif %}
+    </div>
+    <table class="data">
+        <thead>
+            <tr><th>Payment ID</th><th>Payment date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
         {% for sp in record.payments %}
-            <p style="margin-top:.5rem"><a href="{% url 'supplier_payments:detail' sp.id %}">{{ sp.number }}</a> · {{ sp.amount|money }} · {{ sp.date }}</p>
+            <tr>
+                <td><a class="mono" href="{% url 'supplier_payments:detail' sp.id %}">{{ sp.number }}</a></td>
+                <td>{{ sp.date }}</td>
+                <td>{{ sp.amount|money }}</td>
+                <td>{{ sp.method }}</td>
+                <td class="mono">{{ sp.ref|default:"—" }}</td>
+                <td>{{ sp.notes|default:"—" }}</td>
+            </tr>
         {% empty %}
-            <p class="muted" style="margin-top:.5rem">No payments recorded yet.</p>
+            <tr><td colspan="6"><p class="muted" style="padding:.5rem 0">No payments recorded yet.</p></td></tr>
         {% endfor %}
-    </section>
+        </tbody>
+    </table>
+</section>
+
+<div style="margin-top:1rem">
+    {% include "attachments/_panel.html" %}
 </div>
 {% endblock %}

@@ -1,21 +1,27 @@
 """JSON API — receipts.  OWNER: Dev 3 — Customer Finance
 
-No POST endpoint: receipts are auto-created when a payment completes.
+Receipts are auto-created when a payment completes. There is no POST.
 """
 from apps.receipts.services import ReceiptService
-from core.exceptions import TourOpsError
-from core.responses import from_exception, success_response
+from core.http import guarded, query_value, resource_id
+from core.responses import success_response
 
 
-def get_receipt(request, id=None, **kwargs):
-    try:
-        return success_response(ReceiptService().get(id))
-    except TourOpsError as exc:
-        return from_exception(exc)
+@guarded
+def list_receipts(request, **kwargs):
+    items = ReceiptService().list_items(
+        customer_id=query_value(request, "customer_id"),
+        payment_id=query_value(request, "payment_id"),
+        invoice_id=query_value(request, "invoice_id"),
+    )
+    return success_response({"receipts": items})
 
 
-def receipt_for_payment(request, payment_id=None, **kwargs):
-    try:
-        return success_response(ReceiptService().for_payment(payment_id))
-    except TourOpsError as exc:
-        return from_exception(exc)
+@guarded
+def get_receipt(request, **kwargs):
+    return success_response(ReceiptService().get(resource_id(kwargs)))
+
+
+@guarded
+def receipt_for_payment(request, **kwargs):
+    return success_response(ReceiptService().for_payment(resource_id(kwargs, "id", "payment_id")))

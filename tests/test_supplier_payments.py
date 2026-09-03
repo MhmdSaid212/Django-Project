@@ -190,6 +190,12 @@ def test_api_create_list_get_and_nested(owner_session, fake_mongo):
     updated = ExpenseService().get(expense["_id"])
     assert to_money(updated["paid_amount"]) == Decimal("1500.00")
 
+    voided = owner_session.post(f"/api/supplier-payments/{payment_id}/void/")
+    assert voided.status_code == 200
+    assert voided.json()["data"]["voided"] is True
+    detail_after_void = owner_session.get(f"/api/supplier-payments/{payment_id}/")
+    assert detail_after_void.status_code == 404
+
 
 def test_api_nested_missing_supplier_is_404(owner_session):
     response = owner_session.get(f"/api/suppliers/{ObjectId()}/payments/")

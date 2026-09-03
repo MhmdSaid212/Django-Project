@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Operations control</p>
+        <h1>Supplier reservations</h1>
+        <p>Track the services arranged with suppliers for each tour departure. Confirmation is recorded by the travel agent after the supplier replies outside TourOps.</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-warm" href="{% url 'supplier_reservations:create' %}">New reservation</a>
+    </div>
+</div>
+
+<div class="metrics-4">
+    <div class="metric"><span class="tiny">Requested</span><b>{{ desk.requested|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Confirmed</span><b>{{ desk.confirmed|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Upcoming</span><b>{{ desk.upcoming|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Accommodation shortages</span><b>{{ desk.shortage_count|default:0 }}</b></div>
+</div>
+
+{% if desk.release_watch %}
+<div class="callout callout-warn" style="margin:1rem 0">
+    <strong>Release dates approaching</strong>
+    {% for r in desk.release_watch %}
+        <p>{{ r.supplier }} · {{ r.tour }} · {{ r.release }}{% if r.release_days is not None %} · {{ r.release_days }} day(s) remaining{% endif %}</p>
+    {% endfor %}
+    <p class="muted">This is an operations reminder only. Rooms and bills are not changed automatically.</p>
+</div>
+{% endif %}
+
+{% if desk.shortages %}
+<div class="callout callout-warn" style="margin-bottom:1rem">
+    <strong>Accommodation shortages</strong>
+    {% for snap in desk.shortages %}
+        <p>{{ snap.tour_name }} — {{ snap.confirmed_travelers }} travelers / {{ snap.bed_capacity }} beds. Shortage: {{ snap.shortage_travelers }}.</p>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form class="filters" method="get">
+    <select class="field" name="tour_id">
+        <option value="">All tours</option>
+        {% for id, label in tours %}<option value="{{ id }}" {% if filters.tour_id == id %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select class="field" name="supplier_id">
+        <option value="">All suppliers</option>
+        {% for id, label in suppliers %}<option value="{{ id }}" {% if filters.supplier_id == id %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select class="field" name="type">
+        <option value="">All types</option>
+        {% for value, label in service_types.items %}<option value="{{ value }}" {% if filters.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select class="field" name="status">
+        <option value="">All statuses</option>
+        <option value="REQUESTED" {% if filters.status == 'REQUESTED' %}selected{% endif %}>Requested</option>
+        <option value="CONFIRMED" {% if filters.status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
+        <option value="CANCELLED" {% if filters.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+    </select>
+    <button class="btn btn-ghost" type="submit">Filter</button>
+</form>
+
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Reservation</th><th>Tour / supplier</th><th>Arrangement</th><th>Dates</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for r in reservations %}
+            <tr>
+                <td><a class="mono" href="{% url 'supplier_reservations:detail' r.id %}"><strong>{{ r.number }}</strong></a></td>
+                <td>
+                    {% if r.tour_id %}<a href="{% url 'tours:detail' r.tour_id %}?tab=reservations">{{ r.tour }}</a>{% else %}{{ r.tour }}{% endif %}
+                    <div class="muted">{{ r.supplier }} · {{ r.service_label }}</div>
+                </td>
+                <td>
+                    {% if r.is_hotel %}
+                        {{ r.allocation_label }}
+                        <div class="muted">{{ r.room_count }} rooms · {{ r.bed_capacity }} beds</div>
+                    {% else %}
+                        {{ r.quantity|default:"—" }}
+                    {% endif %}
+                    {% if r.confirmation_number %}<div class="tiny">Confirmation {{ r.confirmation_number }}</div>{% endif %}
+                </td>
+                <td>{{ r.dates }}</td>
+                <td>{% include "components/status_badge.html" with status=r.status %}</td>
+                <td class="row-actions">
+                    <a href="{% url 'supplier_reservations:detail' r.id %}">View</a>
+                    {% if not r.is_cancelled %}<a href="{% url 'supplier_reservations:edit' r.id %}">Edit</a>{% endif %}
+                    {% if r.is_requested %}<a href="{% url 'supplier_reservations:detail' r.id %}#confirm">Record confirmation</a>{% endif %}
+                    <a href="{% url 'supplier_reservations:email' r.id %}">Email supplier</a>
+                    {% if r.is_hotel and r.tour_id %}<a href="{% url 'supplier_reservations:rooming' r.tour_id %}?reservation_id={{ r.id }}">Rooming list</a>{% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6">{% url 'supplier_reservations:create' as create_url %}{% include "components/empty_state.html" with title="No supplier reservations yet" body="Arrange a hotel block or other vendor for a tour after contacting them outside TourOps." cta="New reservation" cta_url=create_url %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

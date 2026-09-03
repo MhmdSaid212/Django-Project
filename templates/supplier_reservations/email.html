@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<style>
+.email-sheet { max-width: 760px; }
+.email-body { white-space: pre-wrap; font-family: var(--font); line-height: 1.55; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 1.1rem 1.2rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">External message</p>
+        <h1>Email supplier</h1>
+        <p>The supplier does not use TourOps. Preview, copy, or send this message from the agency after you have reviewed it.</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:detail' record_id %}">Back</a>
+    </div>
+</div>
+
+<form method="post" class="email-sheet panel form-grid">
+    {% csrf_token %}
+    <p class="tiny">To</p>
+    <p><strong>{{ email.to }}</strong></p>
+    <label>Email type{{ form.kind }}</label>
+    <label>Subject{{ form.subject }}{{ form.subject.errors }}</label>
+    <label>Message{{ form.body }}{{ form.body.errors }}</label>
+    <label>Additional note (optional){{ form.extra_note }}</label>
+    <div class="actions">
+        <button class="btn btn-ghost" name="preview" value="1" type="submit">Preview / regenerate</button>
+        <button class="btn btn-ghost" type="button" data-copy-email>Copy</button>
+        <button class="btn btn-ghost" name="copy" value="1" type="submit">Mark as generated</button>
+        <a class="btn btn-ghost" href="{{ mailto }}">Open mail client</a>
+        <button class="btn btn-warm" name="send" value="1" type="submit">Send email</button>
+    </div>
+</form>
+
+<section class="panel email-sheet" style="margin-top:1rem">
+    <p class="tiny">Preview</p>
+    <h2 style="margin:.3rem 0 .8rem">{{ email.subject }}</h2>
+    <pre class="email-body" data-email-copy>To: {{ email.to }}
+Subject: {{ email.subject }}
+
+{{ email.body }}</pre>
+</section>
+{% endblock %}

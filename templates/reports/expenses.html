@@ -3,20 +3,13 @@
 {% block content %}
 <div class="page-head">
     <div>
+        <p class="tiny">Reports</p>
         <h1>Expense breakdown</h1>
         <p>Where cost sits: hotels, transport, guides, and overhead.</p>
     </div>
+    <a class="btn btn-ghost" href="{% url 'reports:list' %}{{ query }}">All reports</a>
 </div>
-<form class="filters" method="get">
-    <input class="field" type="month" name="month" value="{{ filters.month }}">
-    <select class="field" name="tour">
-        <option value="">All tours</option>
-        {% for id, name in tour_choices %}
-        <option value="{{ id }}" {% if filters.tour == id %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-    </select>
-    <button class="btn btn-ghost" type="submit">Apply</button>
-</form>
+{% include "reports/_filters.html" %}
 {% if report %}
 <div class="waterfall" style="max-width:560px">
     {% for group in report.groups %}
@@ -32,5 +25,7 @@
 {% if report.categories %}
 <p class="muted" style="margin-top:1rem">Total {{ report.total|money }} across {{ report.count }} expense{{ report.count|pluralize }}.</p>
 {% endif %}
+{% else %}
+{% include "components/empty_state.html" with title="No expense data" body="Record tour or general expenses to see the breakdown." %}
 {% endif %}
 {% endblock %}

@@ -12,7 +12,11 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from apps.invoices.services import BusinessRuleViolation, InvoiceService
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
+from apps.invoices.services import InvoiceService
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import FINANCE_NOTIFY_ROLES, OWNER_NOTIFY_ROLES, safe_notify_roles
 from apps.payments.services import _sync_booking_payment_status
 from apps.refunds.repositories import RefundRepository
 from core.constants import (
@@ -22,7 +26,7 @@ from core.constants import (
     RefundStatus,
 )
 from core.database import get_collection
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import BusinessRuleViolation, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal, to_decimal128, to_money
 from core.numbering import next_number
 from core.soft_delete import stamp_new
@@ -152,7 +156,25 @@ class RefundService:
         })
         result = self.repository.insert(doc)
         doc["_id"] = result.inserted_id
-        return present_refund(doc)
+        presented = present_refund(doc)
+        safe_audit(
+            actor_id=requested_by,
+            action=AuditAction.CREATED.value,
+            entity_type="refunds",
+            entity_id=doc["_id"],
+            description=f"Requested refund {presented.get('refund_number')}.",
+            after={"refund_number": presented.get("refund_number"), "amount": presented.get("amount")},
+        )
+        safe_notify_roles(
+            OWNER_NOTIFY_ROLES,
+            type=NotificationType.REFUND.value,
+            title=f"Refund {presented.get('refund_number')}",
+            message=f"A refund of {presented.get('amount')} is waiting for approval.",
+            related_entity_type="refunds",
+            related_entity_id=doc["_id"],
+            exclude_user_id=requested_by,
+        )
+        return presented
 
     # ---- lifecycle actions -------------------------------------------------
     def approve(self, refund_id: str, *, actor_id: str) -> dict:
@@ -163,7 +185,15 @@ class RefundService:
             refund_id, RefundStatus.APPROVED.value,
             actor_id=parse_object_id(actor_id, field="approved_by"), stamp_field="approved_by",
         )
-        return self.get(refund_id)
+        presented = self.get(refund_id)
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.APPROVED.value,
+            entity_type="refunds",
+            entity_id=doc["_id"],
+            description=f"Approved refund {presented.get('refund_number')}.",
+        )
+        return presented
 
     def reject(self, refund_id: str, *, actor_id: str) -> dict:
         doc = self._get_raw(refund_id)
@@ -173,7 +203,15 @@ class RefundService:
             refund_id, RefundStatus.REJECTED.value,
             actor_id=parse_object_id(actor_id, field="processed_by"), stamp_field="processed_by",
         )
-        return self.get(refund_id)
+        presented = self.get(refund_id)
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.REJECTED.value,
+            entity_type="refunds",
+            entity_id=doc["_id"],
+            description=f"Rejected refund {presented.get('refund_number')}.",
+        )
+        return presented
 
     def complete(self, refund_id: str, *, actor_id: str) -> dict:
         doc = self._get_raw(refund_id)
@@ -186,4 +224,21 @@ class RefundService:
         # Cash has now left the agency: move invoice + booking rollups.
         self.invoices.recompute_rollups(serialize_id(doc["invoice_id"]))
         _sync_booking_payment_status(doc.get("booking_id"))
-        return self.get(refund_id)
+        presented = self.get(refund_id)
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.COMPLETED.value,
+            entity_type="refunds",
+            entity_id=doc["_id"],
+            description=f"Completed refund {presented.get('refund_number')}.",
+        )
+        safe_notify_roles(
+            FINANCE_NOTIFY_ROLES,
+            type=NotificationType.REFUND.value,
+            title=f"Refund {presented.get('refund_number')} paid",
+            message=f"Refund {presented.get('refund_number')} of {presented.get('amount')} was completed.",
+            related_entity_type="refunds",
+            related_entity_id=doc["_id"],
+            exclude_user_id=actor_id,
+        )
+        return presented

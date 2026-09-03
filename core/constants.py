@@ -19,6 +19,7 @@ class Collections:
     SYSTEM_SETTINGS = "system_settings"
     TAXES = "taxes"
     ATTACHMENTS = "attachments"
+    SUPPLIER_RESERVATIONS = "supplier_reservations"
 
     COUNTERS = "counters"
 
@@ -48,6 +49,20 @@ class SupplierType(StrEnum):
     RESTAURANT = "RESTAURANT"
     INSURANCE = "INSURANCE"
     OTHER = "OTHER"
+
+
+class SupplierReservationStatus(StrEnum):
+    REQUESTED = "REQUESTED"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+
+
+class RoomType(StrEnum):
+    SINGLE = "SINGLE"
+    TWIN = "TWIN"
+    DOUBLE = "DOUBLE"
+    TRIPLE = "TRIPLE"
+    QUAD = "QUAD"
 
 
 class TourStatus(StrEnum):
@@ -186,6 +201,7 @@ NUMBER_PREFIXES = {
     Collections.REFUNDS: "REF",
     Collections.EXPENSES: "EXP",
     Collections.SUPPLIER_PAYMENTS: "SP",
+    Collections.SUPPLIER_RESERVATIONS: "SR",
 }
 
 NUMBER_START = 1001  

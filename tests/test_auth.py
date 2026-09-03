@@ -224,9 +224,10 @@ def test_api_accountant_forbidden_from_customers(accountant_session):
     assert response.status_code == 403
 
 
-def test_api_owner_reaches_placeholder(owner_session):
+def test_api_owner_lists_customers(owner_session):
     response = owner_session.get("/api/customers/")
-    assert response.status_code == 501
+    assert response.status_code == 200
+    assert response.json()["success"] is True
 
 
 def test_corrupt_session_is_cleared(client):

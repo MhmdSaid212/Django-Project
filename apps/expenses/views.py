@@ -3,11 +3,13 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.expenses.constants import CATEGORY_CHOICES, STATUS_CHOICES
+from apps.attachments.forms import AttachmentUploadForm
+from apps.attachments.services import AttachmentService
+from apps.expenses.constants import CATEGORY_CHOICES, SCOPE_CHOICES, STATUS_CHOICES
 from apps.expenses.forms import ExpenseForm
 from apps.expenses.services import ExpenseService
 from core.access import FINANCE_ROLES
-from core.constants import DEFAULT_CURRENCY
+from core.constants import AttachmentCategory, AttachmentEntityType, DEFAULT_CURRENCY
 from core.exceptions import DatabaseUnavailableError, TourOpsError
 from core.permissions import get_session_user, login_required, role_required
 
@@ -75,6 +77,7 @@ def expense_list(request):
             "overdue": overdue,
             "category_choices": CATEGORY_CHOICES,
             "status_choices": STATUS_CHOICES,
+            "scope_choices": SCOPE_CHOICES,
         },
     )
 
@@ -95,6 +98,24 @@ def expense_create(request):
         if request.GET.get("tour_id"):
             initial["tour_id"] = request.GET.get("tour_id")
             initial["expense_scope"] = "TOUR"
+        reservation_id = request.GET.get("reservation_id")
+        if reservation_id:
+            from apps.supplier_reservations.services import SupplierReservationService
+
+            try:
+                reservation = SupplierReservationService().get_presented(reservation_id)
+            except TourOpsError:
+                reservation = None
+            if reservation:
+                initial["supplier_id"] = reservation.get("supplier_id") or initial.get("supplier_id")
+                initial["tour_id"] = reservation.get("tour_id") or initial.get("tour_id")
+                initial["expense_scope"] = "TOUR"
+                if reservation.get("is_hotel"):
+                    initial["category"] = "HOTEL"
+                initial["description"] = (
+                    f"Supplier bill for {reservation.get('number')} · "
+                    f"{reservation.get('tour')} · {reservation.get('supplier')}"
+                )
     form = ExpenseForm(request.POST or None, initial=initial or None, **options)
     if request.method == "POST" and form.is_valid():
         try:
@@ -112,8 +133,9 @@ def expense_create(request):
         {
             "form": form,
             "page_title": "New expense",
-            "page_heading": "New expense",
+            "page_heading": "Record supplier bill",
             "submit_label": "Save expense",
+            "from_reservation": bool(request.GET.get("reservation_id")),
         },
     )
 
@@ -128,6 +150,18 @@ def expense_detail(request, id):
     except TourOpsError:
         messages.error(request, "Expense not found.")
         return redirect("expenses:list")
+    try:
+        attachments = AttachmentService().list_for_entity(AttachmentEntityType.EXPENSES.value, id)
+    except (DatabaseUnavailableError, TourOpsError):
+        attachments = []
+    upload_form = AttachmentUploadForm(
+        initial={
+            "entity_type": AttachmentEntityType.EXPENSES.value,
+            "entity_id": record["id"],
+            "category": AttachmentCategory.RECEIPT.value,
+        },
+        hide_entity=True,
+    )
     return render(
         request,
         "expenses/detail.html",
@@ -139,6 +173,8 @@ def expense_detail(request, id):
                 {"label": record["number"], "url": ""},
             ],
             "record": record,
+            "attachments": attachments,
+            "upload_form": upload_form,
         },
     )
 

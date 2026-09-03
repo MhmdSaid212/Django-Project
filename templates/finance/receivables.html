@@ -5,26 +5,40 @@
     <div>
         <p class="tiny">AR aging</p>
         <h1>Accounts receivable</h1>
-        <p>Outstanding customer invoices. Click through to collect.</p>
+        <p>{{ lead }}</p>
     </div>
-    <a class="btn btn-ghost" href="{% url 'invoices:list' %}">Invoice workspace</a>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'invoices:list' %}">Invoice workspace</a>
+        <a class="btn btn-warm" href="{% url 'payments:list' %}">Record payment</a>
+    </div>
 </div>
+{% include "finance/_nav.html" %}
+
+{% if report %}
 <div class="panel" style="padding:0">
     <table class="data">
-        <thead><tr><th>Invoice</th><th>Customer</th><th>Due</th><th>Remaining</th><th></th></tr></thead>
+        <thead>
+            <tr><th>Invoice</th><th>Customer</th><th>Due</th><th>Total</th><th>Remaining</th><th>Status</th></tr>
+        </thead>
         <tbody>
-        {% for inv in m.invoices %}
-            {% if inv.remaining %}
+        {% for inv in report.invoices %}
             <tr class="{% if inv.overdue %}is-overdue{% endif %}">
-                <td><a href="{% url 'invoices:detail' inv.id %}">{{ inv.number }}</a></td>
+                <td class="mono">{{ inv.number }}</td>
                 <td>{{ inv.customer }}</td>
-                <td>{{ inv.due }}</td>
+                <td>{{ inv.due }}{% if inv.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
+                <td>{{ inv.total|money }}</td>
                 <td><strong>{{ inv.remaining|money }}</strong></td>
-                <td>{% if inv.overdue %}<span class="badge b-bad">Overdue</span>{% endif %}</td>
+                <td>{% include "components/status_badge.html" with status=inv.status %}</td>
             </tr>
-            {% endif %}
+        {% empty %}
+            <tr>
+                <td colspan="6">
+                    {% include "components/empty_state.html" with title="No open receivables" body="When confirmed bookings are invoiced and still unpaid, they will show up here." %}
+                </td>
+            </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
+{% endif %}
 {% endblock %}

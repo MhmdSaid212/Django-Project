@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">{{ record.service_label }} · {{ record.number }}</p>
+        <h1>{{ record.supplier }}</h1>
+        <p>{{ record.tour }}{% if record.dates %} — {{ record.dates }}{% endif %}</p>
+    </div>
+    <div class="actions">
+        {% include "components/status_badge.html" with status=record.status %}
+        {% if not record.is_cancelled %}
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:edit' record.id %}">Edit allocation</a>
+        {% endif %}
+        <a class="btn btn-warm" href="{% url 'supplier_reservations:email' record.id %}">Email supplier</a>
+        {% if record.tour_id %}
+        <a class="btn btn-ghost" href="{% url 'tours:detail' record.tour_id %}?tab=reservations">View tour</a>
+        {% if record.is_hotel %}<a class="btn btn-ghost" href="{% url 'supplier_reservations:rooming' record.tour_id %}?reservation_id={{ record.id }}">Rooming list</a>{% endif %}
+        {% endif %}
+    </div>
+</div>
+
+{% if record.is_requested %}
+<div class="callout callout-warn">
+    <strong>REQUESTED</strong>
+    <p>Supplier confirmation has not yet been recorded. Contact the supplier externally and update this reservation once confirmation is received.</p>
+</div>
+{% elif record.is_confirmed %}
+<div class="callout callout-ok">
+    <strong>CONFIRMED</strong>
+    <p>Supplier confirmation recorded by the travel agent. Confirmation number: <span class="mono">{{ record.confirmation_number }}</span></p>
+</div>
+{% elif record.is_cancelled %}
+<div class="callout">
+    <strong>CANCELLED</strong>
+    <p>This arrangement is cancelled. Tour seats and supplier finance were not changed automatically.</p>
+</div>
+{% endif %}
+
+{% if record.release %}
+<div class="callout {% if record.release_approaching or record.release_passed %}callout-warn{% else %}callout-info{% endif %}" style="margin-top:.8rem">
+    <strong>Release date {{ record.release }}</strong>
+    {% if record.release_days is not None and record.release_days >= 0 %}
+        <p>{{ record.release_days }} day(s) remaining.</p>
+    {% endif %}
+    {% if snapshot.unused_beds %}
+        <p>{{ snapshot.unused_beds }} bed(s) currently unused. Review the allocation before the supplier release date.</p>
+    {% endif %}
+    <p class="muted">This reminder does not cancel rooms or change expenses.</p>
+</div>
+{% endif %}
+
+<div class="metrics-4" style="margin-top:1rem">
+    {% if record.is_hotel %}
+    <div class="metric"><span class="tiny">Rooms</span><b>{{ record.room_count }}</b></div>
+    <div class="metric"><span class="tiny">Beds (occupancy)</span><b>{{ record.bed_capacity }}</b></div>
+    {% else %}
+    <div class="metric"><span class="tiny">Quantity</span><b>{{ record.quantity|default:"—" }}</b></div>
+    {% endif %}
+    <div class="metric"><span class="tiny">Confirmation</span><b style="font-size:1rem">{{ record.confirmation_number|default:"—" }}</b></div>
+    <div class="metric"><span class="tiny">Supplier email</span><b style="font-size:.85rem">{{ record.supplier_email|default:"—" }}</b></div>
+</div>
+
+<p class="tiny" style="margin:1rem 0 .4rem">Tour capacity = travelers · Hotel quantity = rooms · Accommodation capacity = beds</p>
+
+{% if record.is_hotel %}
+<section class="panel" style="padding:0">
+    <table class="data">
+        <thead><tr><th>Room type</th><th>Quantity</th><th>Occupancy</th><th>Beds</th></tr></thead>
+        <tbody>
+        {% for line in record.room_allocations %}
+            <tr>
+                <td>{{ line.type_label }}</td>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.occupancy }}</td>
+                <td>{{ line.beds }}</td>
+            </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Total</strong></td>
+            <td><strong>{{ record.room_count }}</strong></td>
+            <td></td>
+            <td><strong>{{ record.bed_capacity }}</strong></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+{% if snapshot and record.is_hotel %}
+<section class="panel" style="margin-top:1rem">
+    <h2>Accommodation status for this tour</h2>
+    <div class="metrics-4" style="margin-top:.8rem">
+        <div class="metric"><span class="tiny">Confirmed travelers</span><b>{{ snapshot.confirmed_travelers }}</b></div>
+        <div class="metric"><span class="tiny">Reserved beds</span><b>{{ snapshot.bed_capacity }}</b></div>
+        <div class="metric"><span class="tiny">{{ snapshot.capacity_label }}</span><b>{% if snapshot.shortage_travelers %}{{ snapshot.shortage_travelers }}{% elif snapshot.unused_beds %}{{ snapshot.unused_beds }}{% else %}—{% endif %}</b></div>
+        <div class="metric"><span class="tiny">Tour seats</span><b>{{ snapshot.confirmed_travelers }} sold</b></div>
+    </div>
+    {% if snapshot.capacity_state == 'SHORTAGE' %}
+    <div class="callout callout-warn" style="margin-top:.8rem">Accommodation allocation is insufficient for {{ snapshot.shortage_travelers }} traveler(s). Tour capacity is unchanged. Add rooms or another hotel.</div>
+    {% elif snapshot.capacity_state == 'UNUSED' %}
+    <div class="callout callout-ok" style="margin-top:.8rem">Accommodation capacity is sufficient. {{ snapshot.unused_beds }} unused bed(s).</div>
+    {% elif snapshot.capacity_state == 'OK' %}
+    <div class="callout callout-ok" style="margin-top:.8rem">Accommodation capacity is sufficient.</div>
+    {% endif %}
+    <div class="actions" style="margin-top:.8rem">
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:edit' record.id %}">Edit allocation</a>
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.tour_id }}">Add hotel reservation</a>
+        <a class="btn btn-ghost" href="{% url 'tours:detail' record.tour_id %}?tab=bookings">View confirmed bookings</a>
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:rooming' record.tour_id %}">View rooming list</a>
+    </div>
+</section>
+{% endif %}
+
+<div class="two-col" style="margin-top:1rem">
+    {% if record.is_requested %}
+    <form method="post" action="{% url 'supplier_reservations:confirm' record.id %}" class="panel form-grid" id="confirm">
+        {% csrf_token %}
+        <h2>Record supplier confirmation</h2>
+        <p class="muted">Use this after the supplier replies by email, phone or WhatsApp. This is not a supplier login action.</p>
+        <label>Confirmation number *{{ confirm_form.confirmation_number }}{{ confirm_form.confirmation_number.errors }}</label>
+        <label>Confirmation notes{{ confirm_form.notes }}</label>
+        <button class="btn btn-ok" type="submit">Mark as confirmed</button>
+    </form>
+    {% endif %}
+    {% if not record.is_cancelled %}
+    <form method="post" action="{% url 'supplier_reservations:cancel' record.id %}" class="panel" onsubmit="return confirm('Cancel {{ record.number }}? This does not create or change an expense.');">
+        {% csrf_token %}
+        <h2>Cancel arrangement</h2>
+        <p class="muted">Seats on the tour are unchanged. Finance is unchanged.</p>
+        <button class="btn btn-ghost" type="submit">Cancel reservation</button>
+    </form>
+    {% endif %}
+</div>
+
+<section class="panel" style="margin-top:1rem">
+    <h2>Finance</h2>
+    <p class="tiny">A confirmed supplier reservation does not create an expense.</p>
+    {% if nav.finance %}
+        {% for e in expenses %}
+            <p style="margin-top:.6rem">
+                <a href="{% url 'expenses:detail' e.id %}">{{ e.number }}</a>
+                · Amount {{ e.amount|money }} · Paid {{ e.paid|money }} · Remaining {{ e.remaining|money }}
+                {% include "components/status_badge.html" with status=e.payment_status %}
+            </p>
+        {% empty %}
+            <p class="muted" style="margin:.6rem 0">No supplier bill recorded yet.</p>
+            <a class="btn btn-warm" href="{% url 'expenses:create' %}?supplier_id={{ record.supplier_id }}&tour_id={{ record.tour_id }}&reservation_id={{ record.id }}">Record supplier bill</a>
+        {% endfor %}
+    {% else %}
+        <p class="muted">Ask an accountant to record the supplier invoice when it arrives.</p>
+    {% endif %}
+</section>
+
+<section class="panel" style="margin-top:1rem">
+    <h2>Activity</h2>
+    {% if record.created_label %}
+        <div class="tl" style="margin-bottom:.55rem"><i></i><div>Reservation created<div class="tiny" style="text-transform:none">{{ record.created_label }}</div></div></div>
+    {% endif %}
+    {% if record.is_confirmed %}
+        <div class="tl" style="margin-bottom:.55rem"><i></i><div>Confirmation recorded · {{ record.confirmation_number }}</div></div>
+    {% endif %}
+    {% for item in activity %}
+        <div class="tl" style="margin-bottom:.55rem"><i></i><div>{{ item.description }}<div class="tiny" style="text-transform:none">{{ item.date }} {{ item.time }} · {{ item.who }}</div></div></div>
+    {% empty %}
+        {% if not record.created_label %}<p class="muted">No further activity yet.</p>{% endif %}
+    {% endfor %}
+</section>
+{% endblock %}

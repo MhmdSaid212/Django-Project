@@ -1,36 +1,20 @@
-import json
-
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.accounts.services import AuthService, UserService, present_user
 from core.access import OWNER_ROLES
-from core.exceptions import TourOpsError, ValidationError
-from core.http import method_view
+from core.exceptions import TourOpsError
+from core.http import actor_id, guarded, json_body, method_view, resource_id
 from core.permissions import clear_session_user, get_session_user, set_session_user
-from core.responses import from_exception, success_response
-
-
-def _json_body(request) -> dict:
-    if not request.body:
-        return {}
-    try:
-        payload = json.loads(request.body)
-    except json.JSONDecodeError as exc:
-        raise ValidationError("Invalid JSON.") from exc
-    if not isinstance(payload, dict):
-        raise ValidationError("JSON object required.")
-    return payload
+from core.responses import success_response
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@guarded
 def login(request):
-    try:
-        payload = _json_body(request)
-        user = AuthService().authenticate(payload.get("email") or "", payload.get("password") or "")
-    except TourOpsError as exc:
-        return from_exception(exc)
+    payload = json_body(request)
+    user = AuthService().authenticate(payload.get("email") or "", payload.get("password") or "")
     set_session_user(request, user)
     return success_response(present_user(user))
 
@@ -44,18 +28,17 @@ def logout(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@guarded
 def password_reset(request):
-    try:
-        payload = _json_body(request)
-        user = AuthService().reset_password_by_email(
-            payload.get("email") or "",
-            payload.get("password") or payload.get("new_password") or "",
-        )
-    except TourOpsError as exc:
-        return from_exception(exc)
+    payload = json_body(request)
+    user = AuthService().reset_password_by_email(
+        payload.get("email") or "",
+        payload.get("password") or payload.get("new_password") or "",
+    )
     return success_response(present_user(user))
 
 
+@guarded
 def me(request):
     session_user = get_session_user(request)
     try:
@@ -64,70 +47,61 @@ def me(request):
         return success_response(session_user)
 
 
+@guarded
 def list_users(request, **kwargs):
     return success_response({"users": UserService().list_users()})
 
 
+@guarded
 def create_user(request, **kwargs):
-    try:
-        payload = _json_body(request)
-        user = UserService().create_user(
-            first_name=payload.get("first_name") or "",
-            last_name=payload.get("last_name") or "",
-            email=payload.get("email") or "",
-            password=payload.get("password") or "",
-            role=payload.get("role") or "",
-            phone=payload.get("phone"),
-        )
-    except TourOpsError as exc:
-        return from_exception(exc)
+    payload = json_body(request)
+    user = UserService().create_user(
+        first_name=payload.get("first_name") or "",
+        last_name=payload.get("last_name") or "",
+        email=payload.get("email") or "",
+        password=payload.get("password") or "",
+        role=payload.get("role") or "",
+        phone=payload.get("phone"),
+        actor_id=actor_id(request),
+    )
     return success_response(present_user(user), status=201)
 
 
+@guarded
 def get_user(request, **kwargs):
-    try:
-        user = UserService().get_presented(kwargs.get("id"))
-    except TourOpsError as exc:
-        return from_exception(exc)
-    return success_response(user)
+    return success_response(UserService().get_presented(resource_id(kwargs)))
 
 
+@guarded
 def set_status(request, **kwargs):
-    try:
-        payload = _json_body(request)
-        user = UserService().set_status(
-            kwargs.get("id"),
-            payload.get("status") or "",
-            actor_id=get_session_user(request)["id"],
-        )
-    except TourOpsError as exc:
-        return from_exception(exc)
+    payload = json_body(request)
+    user = UserService().set_status(
+        resource_id(kwargs),
+        payload.get("status") or "",
+        actor_id=actor_id(request),
+    )
     return success_response(present_user(user))
 
 
+@guarded
 def change_role(request, **kwargs):
-    try:
-        payload = _json_body(request)
-        user = UserService().change_role(
-            kwargs.get("id"),
-            payload.get("role") or "",
-            actor_id=get_session_user(request)["id"],
-        )
-    except TourOpsError as exc:
-        return from_exception(exc)
+    payload = json_body(request)
+    user = UserService().change_role(
+        resource_id(kwargs),
+        payload.get("role") or "",
+        actor_id=actor_id(request),
+    )
     return success_response(present_user(user))
 
 
+@guarded
 def reset_password(request, **kwargs):
-    try:
-        payload = _json_body(request)
-        user = UserService().reset_password(
-            kwargs.get("id"),
-            payload.get("password") or "",
-            actor_id=get_session_user(request)["id"],
-        )
-    except TourOpsError as exc:
-        return from_exception(exc)
+    payload = json_body(request)
+    user = UserService().reset_password(
+        resource_id(kwargs),
+        payload.get("password") or "",
+        actor_id=actor_id(request),
+    )
     return success_response(present_user(user))
 
 

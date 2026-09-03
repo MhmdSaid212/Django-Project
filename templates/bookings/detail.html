@@ -3,85 +3,45 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Reservation control</p>
+        <p class="tiny">Booking</p>
         <h1>{{ record.number }}</h1>
-        <p>{{ record.customer }} · {{ record.product }} · {{ record.destination }}</p>
+        <p>{{ record.customer }} · {{ record.product }} · {{ record.dates }}</p>
     </div>
     <div class="actions">
-        {% if record.status != 'CANCELLED' %}
-        <button class="btn btn-ghost" type="button" data-toast="3 seats returned to Cairo Discovery.">Cancel booking</button>
+        {% include "components/status_badge.html" with status=record.status %}
+        {% if record.status == 'PENDING' %}
+        <form method="post" action="{% url 'bookings:confirm' record.id %}">{% csrf_token %}<button class="btn btn-ok" type="submit">Confirm booking</button></form>
         {% endif %}
-        <a class="btn btn-ok" href="{% url 'invoices:detail' 'inv-1042' %}">Open invoice</a>
+        {% if record.status == 'PENDING' or record.status == 'CONFIRMED' %}
+        <form method="post" action="{% url 'bookings:cancel' record.id %}" onsubmit="return confirm('Cancel {{ record.number }}?');">{% csrf_token %}<button class="btn btn-ghost" type="submit">Cancel</button></form>
+        {% endif %}
+        {% if record.status == 'CONFIRMED' and nav.finance %}
+        <form method="post" action="{% url 'bookings_api:invoice' record.id %}">{% csrf_token %}<button class="btn btn-warm" type="submit" disabled title="Issue the invoice from the invoices API or finance screen.">Invoice via API</button></form>
+        {% endif %}
+        <a class="btn btn-ghost" href="{% url 'bookings:list' %}">Back</a>
     </div>
 </div>
-
 <div class="metrics-4">
-    <div class="metric"><span class="tiny">Travel date</span><b style="font-size:1rem">{{ record.dates }}</b></div>
-    <div class="metric"><span class="tiny">Travelers</span><b>{{ record.travelers }}</b></div>
+    <div class="metric"><span class="tiny">Travelers</span><b>{{ record.travelers_count }}</b></div>
     <div class="metric"><span class="tiny">Total</span><b>{{ record.total|money }}</b></div>
     <div class="metric"><span class="tiny">Payment</span><b style="font-size:1rem">{% include "components/status_badge.html" with status=record.pay %}</b></div>
+    <div class="metric"><span class="tiny">Tour</span><b style="font-size:1rem">{% if record.tour_id %}<a href="{% url 'tours:detail' record.tour_id %}">{{ record.product }}</a>{% else %}{{ record.product }}{% endif %}</b></div>
 </div>
-
-<div class="stepper">
-    {% if record.status == 'CANCELLED' %}
-        <div class="step is-dead">Cancelled</div>
-    {% else %}
-        <div class="step {% if record.status != 'PENDING' %}is-done{% else %}is-now{% endif %}">Pending</div>
-        <div class="step {% if record.status == 'CONFIRMED' or record.status == 'COMPLETED' %}is-done{% endif %} {% if record.status == 'CONFIRMED' %}is-now{% endif %}">Confirmed</div>
-        <div class="step {% if record.status == 'COMPLETED' %}is-done is-now{% endif %}">Completed</div>
-    {% endif %}
-</div>
-
-<div class="split">
-    <div class="stack">
-        <section class="panel">
-            <div class="panel-h"><h2>Traveler information</h2></div>
-            <table class="data">
-                <thead><tr><th>Name</th><th>Type</th><th>Passport</th><th>Date of birth</th></tr></thead>
-                <tbody>
-                {% for t in m.travelers %}
-                    <tr><td>{{ t.name }}</td><td>{{ t.type }}</td><td class="mono">{{ t.passport }}</td><td>{{ t.dob }}</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>{{ record.kind|labelize }}</h2></div>
-            <p><strong>{{ record.product }}</strong></p>
-            <p class="muted">{{ record.destination }} · {{ record.dates }}</p>
-            <p class="muted" style="margin-top:.35rem">Package: {{ record.package }}</p>
-            <p style="margin-top:.6rem">
-                <a href="{% url 'tours:detail' record.tour_id %}">Open tour</a>
-            </p>
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>Invoice & payments</h2></div>
-            <p>Invoice <a href="{% url 'invoices:detail' 'inv-1042' %}">INV-1042</a> · Paid {{ record.paid|money }} of {{ record.total|money }}</p>
-            {% if record.remaining %}<p class="muted">{{ record.remaining|money }} remaining</p>{% endif %}
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>Notes</h2></div>
-            <p class="note">Family prefers a Nile-view room. Child seats requested for the airport transfer.</p>
-        </section>
-        <section class="panel">
-            <div class="panel-h"><h2>Activity</h2></div>
-            <div class="timeline">
-                {% for item in m.activity %}
-                <div class="tl"><i></i><div>{{ item.text }}<div class="tiny" style="text-transform:none">{{ item.time }} · {{ item.who }}</div></div></div>
-                {% endfor %}
-            </div>
-        </section>
-    </div>
-    <div class="fin">
-        <p class="tiny" style="color:#c4b5a5">Pricing</p>
-        <div class="fin-row"><span>Unit price</span><span>$600</span></div>
-        <div class="fin-row"><span>{{ record.travelers }} × price</span><span>$2,400</span></div>
-        <div class="fin-row"><span>Subtotal</span><span>$2,400</span></div>
-        <div class="fin-row"><span>Discount</span><span>$0</span></div>
-        <div class="fin-row"><span>Tax (VAT 11%)</span><span>$0 included</span></div>
-        <div class="fin-row total"><span>Total</span><span>{{ record.total|money }}</span></div>
-        <div class="fin-row"><span>Paid</span><span>{{ record.paid|money }}</span></div>
-        <div class="fin-row remain"><span>Remaining</span><span>{{ record.remaining|money }}</span></div>
-    </div>
-</div>
+<section class="panel" style="padding:0;margin-top:1rem">
+    <table class="data">
+        <thead><tr><th>Name</th><th>Passport</th><th>Nationality</th><th>Room</th></tr></thead>
+        <tbody>
+        {% for t in record.travelers %}
+            <tr>
+                <td>{{ t.name }}</td>
+                <td class="mono">{{ t.passport|default:"—" }}</td>
+                <td>{{ t.nationality|default:"—" }}</td>
+                <td>{% if t.room_number %}{{ t.room_number }} · {{ t.room_type }}{% else %}Unassigned{% endif %}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="4"><p class="muted" style="margin:.8rem">No travelers on this booking.</p></td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
 {% endblock %}

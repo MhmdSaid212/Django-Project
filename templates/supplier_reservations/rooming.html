@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load tourops %}
+{% block extra_head %}
+<style>
+@media print {
+    .sidebar, .topbar, .actions, form, .page-head .btn { display: none !important; }
+    .app-shell, .content { margin: 0; padding: 0; }
+}
+.rooming-hotel { margin-top: 1.1rem; }
+.rooming-hotel h2 { font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute); margin-bottom: 0.55rem; }
+.room-card { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.85rem 1rem; margin-bottom: 0.55rem; background: var(--paper); }
+.room-card strong { display: block; margin-bottom: 0.25rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Rooming list · {{ listing.tour.code }}</p>
+        <h1>{{ listing.tour.name }}</h1>
+        <p>{{ listing.tour.dates }}{% if listing.reservation %} · {{ listing.reservation.supplier }}{% endif %}</p>
+    </div>
+    <div class="actions">
+        <button class="btn btn-warm" type="button" onclick="window.print()">Print / PDF</button>
+        {% if listing.reservation %}
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:email' listing.reservation.id %}?kind=rooming">Email rooming list</a>
+        {% elif listing.snapshot.hotels %}
+        <a class="btn btn-ghost" href="{% url 'supplier_reservations:email' listing.snapshot.hotels.0.id %}?kind=rooming">Email supplier</a>
+        {% endif %}
+        <a class="btn btn-ghost" href="{% url 'tours:detail' listing.tour.id %}?tab=reservations">Back to tour</a>
+    </div>
+</div>
+
+{% if listing.snapshot.capacity_state == 'SHORTAGE' %}
+<div class="callout callout-warn" style="margin-bottom:1rem">
+    Accommodation allocation is insufficient for {{ listing.snapshot.shortage_travelers }} traveler(s). This is an operations warning — tour capacity is unchanged.
+</div>
+{% elif listing.snapshot.warnings %}
+<div class="callout callout-info" style="margin-bottom:1rem">
+    {% for warning in listing.snapshot.warnings %}<p>{{ warning }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<div class="metrics-4">
+    <div class="metric"><span class="tiny">Confirmed travelers</span><b>{{ listing.snapshot.confirmed_travelers }}</b></div>
+    <div class="metric"><span class="tiny">Assigned</span><b>{{ listing.assigned_count|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Unassigned</span><b>{{ listing.unassigned_count|default:listing.unassigned|length }}</b></div>
+    <div class="metric"><span class="tiny">Reserved beds</span><b>{{ listing.snapshot.bed_capacity }}</b></div>
+</div>
+
+{% if not listing.travelers %}
+<section class="panel" style="margin-top:1rem">
+    {% include "components/empty_state.html" with title="No confirmed travelers yet" body="The rooming list is generated from confirmed bookings. Pending bookings do not appear here." %}
+</section>
+{% endif %}
+
+{% for hotel in listing.hotels_grouped %}
+<section class="rooming-hotel">
+    <h2>{{ hotel.supplier }}</h2>
+    {% for room in hotel.rooms %}
+    <div class="room-card">
+        <strong>Room {{ room.room_number }}</strong>
+        <span class="tiny">{{ room.type_label }}</span>
+        <p style="margin-top:.4rem">{% for g in room.guests %}{{ g.name }}{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</p>
+    </div>
+    {% endfor %}
+</section>
+{% empty %}
+{% if listing.travelers %}
+<section class="panel" style="margin-top:1rem">
+    <p class="muted">No rooms assigned yet. Use the table below to place travelers.</p>
+</section>
+{% endif %}
+{% endfor %}
+
+{% if listing.unassigned %}
+<section class="panel" style="margin-top:1rem">
+    <h2>Unassigned travelers</h2>
+    {% for t in listing.unassigned %}
+        <p style="margin-top:.4rem">{{ t.name }} <span class="tiny">{{ t.booking_number }}</span></p>
+    {% endfor %}
+</section>
+{% endif %}
+
+<form method="post" action="{% url 'supplier_reservations:rooming_assign' listing.tour.id %}" class="panel" style="margin-top:1rem">
+    {% csrf_token %}
+    <h2>Assign rooms</h2>
+    <p class="muted">Assignments belong to travelers on confirmed bookings. They do not change tour capacity or hotel bed totals.</p>
+    <input type="hidden" name="count" value="{{ listing.travelers|length }}">
+    <table class="data" style="margin-top:.8rem">
+        <thead><tr><th>Traveler</th><th>Hotel</th><th>Type</th><th>Room no.</th></tr></thead>
+        <tbody>
+        {% for t in listing.travelers %}
+            <tr>
+                <td>
+                    {{ t.name }}
+                    <div class="tiny">{{ t.booking_number }} · {{ t.passport|default:"no passport" }}</div>
+                    <input type="hidden" name="row_{{ forloop.counter0 }}_booking_id" value="{{ t.booking_id }}">
+                    <input type="hidden" name="row_{{ forloop.counter0 }}_index" value="{{ t.index }}">
+                </td>
+                <td>
+                    <select class="field" name="row_{{ forloop.counter0 }}_hotel">
+                        <option value="">—</option>
+                        {% for id, name in hotels %}
+                        <option value="{{ id }}" {% if t.hotel_reservation_id == id %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select class="field" name="row_{{ forloop.counter0 }}_type">
+                        <option value="">—</option>
+                        {% for value, label in room_types %}
+                        <option value="{{ value }}" {% if t.room_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input class="field" name="row_{{ forloop.counter0 }}_room" value="{{ t.room_number }}"></td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="4"><p class="muted" style="margin:.8rem">Confirm bookings before assigning rooms.</p></td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if listing.travelers %}
+    <div class="actions" style="margin-top:1rem">
+        <button class="btn btn-warm" type="submit">Save assignments</button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}

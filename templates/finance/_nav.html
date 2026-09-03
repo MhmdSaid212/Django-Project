@@ -1,0 +1,93 @@
+{% load tourops %}
+<div class="view-switch finance-switch">
+    <a class="{% if finance_tab == 'customers' %}is-on{% endif %}" href="{% url 'finance:customer_balances' %}{{ query }}">Customer balances</a>
+    <a class="{% if finance_tab == 'suppliers' %}is-on{% endif %}" href="{% url 'finance:supplier_balances' %}{{ query }}">Supplier balances</a>
+    <a class="{% if finance_tab == 'receivables' %}is-on{% endif %}" href="{% url 'finance:receivables' %}{{ query }}">Receivables</a>
+    <a class="{% if finance_tab == 'payables' %}is-on{% endif %}" href="{% url 'finance:payables' %}{{ query }}">Payables</a>
+</div>
+<form class="filter-bar" method="get">
+    <label>Month
+        <input class="field" type="month" name="month" value="{{ filters.month }}">
+    </label>
+    <label>From
+        <input class="field" type="date" name="from" value="{{ filters.from }}">
+    </label>
+    <label>To
+        <input class="field" type="date" name="to" value="{{ filters.to }}">
+    </label>
+    <div class="filter-actions">
+        <button class="btn btn-ghost" type="submit">Apply</button>
+        {% if filters.month or filters.from or filters.to %}
+        <a class="btn btn-ghost" href="?">Clear</a>
+        {% endif %}
+    </div>
+</form>
+{% if report %}
+<div class="stat-row">
+    {% if finance_tab == 'payables' or finance_tab == 'suppliers' %}
+    <article class="stat-tile stat-money tone-amber">
+        <div class="stat-copy">
+            <span class="tiny">Total AP</span>
+            <b>{{ report.total|money }}</b>
+            <small>Still owed to suppliers</small>
+        </div>
+        <span class="stat-mark" aria-hidden="true">$</span>
+    </article>
+    <article class="stat-tile stat-count tone-teal">
+        <div class="stat-ring"><b>{{ report.count }}</b></div>
+        <div class="stat-copy">
+            <span class="tiny">Open parties</span>
+            <small>{% if finance_tab == 'suppliers' %}Suppliers with balance{% else %}Open supplier bills{% endif %}</small>
+        </div>
+    </article>
+    {% else %}
+    <article class="stat-tile stat-money tone-blue">
+        <div class="stat-copy">
+            <span class="tiny">Total AR</span>
+            <b>{{ report.total|money }}</b>
+            <small>Still owed by customers</small>
+        </div>
+        <span class="stat-mark" aria-hidden="true">$</span>
+    </article>
+    <article class="stat-tile stat-count tone-teal">
+        <div class="stat-ring"><b>{{ report.count }}</b></div>
+        <div class="stat-copy">
+            <span class="tiny">Open parties</span>
+            <small>{% if finance_tab == 'customers' %}Customers with balance{% else %}Open invoices{% endif %}</small>
+        </div>
+    </article>
+    {% endif %}
+
+    <article class="stat-tile stat-range tone-purple">
+        <span class="stat-cal" aria-hidden="true">
+            <em>{% if filters.month %}{{ filters.month|slice:"5:7" }}{% else %}∞{% endif %}</em>
+        </span>
+        <div class="stat-copy">
+            <span class="tiny">Range</span>
+            <b>
+                {% if filters.month %}{{ filters.month }}
+                {% elif filters.from or filters.to %}Custom dates
+                {% else %}All time{% endif %}
+            </b>
+            <small>
+                {% if filters.from or filters.to %}{{ filters.from|default:"…" }} → {{ filters.to|default:"…" }}
+                {% else %}No date filter applied{% endif %}
+            </small>
+        </div>
+    </article>
+
+    <article class="stat-tile stat-desk tone-navy">
+        <span class="stat-chip">Finance desk</span>
+        <div class="stat-copy">
+            <span class="tiny">Workspace</span>
+            <b>
+                {% if finance_tab == 'customers' %}Customer balances
+                {% elif finance_tab == 'suppliers' %}Supplier balances
+                {% elif finance_tab == 'payables' %}Accounts payable
+                {% else %}Accounts receivable{% endif %}
+            </b>
+            <small>Live calculated · not stored</small>
+        </div>
+    </article>
+</div>
+{% endif %}

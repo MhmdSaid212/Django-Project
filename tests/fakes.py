@@ -39,12 +39,18 @@ class FakeCollection:
     def _matches(self, document: dict, query: dict) -> bool:
         for key, expected in (query or {}).items():
             actual = document.get(key)
-            if isinstance(expected, dict):
-                if "$ne" in expected:
-                    if actual == expected["$ne"]:
-                        return False
-                    continue
-                return False
+            if isinstance(expected, dict) and any(str(op).startswith("$") for op in expected):
+                if "$ne" in expected and actual == expected["$ne"]:
+                    return False
+                if "$gte" in expected and (actual is None or actual < expected["$gte"]):
+                    return False
+                if "$lte" in expected and (actual is None or actual > expected["$lte"]):
+                    return False
+                if "$gt" in expected and (actual is None or actual <= expected["$gt"]):
+                    return False
+                if "$lt" in expected and (actual is None or actual >= expected["$lt"]):
+                    return False
+                continue
             if actual != expected:
                 return False
         return True
@@ -72,6 +78,17 @@ class FakeCollection:
                 self._apply_update(document, update)
                 return FakeUpdateResult(1, 1)
         return FakeUpdateResult(0, 0)
+
+    def update_many(self, query, update):
+        matched = modified = 0
+        for document in self.docs:
+            if self._matches(document, query or {}):
+                matched += 1
+                before = copy.deepcopy(document)
+                self._apply_update(document, update)
+                if document != before:
+                    modified += 1
+        return FakeUpdateResult(matched, modified)
 
     def find_one_and_update(self, query, update, upsert=False, return_document=None):
         target = None

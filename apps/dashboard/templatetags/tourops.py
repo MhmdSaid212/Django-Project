@@ -5,6 +5,7 @@ register = template.Library()
 _BADGE = {
     "ACTIVE": "b-ok",
     "AVAILABLE": "b-ok",
+    "REQUESTED": "b-warn",
     "CONFIRMED": "b-ok",
     "COMPLETED": "b-ok",
     "PAID": "b-ok",
@@ -13,7 +14,7 @@ _BADGE = {
     "DRAFT": "b-mute",
     "ISSUED": "b-info",
     "PARTIALLY_PAID": "b-warn",
-    "UNPAID": "b-warn",
+    "UNPAID": "b-bad",
     "IN_PROGRESS": "b-info",
     "FULLY_BOOKED": "b-warm",
     "INACTIVE": "b-mute",
@@ -33,6 +34,12 @@ _BADGE = {
     "OWNER_ADMIN": "b-warm",
     "ACCOUNTANT": "b-info",
     "TRAVEL_AGENT": "b-ok",
+    "SHORTAGE": "b-bad",
+    "UNUSED": "b-info",
+    "OK": "b-ok",
+    "CAPACITY OK": "b-ok",
+    "UNUSED CAPACITY": "b-info",
+    "NONE": "b-mute",
 }
 
 
@@ -57,6 +64,26 @@ def money_signed(value):
         return str(value)
     sign = "+" if number >= 0 else "−"
     return f"{sign}{money(abs(number))}"
+
+
+@register.filter
+def add_money(left, right):
+    try:
+        return float(left or 0) + float(right or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+@register.filter
+def width_pct(part, whole):
+    try:
+        amount = abs(float(part or 0))
+        total = abs(float(whole or 0))
+    except (TypeError, ValueError):
+        return 0
+    if total <= 0:
+        return 0
+    return int(max(0, min(100, round(amount / total * 100))))
 
 
 @register.filter

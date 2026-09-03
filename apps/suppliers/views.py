@@ -3,10 +3,12 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
+from apps.supplier_payments.services import SupplierPaymentService
+from apps.supplier_reservations.services import SupplierReservationService
 from apps.suppliers.forms import SupplierForm, initial_from_record
 from apps.suppliers.services import SupplierService
 from core.access import ALL_ROLES
-from core.constants import SupplierType
+from core.constants import RecordStatus, SupplierType
 from core.exceptions import DatabaseUnavailableError, TourOpsError
 from core.permissions import get_session_user, login_required, role_required
 
@@ -76,14 +78,56 @@ def _form_payload(form: SupplierForm) -> dict:
 
 def _directory(request, title, heading, *, supplier_type=None, group=None, type_filter=None):
     service = SupplierService()
+    query = (request.GET.get("q") or "").strip().lower()
+    status = (request.GET.get("status") or "").strip().upper()
+    type_query = (request.GET.get("type") or "").strip().upper() or None
+    chip_type = type_query or type_filter or supplier_type
+    effective_type = supplier_type or (None if group else (type_query or type_filter))
     try:
-        suppliers = service.list_presented(supplier_type=supplier_type, group=group)
+        suppliers = service.list_presented(
+            supplier_type=effective_type,
+            group=group,
+            status=status or None,
+        )
+        reservations = SupplierReservationService().list_presented()
     except DatabaseUnavailableError:
         messages.error(request, "Cannot reach MongoDB. Suppliers are unavailable.")
-        suppliers = []
+        suppliers, reservations = [], []
     except TourOpsError as extra:
         messages.error(request, extra.message)
-        suppliers = []
+        suppliers, reservations = [], []
+    open_by_supplier = {}
+    tours_by_supplier = {}
+    for row in reservations:
+        if row.get("is_cancelled"):
+            continue
+        key = row.get("supplier_id")
+        open_by_supplier[key] = open_by_supplier.get(key, 0) + 1
+        tours_by_supplier.setdefault(key, set()).add(row.get("tour_id"))
+    if query:
+        suppliers = [
+            row
+            for row in suppliers
+            if query in (row.get("name") or "").lower()
+            or query in (row.get("number") or "").lower()
+            or query in (row.get("email") or "").lower()
+        ]
+    for row in suppliers:
+        row["open_reservations"] = open_by_supplier.get(row["id"], 0)
+        row["tour_count"] = len(tours_by_supplier.get(row["id"], set())) or len(row.get("tours") or [])
+    all_for_stats = suppliers if (effective_type or group or query or status) else None
+    try:
+        universe = service.list_presented() if all_for_stats is not None else suppliers
+    except (DatabaseUnavailableError, TourOpsError):
+        universe = suppliers
+    stats = {
+        "total": len(universe),
+        "active": sum(1 for row in universe if row.get("status") == RecordStatus.ACTIVE.value),
+        "hotels": sum(1 for row in universe if row.get("type") == SupplierType.HOTEL.value),
+        "transport": sum(1 for row in universe if row.get("type") == SupplierType.TRANSPORTATION.value),
+        "guides": sum(1 for row in universe if row.get("type") == SupplierType.TOUR_GUIDE.value),
+        "owed": sum((row.get("owed") or 0) for row in universe),
+    }
     return render(
         request,
         "suppliers/list.html",
@@ -91,7 +135,10 @@ def _directory(request, title, heading, *, supplier_type=None, group=None, type_
             "page_title": title,
             "page_heading": heading,
             "suppliers": suppliers,
-            "type_filter": type_filter,
+            "type_filter": chip_type,
+            "q": request.GET.get("q") or "",
+            "status_filter": status,
+            "stats": stats,
         },
     )
 
@@ -99,7 +146,8 @@ def _directory(request, title, heading, *, supplier_type=None, group=None, type_
 @login_required
 @role_required(*ALL_ROLES)
 def supplier_list(request):
-    return _directory(request, "Suppliers", "Supplier directory")
+    type_filter = (request.GET.get("type") or "").strip().upper() or None
+    return _directory(request, "Suppliers", "Suppliers", supplier_type=type_filter, type_filter=type_filter)
 
 
 @login_required
@@ -156,8 +204,31 @@ def other_suppliers(request):
 @login_required
 @role_required(*ALL_ROLES)
 def supplier_detail(request, id):
+    tab = (request.GET.get("tab") or "overview").strip().lower()
+    if tab not in {"overview", "tours", "reservations", "expenses", "payments", "activity"}:
+        tab = "overview"
     try:
         record = SupplierService().get_presented(id)
+        reservations = SupplierReservationService().list_presented(supplier_id=id)
+        payments = []
+        activity = []
+        try:
+            from apps.audit.services import AuditService
+
+            activity = AuditService().for_entity("suppliers", id, limit=20)
+        except Exception:
+            activity = []
+        try:
+            payments = SupplierPaymentService().list_for_supplier(id)
+        except Exception:
+            payments = []
+        record["reservations"] = reservations
+        record["payments"] = payments
+        record["activity"] = activity
+        record["open_reservation_count"] = sum(1 for row in reservations if not row.get("is_cancelled"))
+        record["upcoming_reservations"] = [row for row in reservations if row.get("is_upcoming")]
+        record["confirmed_reservations"] = [row for row in reservations if row.get("is_confirmed")]
+        record["open_bill_count"] = len(record.get("open_expenses") or [])
     except DatabaseUnavailableError:
         return _unavailable(request)
     except TourOpsError:
@@ -174,6 +245,7 @@ def supplier_detail(request, id):
                 {"label": record["number"], "url": ""},
             ],
             "record": record,
+            "tab": tab,
         },
     )
 

@@ -1,13 +1,25 @@
-from core.responses import not_implemented
+from apps.customers.services import CustomerService, present_customer
+from core.http import actor_id, guarded, json_body, resource_id
+from core.responses import success_response
 
+
+@guarded
 def list_customers(request, **kwargs):
-    return not_implemented("GET /api/customers/ is not implemented yet. Owner: Dev 1.")
+    return success_response({"customers": CustomerService().list_presented()})
 
+
+@guarded
 def create_customer(request, **kwargs):
-    return not_implemented("POST /api/customers/ is not implemented yet. Owner: Dev 1.")
+    payload = json_body(request)
+    customer = CustomerService().create(actor_id=actor_id(request), **payload)
+    return success_response(present_customer(customer), status=201)
 
+
+@guarded
 def get_customer(request, **kwargs):
-    return not_implemented("GET /api/customers/<id>/ is not implemented yet. Owner: Dev 1.")
+    return success_response(CustomerService().get_presented(resource_id(kwargs)))
 
+
+@guarded
 def patch_customer(request, **kwargs):
-    return not_implemented("PATCH /api/customers/<id>/ is not implemented yet. Owner: Dev 1.")
+    return success_response(CustomerService().get_presented(resource_id(kwargs)))

@@ -4,7 +4,11 @@ from decimal import Decimal
 
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
 from apps.expenses.services import ExpenseService
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
 from apps.expenses.validators import parse_positive_money, parse_when
 from apps.supplier_payments.repositories import SupplierPaymentRepository
 from apps.supplier_payments.validators import validate_payment_method
@@ -167,7 +171,26 @@ class SupplierPaymentService:
             raise DatabaseUnavailableError("Could not save the supplier payment.") from extra
         document["_id"] = result.inserted_id
         self._sync_expense(expense["_id"])
-        return self.get(document["_id"])
+        saved = self.get(document["_id"])
+        number = saved.get("supplier_payment_number") or ""
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.CREATED.value,
+            entity_type="supplier_payments",
+            entity_id=saved["_id"],
+            description=f"Recorded supplier payment {number}.",
+            after={"supplier_payment_number": number, "amount": str(to_money(saved.get("amount")))},
+        )
+        safe_notify_roles(
+            FINANCE_NOTIFY_ROLES,
+            type=NotificationType.SUPPLIER.value,
+            title=f"Supplier payment {number}",
+            message=f"A supplier payment of {to_money(saved.get('amount'))} was recorded.",
+            related_entity_type="supplier_payments",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
+        return saved
 
     def void(self, payment_id, *, actor_id) -> None:
         document = self.get(payment_id)
@@ -178,6 +201,13 @@ class SupplierPaymentService:
         if result.matched_count != 1:
             raise NotFoundError("Supplier payment not found.")
         self._sync_expense(document["expense_id"])
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.VOIDED.value,
+            entity_type="supplier_payments",
+            entity_id=document["_id"],
+            description=f"Voided supplier payment {document.get('supplier_payment_number') or ''}.",
+        )
 
     def list_for_supplier(self, supplier_id) -> list[dict]:
         supplier = self.repository.find_supplier(supplier_id)

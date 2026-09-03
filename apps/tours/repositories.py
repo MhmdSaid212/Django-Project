@@ -52,6 +52,9 @@ class TourRepository(SoftDeleteRepositoryMixin):
         query = live_query({"_id": parse_object_id(supplier_id, field="supplier_id")})
         return self.suppliers.find_one(query)
 
+    def list_suppliers(self) -> list[dict]:
+        return list(self.suppliers.find(live_query()).sort("name", 1))
+
     def find_customer(self, customer_id: str | ObjectId) -> dict | None:
         query = live_query({"_id": parse_object_id(customer_id, field="customer_id")})
         return self.customers.find_one(query)

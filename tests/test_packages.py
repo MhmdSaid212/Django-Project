@@ -208,3 +208,22 @@ def test_package_services_require_supplier(fake_mongo):
     presented = PackageService().get_presented(package["_id"])
     assert presented["services"][0]["supplier"] == "Nile View Hotel"
     assert to_money(presented["services"][0]["est"]) == Decimal("1200.00")
+
+
+def test_api_nested_tours_for_package(owner_session):
+    package = _create_package()
+    TourService().create(
+        actor_id=OWNER_ID,
+        package_id=package["_id"],
+        name="Istanbul Week A",
+        start_date="2026-09-12",
+        end_date="2026-09-16",
+    )
+    response = owner_session.get(f"/api/packages/{package['_id']}/tours/")
+    assert response.status_code == 200
+    tours = response.json()["data"]["tours"]
+    assert len(tours) == 1
+    assert tours[0]["package_id"] == str(package["_id"])
+
+    missing = owner_session.get(f"/api/packages/{ObjectId()}/tours/")
+    assert missing.status_code == 404

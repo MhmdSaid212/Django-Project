@@ -145,6 +145,7 @@ def user_create(request):
                 password=form.cleaned_data["password"],
                 role=form.cleaned_data["role"],
                 phone=form.cleaned_data["phone"],
+                actor_id=get_session_user(request)["id"],
             )
         except TourOpsError as exc:
             messages.error(request, exc.message)

@@ -35,12 +35,12 @@ def test_api_requires_login(client):
     assert body["error"]["code"] == "UNAUTHENTICATED"
 
 
-def test_api_placeholder_returns_not_implemented(owner_session):
+def test_api_customers_list_empty(owner_session):
     response = owner_session.get("/api/customers/")
-    assert response.status_code == 501
+    assert response.status_code == 200
     body = response.json()
-    assert body["success"] is False
-    assert body["error"]["code"] == "NOT_IMPLEMENTED"
+    assert body["success"] is True
+    assert body["data"]["customers"] == []
 
 
 def test_dashboard_routes_exist(owner_session):
@@ -62,6 +62,8 @@ def test_feature_html_routes_exist(owner_session):
         "refunds:list",
         "expenses:list",
         "supplier_payments:list",
+        "supplier_reservations:list",
+        "supplier_reservations:rooming_index",
         "finance:customer_balances",
         "reports:list",
         "notifications:list",

@@ -26,6 +26,16 @@ class ValidationError(TourOpsError):
     http_status = 400
 
 
+class BusinessRuleViolation(TourOpsError):
+    code = "BUSINESS_RULE_VIOLATION"
+    http_status = 422
+
+
+class ConflictError(TourOpsError):
+    code = "CONFLICT"
+    http_status = 409
+
+
 class PermissionDeniedError(TourOpsError):
     code = "PERMISSION_DENIED"
     http_status = 403

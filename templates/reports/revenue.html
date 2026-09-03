@@ -3,22 +3,13 @@
 {% block content %}
 <div class="page-head">
     <div>
+        <p class="tiny">Reports</p>
         <h1>Revenue vs cost</h1>
         <p>Booked customer revenue against incurred expenses for the selected range.</p>
     </div>
+    <a class="btn btn-ghost" href="{% url 'reports:list' %}{{ query }}">All reports</a>
 </div>
-<form class="filters" method="get">
-    <input class="field" type="date" name="from" value="{{ filters.from }}">
-    <span class="muted">to</span>
-    <input class="field" type="date" name="to" value="{{ filters.to }}">
-    <select class="field" name="tour">
-        <option value="">All tours</option>
-        {% for id, name in tour_choices %}
-        <option value="{{ id }}" {% if filters.tour == id %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-    </select>
-    <button class="btn btn-ghost" type="submit">Apply</button>
-</form>
+{% include "reports/_filters.html" %}
 {% if report %}
 <div class="money-split">
     <div class="money-in">
@@ -32,6 +23,8 @@
         <div class="bar"><i style="width:{{ report.cost_pct }}%"></i></div>
     </div>
 </div>
-<p class="muted" style="margin-top:1rem">Profit {{ report.profit|money }}{% if filters.month %} · {{ filters.month }}{% endif %}</p>
+<p style="margin-top:1rem;font-size:1.15rem;font-weight:750">Profit {{ report.profit|money }}{% if filters.month %} · {{ filters.month }}{% endif %}</p>
+{% else %}
+{% include "components/empty_state.html" with title="No revenue data" body="Confirm bookings and record expenses to compare revenue against cost." %}
 {% endif %}
 {% endblock %}

@@ -5,55 +5,28 @@
     <div>
         <p class="tiny">Reservations</p>
         <h1>Bookings</h1>
-        <p>Customer → booking → tour or package → invoice → payment.</p>
+        <p>Customer → tour seats → invoice. Confirming a booking uses tour capacity, not hotel rooms.</p>
     </div>
     <div class="actions">
         <a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>
     </div>
 </div>
-
-<div class="filters" data-chips>
-    <input class="field" placeholder="Customer or BK number…" style="min-width:200px">
-    <select class="field"><option>All tours & packages</option>{% for t in m.tours %}<option>{{ t.name }}</option>{% endfor %}</select>
-    <input class="field" type="date">
-    <button type="button" class="chip is-on">All statuses</button>
-    <button type="button" class="chip">Pending</button>
-    <button type="button" class="chip">Confirmed</button>
-    <button type="button" class="chip">Completed</button>
-    <button type="button" class="chip">Cancelled</button>
-    <button type="button" class="chip">Partially paid</button>
-</div>
-
 <div class="panel" style="padding:0">
     <table class="data">
-        <thead>
-            <tr>
-                <th>Booking</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th>Travelers</th>
-                <th>Dates</th>
-                <th>Status</th>
-                <th>Payment</th>
-                <th>Amount</th>
-            </tr>
-        </thead>
+        <thead><tr><th>Booking</th><th>Customer</th><th>Tour</th><th>Travelers</th><th>Status</th><th>Total</th></tr></thead>
         <tbody>
-            {% for b in m.bookings %}
+        {% for b in bookings %}
             <tr>
                 <td><a class="mono" href="{% url 'bookings:detail' b.id %}"><strong>{{ b.number }}</strong></a></td>
-                <td><a href="{% url 'customers:detail' b.customer_id %}">{{ b.customer }}</a></td>
-                <td>{{ b.product }}<br><span class="muted">{{ b.destination }} · {{ b.kind|labelize }}</span></td>
-                <td>{{ b.travelers }}</td>
-                <td>{{ b.dates }}</td>
+                <td>{% if b.customer_id %}<a href="{% url 'customers:detail' b.customer_id %}">{{ b.customer }}</a>{% else %}{{ b.customer }}{% endif %}</td>
+                <td>{{ b.product }}<div class="muted">{{ b.dates }}</div></td>
+                <td>{{ b.travelers_count }}</td>
                 <td>{% include "components/status_badge.html" with status=b.status %}</td>
-                <td>{% include "components/status_badge.html" with status=b.pay %}</td>
-                <td>
-                    <strong>{{ b.total|money }}</strong>
-                    {% if b.remaining %}<div class="tiny" style="text-transform:none">{{ b.remaining|money }} due</div>{% endif %}
-                </td>
+                <td><strong>{{ b.total|money }}</strong></td>
             </tr>
-            {% endfor %}
+        {% empty %}
+            <tr><td colspan="6">{% url 'bookings:create' as create_url %}{% include "components/empty_state.html" with title="No bookings yet" body="Create a pending booking, then confirm it to take tour seats." cta="New booking" cta_url=create_url %}</td></tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>

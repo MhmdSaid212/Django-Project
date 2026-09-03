@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from apps.dashboard.mock_data import MOCK
 from core.access import (
     can_access_finance,
     can_access_operations,
@@ -64,6 +63,31 @@ def navigation(request):
         },
         "greeting": greeting,
         "greeting_name": first or "there",
-        "unread_count": MOCK["unread"],
+        "unread_count": _unread_count(user),
+        "nav_notifications": _nav_notifications(user),
         "today_label": datetime.now().strftime("%A, %d %B %Y"),
     }
+
+
+def _notification_service():
+    from apps.notifications.services import NotificationService
+
+    return NotificationService()
+
+
+def _unread_count(user) -> int:
+    if not user:
+        return 0
+    try:
+        return _notification_service().unread_count(user["id"])
+    except Exception:
+        return 0
+
+
+def _nav_notifications(user) -> list:
+    if not user:
+        return []
+    try:
+        return _notification_service().list_for_user(user["id"], limit=6)
+    except Exception:
+        return []
