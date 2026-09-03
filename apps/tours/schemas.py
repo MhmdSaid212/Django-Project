@@ -11,8 +11,15 @@ from core.constants import TourStatus
 from core.schemas import Destination, SupplierServiceLine
 
 
-def available_seats(capacity: int, booked_seats: int) -> int:
-    return max(capacity - booked_seats, 0)
+def available_seats(
+    capacity: int,
+    booked_seats: int,
+    held_seats: int = 0,
+) -> int:
+    return max(
+        capacity - booked_seats - held_seats,
+        0,
+    )
 
 
 @dataclass
@@ -30,6 +37,7 @@ class TourDocument:
     created_by: ObjectId
     created_at: datetime
     updated_at: datetime
+    held_seats: int = 0
     package_id: Optional[ObjectId] = None
     updated_by: Optional[ObjectId] = None
     status: str = TourStatus.DRAFT.value
@@ -43,4 +51,7 @@ class TourDocument:
 
     @property
     def available_seats(self) -> int:
-        return available_seats(self.capacity, self.booked_seats)
+     return max(
+        self.capacity - self.booked_seats - self.held_seats,
+        0,
+    )

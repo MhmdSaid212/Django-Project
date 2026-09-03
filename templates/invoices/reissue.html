@@ -1,0 +1,93 @@
+{% extends "base_invoices.html" %}
+{% load tourops %}
+{% block content %}
+<div class="page-head" style="margin-bottom:1.3rem">
+    <div>
+        <h1>Refund &amp; Reissue — {{ record.number }}</h1>
+        <p>Issued invoices can't be edited. Refund what was paid, cancel this invoice, then generate a corrected one.</p>
+    </div>
+</div>
+
+<div style="max-width:820px">
+    <div class="rsteps" id="stepper">
+        <div class="rstep now" data-s="1"><span class="num">1</span> Refund</div>
+        <div class="rline" data-l="1"></div>
+        <div class="rstep" data-s="2"><span class="num">2</span> Cancel Invoice</div>
+        <div class="rline" data-l="2"></div>
+        <div class="rstep" data-s="3"><span class="num">3</span> New Invoice</div>
+    </div>
+
+    <div class="step-panel active" data-panel="1">
+        <div class="rcard">
+            <h2>Step 1 — Refund payments</h2>
+            <div class="rsub">{{ record.customer }} · {{ record.number }}
+                {% if has_payment %}· payments must be refunded before cancelling.{% else %}· no payments to refund.{% endif %}</div>
+
+            {% if has_payment %}
+            <div class="info-note">The refund amount is calculated by the standard cancellation tier policy, based on days before departure.</div>
+            <div class="pay-row"><span>Paid on this invoice</span><strong>{{ paid|money }}</strong></div>
+            <div class="tierbox">
+                <div class="tier-row"><span>Amount paid</span><span>{{ paid|money }}</span></div>
+                <div class="tier-row"><span>Cancellation tier</span><span><span class="pill req-pending">{{ tier_label }}</span></span></div>
+                <div class="tier-row"><span>Agency retains</span><span>{{ retained|money }}</span></div>
+                <div class="tier-row big"><span>Refund to customer</span><span>{{ refund|money }}</span></div>
+            </div>
+            {% else %}
+            <div class="notice-ok">No payments recorded — you can skip straight to cancelling this invoice.</div>
+            {% endif %}
+
+            <div class="rfoot">
+                <a class="btn-out" href="{% url 'invoices:detail' record.id %}">Cancel</a>
+                <button class="btn-teal" type="button" onclick="rzGo(2)">
+                    ✓ {% if has_payment %}Process Refund → Next{% else %}Continue → Cancel Invoice{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-panel" data-panel="2">
+        <div class="rcard">
+            <h2>Step 2 — Cancel this invoice</h2>
+            <div class="rsub">{% if has_payment %}The refund is recorded. {% endif %}Now cancel {{ record.number }} so it can be superseded.</div>
+            <div class="cancel-box">⚠ Cancelling {{ record.number }} will set its status to <strong>CANCELLED</strong>. It stays in history — nothing is deleted.</div>
+            <div class="rfoot">
+                <button class="btn-out" type="button" onclick="rzGo(1)">← Back</button>
+                <button class="btn-teal" type="button" onclick="rzGo(3)">✓ Cancel Invoice → Next</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-panel" data-panel="3">
+        <div class="rcard">
+            <h2>Step 3 — Generate new invoice</h2>
+            <div class="rsub">This will create a new invoice from booking {{ record.booking }} with corrected details.</div>
+            <dl class="summary">
+                <dt>Customer</dt><dd>{{ record.customer }}</dd>
+                <dt>Booking</dt><dd>{{ record.booking }}</dd>
+                <dt>Old invoice</dt><dd>{{ record.number }} (now CANCELLED)</dd>
+            </dl>
+            <div class="rfoot">
+                <button class="btn-out" type="button" onclick="rzGo(2)">← Back</button>
+                <a class="btn-teal" href="{% url 'invoices:list' %}" data-toast="New invoice generated from {{ record.booking }}. (mock)">✓ Generate New Invoice</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function rzGo(step){
+    document.querySelectorAll('.step-panel').forEach(function(p){
+        p.classList.toggle('active', p.dataset.panel == step);
+    });
+    document.querySelectorAll('.rstep').forEach(function(s){
+        var n = parseInt(s.dataset.s, 10);
+        s.classList.remove('now','done');
+        if (n < step) s.classList.add('done');
+        if (n === step) s.classList.add('now');
+    });
+    document.querySelectorAll('.rline').forEach(function(l){
+        l.classList.toggle('done', parseInt(l.dataset.l, 10) < step);
+    });
+}
+</script>
+{% endblock %}

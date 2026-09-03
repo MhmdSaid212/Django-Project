@@ -1,66 +1,71 @@
-{% extends "base.html" %}
+{% extends "base_invoices.html" %}
 {% load tourops %}
 {% block content %}
-<div class="print-actions">
-    <a class="btn btn-ghost" href="{% url 'invoices:print' record.id %}">Download invoice</a>
-    {% if record.status != 'PAID' %}
-    <button class="btn btn-warm" type="button" data-open-drawer="pay-drawer">Record payment</button>
-    <button class="btn btn-danger btn-sm" type="button">Cancel invoice</button>
-    {% endif %}
-</div>
-<div class="invoice-sheet">
-    <div class="inv-top">
-        <div>
-            <div class="inv-brand">TourOps Travel</div>
-            <p class="muted">Hamra Street, Beirut<br>hello@tourops.example · +961 1 555 220</p>
-        </div>
-        <div style="text-align:right">
-            <h1>{{ record.number }}</h1>
-            {% include "components/status_badge.html" with status=record.status %}
-            <p class="muted" style="margin-top:.4rem">Issue {{ record.issue }}<br>Due {{ record.due }}</p>
-        </div>
-    </div>
-    <dl class="kv" style="margin-bottom:1.2rem">
-        <dt>Bill to</dt><dd>{{ record.customer }}</dd>
-        <dt>Booking</dt><dd>{{ record.booking }}</dd>
-    </dl>
-    <table class="data">
-        <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead>
-        <tbody>
-            <tr><td>Cairo Discovery · 4 travelers</td><td>4</td><td>$600</td><td>$2,400</td></tr>
-        </tbody>
-    </table>
-    <div style="max-width:280px;margin-left:auto;margin-top:1rem">
-        <div class="fin-row"><span>Subtotal</span><span>$2,400</span></div>
-        <div class="fin-row"><span>Discount</span><span>$0</span></div>
-        <div class="fin-row"><span>Tax</span><span>$0</span></div>
-        <div class="fin-row" style="font-weight:800"><span>Total</span><span>{{ record.total|money }}</span></div>
-        <div class="fin-row"><span>Paid</span><span>{{ record.paid|money }}</span></div>
-        <div class="fin-row" style="color:var(--terracotta);font-weight:700"><span>Remaining</span><span>{{ record.remaining|money }}</span></div>
-    </div>
+<div class="det-head" style="margin-bottom:1.2rem">
+    <h1>Invoice {{ record.number }}</h1>
 </div>
 
-<div class="drawer-back" id="pay-drawer-back" data-close-drawer></div>
-<aside class="drawer" id="pay-drawer">
-    <div class="panel-h">
-        <h2>Record payment</h2>
-        <button class="btn btn-ghost btn-sm" type="button" data-close-drawer>Close</button>
+<div class="sheet">
+    <div class="sheet-top">
+        <div class="sheet-brand">Tour<span class="teal">Ops</span></div>
+        <div class="sheet-contact">123 Travel Way, Suite 100, Dubai UAE<br>+971 4 123 4567<br>hello@tourops.com</div>
     </div>
-    <p class="muted">{{ record.number }} · {{ record.customer }}</p>
-    <div class="form-grid" style="margin-top:1rem">
-        <div class="metric"><span class="tiny">Invoice total</span><b>{{ record.total|money }}</b></div>
-        <div class="metric"><span class="tiny">Already paid</span><b>{{ record.paid|money }}</b></div>
-        <div class="metric"><span class="tiny">Remaining</span><b data-pay-remaining>{{ record.remaining|money }}</b></div>
-        <label>Payment amount
-            <input class="field" type="number" value="{{ record.remaining }}" data-pay-amount data-max="{{ record.remaining }}">
-        </label>
-        <p class="err-inline" data-pay-error>Payment cannot exceed the remaining invoice balance of {{ record.remaining|money }}.</p>
-        <p>Remaining after payment: <strong class="live-remain" data-pay-after>{{ 0|money }}</strong></p>
-        <label>Method
-            <select class="field"><option>Bank transfer</option><option>Card</option><option>Cash</option></select>
-        </label>
-        <label>Reference<input class="field" placeholder="TRX-…"></label>
-        <button class="btn btn-warm" type="button" data-toast="Payment recorded. Invoice remaining updated." data-close-drawer>Save payment</button>
+    <div class="sheet-body">
+        <div class="inv-word">INVOICE</div>
+        <div class="meta-grid">
+            <dl class="kv">
+                <dt>Invoice Number</dt><dd>{{ record.number }}</dd>
+                <dt>Booking Reference</dt><dd style="color:#2563eb">{{ record.booking }}</dd>
+                <dt>Issue Date</dt><dd>{{ record.issue }}</dd>
+                <dt>Due Date</dt><dd>{{ record.due }}</dd>
+                <dt>Status</dt><dd><span class="pill {{ record.status|lower }}">{{ record.status }}</span></dd>
+            </dl>
+            <div class="billto">
+                <div class="lab">Bill To</div>
+                <div class="name">{{ record.customer }}</div>
+                {% if record.customer_email %}<div class="sub">{{ record.customer_email }}</div>{% endif %}
+            </div>
+        </div>
+
+        <table class="li">
+            <thead><tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Unit Price</th><th class="r">Amount</th></tr></thead>
+            <tbody>
+                {% for li in record.items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ li.description }}</strong></td>
+                    <td class="r">{{ li.quantity }}</td>
+                    <td class="r">{{ li.unit_price|money }}</td>
+                    <td class="r">{{ li.total|money }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="color:#94a3b8">No line items.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="tot">
+            <div class="row"><span>Subtotal</span><span>{{ record.subtotal|money }}</span></div>
+            <div class="row disc"><span>Discount</span><span>-{{ record.discount_amount|money }}</span></div>
+            <div class="row"><span>Tax ({{ record.tax_rate }}%)</span><span>{{ record.tax_amount|money }}</span></div>
+            <div class="grand" style="display:flex;justify-content:space-between"><span>Total</span><span>{{ record.total|money }}</span></div>
+            <div class="row" style="margin-top:.6rem"><span>Paid</span><span>{{ record.paid|money }}</span></div>
+            <div class="remain"><span>Remaining Balance</span><span>{{ record.remaining|money }}</span></div>
+        </div>
+
+        <div class="sheet-foot">
+            <div class="foot-actions">
+                <span class="foot-lab">Actions</span>
+                <a class="btn-teal" href="#" data-open-drawer="pay-drawer">Record Payment</a>
+                <a class="btn-out" href="{% url 'invoices:print' record.id %}">Download</a>
+                {% if record.status == 'PAID' or record.status == 'CANCELLED' %}
+                <span class="btn-out dis">Cancel</span>
+                {% else %}
+                <button class="btn-out" type="button">Cancel</button>
+                {% endif %}
+            </div>
+            <div class="thanks">♥ Thank you for choosing TourOps.<br><span>We appreciate your business!</span></div>
+        </div>
     </div>
-</aside>
+</div>
 {% endblock %}

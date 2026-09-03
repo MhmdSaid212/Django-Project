@@ -33,3 +33,4 @@ Thumbs.db
 
 # Cursor
 .cursor/
+node_modules/

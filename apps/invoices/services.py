@@ -39,6 +39,13 @@ def compute_status(total: Decimal, paid: Decimal, refunded: Decimal) -> str:
     return InvoiceStatus.PAID.value
 
 
+def _full_name(customer: dict) -> str:
+    """Build a display name from a customer document."""
+    first = (customer.get("first_name") or "").strip()
+    last = (customer.get("last_name") or "").strip()
+    return (first + " " + last).strip() or None
+
+
 def present_invoice(doc: dict) -> dict:
     """Convert a raw Mongo invoice into a JSON-safe dict."""
     if not doc:
@@ -48,7 +55,10 @@ def present_invoice(doc: dict) -> dict:
         "id": serialize_id(doc.get("_id")),
         "invoice_number": doc.get("invoice_number"),
         "booking_id": serialize_id(doc.get("booking_id")),
+        "booking_number": doc.get("booking_number"),
         "customer_id": serialize_id(doc.get("customer_id")),
+        "customer_name": doc.get("customer_name"),
+        "customer_email": doc.get("customer_email"),
         "issue_date": doc.get("issue_date"),
         "due_date": doc.get("due_date"),
         "line_items": doc.get("line_items", []),
@@ -94,6 +104,16 @@ class InvoiceService:
         if existing:
             raise ConflictError("This booking already has a live invoice.")
 
+        # Denormalize display fields (ERD DN pattern): copy the customer's name and
+        # the booking number onto the invoice so list/detail screens never need a join.
+        customer = None
+        if booking.get("customer_id"):
+            customer = get_collection(Collections.CUSTOMERS).find_one(
+                {"_id": booking["customer_id"], "is_deleted": {"$ne": True}}
+            )
+        customer_name = _full_name(customer) if customer else None
+        customer_email = (customer or {}).get("email")
+
         pricing = booking.get("pricing", {})
         subtotal = to_decimal(pricing.get("subtotal", 0))
         discount_amount = to_decimal(pricing.get("discount_amount", 0))
@@ -105,7 +125,10 @@ class InvoiceService:
         doc = stamp_new({
             "invoice_number": next_number(Collections.INVOICES),
             "booking_id": booking["_id"],
+            "booking_number": booking.get("booking_number"),
             "customer_id": booking.get("customer_id"),
+            "customer_name": customer_name,
+            "customer_email": customer_email,
             "issue_date": now,
             "due_date": now + timedelta(days=due_days),
             "line_items": [{

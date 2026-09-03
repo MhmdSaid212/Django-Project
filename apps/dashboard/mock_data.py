@@ -3,9 +3,9 @@ from __future__ import annotations
 
 def _by_id(rows: list[dict], key: str, value: str) -> dict:
     for row in rows:
-        if str(row.get(key)) == str(value):
+        if str(row.get(key)).lower() == str(value).lower():
             return row
-    return rows[0]
+    return {}
 
 
 CUSTOMERS = [
@@ -722,7 +722,7 @@ def get(kind: str, ident: str) -> dict:
         "tour": (TOURS, "id"),
         "package": (PACKAGES, "id"),
         "supplier": (SUPPLIERS, "id"),
-        "booking": (BOOKINGS, "id"),
+        "booking": (BOOKINGS, "number"),
         "invoice": (INVOICES, "id"),
         "payment": (PAYMENTS, "id"),
         "receipt": (RECEIPTS, "id"),

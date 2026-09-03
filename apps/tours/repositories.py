@@ -87,3 +87,109 @@ class TourRepository(SoftDeleteRepositoryMixin):
             if document.get("booking_status") != BookingStatus.CANCELLED.value:
                 return True
         return False
+
+    def hold_seats(self, tour_id: str | ObjectId, seats: int) -> bool:
+        oid = parse_object_id(tour_id, field="tour_id")
+
+        result = self.collection.update_one(
+            {
+                "_id": oid,
+                **LIVE_FILTER,
+                "status": "AVAILABLE",
+                "$expr": {
+                    "$gte": [
+                        {
+                            "$subtract": [
+                                "$capacity",
+                                {
+                                    "$add": [
+                                        "$booked_seats",
+                                        {"$ifNull": ["$held_seats", 0]},
+                                    ]
+                                },
+                            ]
+                        },
+                        seats,
+                    ]
+                },
+            },
+            {
+                "$inc": {
+                    "held_seats": seats,
+                }
+            },
+        )
+
+        return result.modified_count == 1
+
+
+
+    def confirm_seats(self, tour_id: str | ObjectId, seats: int) -> bool:
+        oid = parse_object_id(tour_id, field="tour_id")
+
+        result = self.collection.update_one(
+            {
+                "_id": oid,
+                **LIVE_FILTER,
+                "$expr": {
+                    "$gte": [
+                        {"$ifNull": ["$held_seats", 0]},
+                        seats,
+                    ]
+                },
+            },
+            {
+                "$inc": {
+                    "held_seats": -seats,
+                    "booked_seats": seats,
+                }
+            },
+        )
+
+        return result.modified_count == 1
+
+
+    def restore_held_seats(
+        self,
+        tour_id: str | ObjectId,
+        seats: int,
+    ) -> bool:
+        oid = parse_object_id(tour_id, field="tour_id")
+
+        result = self.collection.update_one(
+            {
+                "_id": oid,
+                **LIVE_FILTER,
+            },
+            {
+                "$inc": {
+                    "held_seats": seats,
+                    "booked_seats": -seats,
+                }
+            },
+        )
+
+        return result.modified_count == 1
+
+    def release_seats(self, tour_id: str | ObjectId, seats: int) -> bool:
+     oid = parse_object_id(tour_id, field="tour_id")
+
+     result = self.collection.update_one(
+        {
+            "_id": oid,
+            **LIVE_FILTER,
+            "$expr": {
+                "$gte": [
+                    {"$ifNull": ["$held_seats", 0]},
+                    seats,
+                ]
+            },
+        },
+        {
+            "$inc": {
+                "held_seats": -seats,
+            }
+        },
+    )
+
+     return result.modified_count == 1
