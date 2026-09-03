@@ -1,12 +1,3 @@
-"""
-Audit log document contract. NOT a Django model.
-
-OWNER: Shared — Owner/Admin UI, all developers write logs.
-Collection: audit_logs
-
-Never log passwords, password hashes, or secrets.
-Audit logs are append-only: do not update, hard-delete, or soft-delete them.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

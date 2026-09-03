@@ -1,18 +1,23 @@
-{% load static %}
-<aside class="w-64 bg-[#0A1628] text-slate-300 flex flex-col shrink-0 min-h-screen border-r border-slate-800/80 select-none">
-  <!-- Brand Header -->
-  <div class="px-5 py-5 border-b border-slate-800/70 bg-[#07101E]/60">
-    <a href="/dashboard/" class="block hover:opacity-95 transition">
-      {% include "components/logo.html" %}
+{% load tourops static %}
+<aside class="sidebar" id="sidebar">
+    <a class="sidebar-brand" href="{% url nav.dashboard %}">
+        <img src="{% static 'images/logo-dark.png' %}" alt="{{ brand.name }}" style="height:42px;width:auto;">
     </a>
-  </div>
-
-  <!-- Menu Navigation -->
-  <nav class="flex-1 px-3 py-5 space-y-1.5 overflow-y-auto">
-    <a href="/dashboard/" class="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition {% if request.path == '/dashboard/' or request.path == '/' %}bg-[#00B49F] text-white font-semibold shadow-sm{% else %}text-slate-300 hover:bg-slate-800/70 hover:text-white{% endif %}">
-      <svg class="w-5 h-5 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-      <span>Dashboard</span>
-    </a>
+    <nav class="sidebar-nav">
+        <p class="nav-label">Main</p>
+        <a class="{% nav_active 'dashboard' %}" href="{% url nav.dashboard %}">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg>
+            <span>Dashboard</span>
+        </a>
+        {% if nav.ops %}
+        <a class="{% nav_active 'customers' %}" href="{% url 'customers:list' %}">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M4 19c.8-3 2.8-4.5 5-4.5S13.2 16 14 19"/><circle cx="17" cy="9" r="2.2"/><path d="M16.2 14.5c2 .3 3.5 1.6 4.3 4.5"/></svg>
+            <span>Customers</span>
+        </a>
+        <a class="{% nav_active 'bookings' %}" href="{% url 'bookings:list' %}">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18.5" cy="17" r="2"/></svg>
+            <span>Bookings</span>
+        </a>
 
     <a href="/bookings/" class="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition {% if '/bookings' in request.path %}bg-[#00B49F] text-white font-semibold shadow-sm{% else %}text-slate-300 hover:bg-slate-800/70 hover:text-white{% endif %}">
       <svg class="w-5 h-5 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>

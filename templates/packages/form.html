@@ -4,71 +4,42 @@
 {% block title %}{% if object %}Edit {{ object.name }}{% else %}New Package{% endif %} - TourOps{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-6">
-  <div class="flex items-center justify-between">
-    <a href="{% url 'packages:list' %}" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      Cancel & Return
-    </a>
-    <h1 class="text-xl font-bold text-slate-900">{% if object %}Edit Package{% else %}Create New Package{% endif %}</h1>
-  </div>
-
-  <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs">
-    <form method="post" class="space-y-5">
-      {% csrf_token %}
-      
-      <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Package Name</label>
-        <input type="text" name="name" value="{{ form.name.value|default:'' }}" required
-          class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="e.g. 5-Day Mediterranean Escape">
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Package Code</label>
-          <input type="text" name="code" value="{{ form.code.value|default:'' }}" required
-            class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="PKG-2026-001">
-        </div>
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Base Price ($)</label>
-          <input type="number" step="0.01" name="base_price" value="{{ form.base_price.value|default:'' }}" required
-            class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="1250.00">
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Duration (Days)</label>
-          <input type="number" name="duration_days" value="{{ form.duration_days.value|default:'3' }}" required
-            class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-        </div>
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Max Capacity</label>
-          <input type="number" name="max_capacity" value="{{ form.max_capacity.value|default:'30' }}"
-            class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Description</label>
-        <textarea name="description" rows="4" 
-          class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="Overview of the package...">{{ form.description.value|default:'' }}</textarea>
-      </div>
-
-      <div class="flex items-center gap-2 pt-2">
-        <input type="checkbox" id="is_active" name="is_active" {% if form.is_active.value|default:True %}checked{% endif %} class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-        <label for="is_active" class="text-sm font-medium text-slate-700">Active and available for bookings</label>
-      </div>
-
-      <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">
-        <a href="{% url 'packages:list' %}" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition">
-          Cancel
-        </a>
-        <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">
-          Save Package
-        </button>
-      </div>
-    </form>
-  </div>
+<div class="page-head">
+    <div>
+        <p class="tiny">Reusable products</p>
+        <h1>{{ page_heading }}</h1>
+        <p>A package is a product template. Seat inventory lives on dated tours.</p>
+    </div>
 </div>
+<form method="post" class="panel form-grid" style="max-width:640px">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label>Package name{{ form.name }}{{ form.name.errors }}</label>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>City{{ form.city }}{{ form.city.errors }}</label>
+        <label>Country{{ form.country }}{{ form.country.errors }}</label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Duration (days){{ form.duration_days }}{{ form.duration_days.errors }}</label>
+        <label>Default capacity{{ form.default_capacity }}{{ form.default_capacity.errors }}</label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Base price / person{{ form.selling_price_per_person }}{{ form.selling_price_per_person.errors }}</label>
+        <label>Currency{{ form.currency }}{{ form.currency.errors }}</label>
+    </div>
+    <label>Included{{ form.included_services }}{{ form.included_services.errors }}</label>
+    <label>Excluded{{ form.excluded_services }}{{ form.excluded_services.errors }}</label>
+    <label>Description{{ form.description }}{{ form.description.errors }}</label>
+    {% if form.status %}
+    <label>Status{{ form.status }}{{ form.status.errors }}</label>
+    {% endif %}
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save package" }}</button>
+        {% if record %}
+        <a class="btn btn-ghost" href="{% url 'packages:detail' record.id %}">Cancel</a>
+        {% else %}
+        <a class="btn btn-ghost" href="{% url 'packages:list' %}">Cancel</a>
+        {% endif %}
+    </div>
+</form>
 {% endblock %}

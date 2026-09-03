@@ -1,18 +1,3 @@
-"""
-Expense document contract. NOT a Django model.
-
-OWNER: Dev 4 — Business Finance & Reports
-Collection: expenses
-
-Expense = cost incurred.
-Supplier payment = money actually paid.
-They are not the same thing.
-
-Operational trip costs attach to a tour (the dated package run), not to the
-package template. Use expense_scope GENERAL for overhead with no tour.
-
-Example: Expense 3000, Supplier Payment 2000, Remaining Payable 1000.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,8 +14,8 @@ from core.money import ZERO
 @dataclass
 class ExpenseDocument:
     expense_number: str
-    expense_scope: str  # ExpenseScope: TOUR or GENERAL
-    category: str  # ExpenseCategory
+    expense_scope: str
+    category: str
     amount: Decimal
     currency: str
     description: str
@@ -44,8 +29,37 @@ class ExpenseDocument:
     paid_amount: Decimal = ZERO
     remaining_amount: Decimal = ZERO
     payment_status: str = ExpensePaymentStatus.UNPAID.value
-    receipt_file: Optional[str] = None  # shortcut; files live in attachments
+    receipt_file: Optional[str] = None
     is_deleted: bool = False
     deleted_at: Optional[datetime] = None
     deleted_by: Optional[ObjectId] = None
     _id: Optional[ObjectId] = None
+
+    ALLOWED_SCOPES = {item.value for item in ExpenseScope}
+    ALLOWED_CATEGORIES = {item.value for item in ExpenseCategory}
+    ALLOWED_PAYMENT_STATUSES = {item.value for item in ExpensePaymentStatus}
+
+
+EXPENSE_DOCUMENT_EXAMPLE = {
+    "_id": "ObjectId",
+    "expense_number": "EXP-1001",
+    "expense_scope": "TOUR",
+    "category": "HOTEL",
+    "amount": "3000.00",
+    "currency": "USD",
+    "description": "3 nights, Nile View Hotel, twin rooms",
+    "expense_date": "datetime",
+    "supplier_id": "ObjectId",
+    "tour_id": "ObjectId",
+    "due_date": "datetime",
+    "paid_amount": "0.00",
+    "remaining_amount": "3000.00",
+    "payment_status": "UNPAID",
+    "receipt_file": None,
+    "created_by": "ObjectId",
+    "is_deleted": False,
+    "deleted_at": None,
+    "deleted_by": None,
+    "created_at": "datetime",
+    "updated_at": "datetime",
+}

@@ -1,10 +1,3 @@
-"""
-TourOps URL configuration.
-
-HTML pages live under feature prefixes.
-JSON APIs live under /api/...
-Keep this file as the contract map — feature apps own the actual views.
-"""
 from django.urls import include, path
 from django.views.generic import RedirectView
 

@@ -1,60 +1,238 @@
 {% extends "base.html" %}
-{% load tourops %}
+
+{% block title %}Bookings · TourOps{% endblock %}
+{% block page_id %}bookings{% endblock %}
+{% block page_title %}Bookings{% endblock %}
+{% block search_placeholder %}Search bookings...{% endblock %}
+
+{% block page_action %}
+  <a
+    href="{% url 'bookings:create' %}"
+    class="bg-brand-blue hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-lg"
+  >
+    + New Booking
+  </a>
+{% endblock %}
+
 {% block content %}
-<div class="page-head">
-    <div>
-        <p class="tiny">Reservations</p>
-        <h1>Bookings</h1>
-        <p>Customer → booking → tour or package → invoice → payment.</p>
-    </div>
-    <div class="actions">
-        <a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>
-    </div>
+<!-- Stats -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <p class="text-sm text-gray-500">Total Bookings</p>
+    <p class="text-2xl font-bold mt-1">128</p>
+    <p class="text-xs text-brand-teal mt-2">+12% this month</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <p class="text-sm text-gray-500">Confirmed</p>
+    <p class="text-2xl font-bold mt-1">86</p>
+    <p class="text-xs text-gray-500 mt-2">67% of all bookings</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <p class="text-sm text-gray-500">Pending</p>
+    <p class="text-2xl font-bold mt-1">24</p>
+    <p class="text-xs text-gray-500 mt-2">Awaiting confirmation</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <p class="text-sm text-gray-500">Upcoming Revenue</p>
+    <p class="text-2xl font-bold mt-1">$42,680</p>
+    <p class="text-xs text-brand-teal mt-2">From upcoming trips</p>
+  </div>
+
 </div>
 
-<div class="filters" data-chips>
-    <input class="field" placeholder="Customer or BK number…" style="min-width:200px">
-    <select class="field"><option>All tours & packages</option>{% for t in m.tours %}<option>{{ t.name }}</option>{% endfor %}</select>
-    <input class="field" type="date">
-    <button type="button" class="chip is-on">All statuses</button>
-    <button type="button" class="chip">Pending</button>
-    <button type="button" class="chip">Confirmed</button>
-    <button type="button" class="chip">Completed</button>
-    <button type="button" class="chip">Cancelled</button>
-    <button type="button" class="chip">Partially paid</button>
+
+<!-- Filters -->
+<div class="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+
+  <div class="flex flex-wrap items-center gap-3">
+
+    <button
+      class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-gray-900 text-white"
+    >
+      All
+    </button>
+
+    <button
+      class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100"
+    >
+      Confirmed
+    </button>
+
+    <button
+      class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100"
+    >
+      Pending
+    </button>
+
+    <button
+      class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100"
+    >
+      Completed
+    </button>
+
+    <button
+      class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100"
+    >
+      Cancelled
+    </button>
+
+  </div>
+
 </div>
 
-<div class="panel" style="padding:0">
-    <table class="data">
-        <thead>
-            <tr>
-                <th>Booking</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th>Travelers</th>
-                <th>Dates</th>
-                <th>Status</th>
-                <th>Payment</th>
-                <th>Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for b in m.bookings %}
-            <tr>
-                <td><a class="mono" href="{% url 'bookings:detail' b.id %}"><strong>{{ b.number }}</strong></a></td>
-                <td><a href="{% url 'customers:detail' b.customer_id %}">{{ b.customer }}</a></td>
-                <td>{{ b.product }}<br><span class="muted">{{ b.destination }} · {{ b.kind|labelize }}</span></td>
-                <td>{{ b.travelers }}</td>
-                <td>{{ b.dates }}</td>
-                <td>{% include "components/status_badge.html" with status=b.status %}</td>
-                <td>{% include "components/status_badge.html" with status=b.pay %}</td>
-                <td>
-                    <strong>{{ b.total|money }}</strong>
-                    {% if b.remaining %}<div class="tiny" style="text-transform:none">{{ b.remaining|money }} due</div>{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
+
+<!-- Booking table -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
+  <div class="overflow-x-auto">
+
+    <table class="w-full text-sm">
+
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Booking
+          </th>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Customer
+          </th>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Tour
+          </th>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Travel Date
+          </th>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Travelers
+          </th>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Total
+          </th>
+
+          <th class="text-left px-5 py-4 font-semibold text-gray-600">
+            Status
+          </th>
+
+          <th class="px-5 py-4"></th>
+
+        </tr>
+      </thead>
+
+      <tbody class="divide-y divide-gray-100">
+
+  {% for booking in bookings %}
+
+  <tr class="hover:bg-gray-50">
+
+    <td class="px-5 py-4">
+      <a
+        href="{% url 'bookings:detail' booking.number %}"
+        class="font-semibold text-brand-blue hover:underline"
+      >
+        {{ booking.number }}
+      </a>
+    </td>
+
+    <td class="px-5 py-4">
+      <p class="font-medium">{{ booking.customer }}</p>
+    </td>
+
+    <td class="px-5 py-4">
+      <p class="font-medium">{{ booking.product }}</p>
+      <p class="text-xs text-gray-400">{{ booking.destination }}</p>
+    </td>
+
+    <td class="px-5 py-4">
+      {{ booking.dates }}
+    </td>
+
+    <td class="px-5 py-4">
+      {{ booking.travelers }}
+    </td>
+
+    <td class="px-5 py-4 font-semibold">
+      ${{ booking.total }}
+    </td>
+
+    <td class="px-5 py-4">
+      {% if booking.status == "CONFIRMED" %}
+        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          Confirmed
+        </span>
+      {% elif booking.status == "PENDING" %}
+        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+          Pending
+        </span>
+      {% elif booking.status == "CANCELLED" %}
+        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          Cancelled
+        </span>
+      {% endif %}
+    </td>
+
+    <td class="px-5 py-4 text-right">
+      <a
+        href="{% url 'bookings:detail' booking.number %}"
+        class="text-gray-400 hover:text-gray-700"
+      >
+        →
+      </a>
+    </td>
+
+  </tr>
+
+  {% endfor %}
+
+</tbody>
+
     </table>
+
+  </div>
+
+  <!-- Pagination -->
+  <div class="flex items-center justify-between px-5 py-4 border-t border-gray-200">
+
+    <p class="text-sm text-gray-500">
+      Showing <span class="font-medium text-gray-700">1–5</span> of
+      <span class="font-medium text-gray-700">128</span> bookings
+    </p>
+
+    <div class="flex items-center gap-1">
+
+      <button class="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-400">
+        Previous
+      </button>
+
+      <button class="px-3 py-1.5 rounded-lg bg-brand-blue text-white text-sm">
+        1
+      </button>
+
+      <button class="px-3 py-1.5 rounded-lg border border-gray-300 text-sm">
+        2
+      </button>
+
+      <button class="px-3 py-1.5 rounded-lg border border-gray-300 text-sm">
+        3
+      </button>
+
+      <button class="px-3 py-1.5 rounded-lg border border-gray-300 text-sm">
+        Next
+      </button>
+
+    </div>
+
+  </div>
+
 </div>
+
 {% endblock %}

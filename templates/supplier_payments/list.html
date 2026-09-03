@@ -7,45 +7,50 @@
         <h1>Supplier payments</h1>
         <p>Pay against an expense bill. Amount cannot exceed remaining balance.</p>
     </div>
+    <div class="actions"><a class="btn btn-warm" href="{% url 'supplier_payments:create' %}">Record payment</a></div>
 </div>
 
+{% if bill %}
 <section class="panel" style="margin-bottom:.85rem">
     <p class="tiny">Selected bill</p>
-    <h2 style="margin:.2rem 0">Nile View Hotel</h2>
-    <p class="muted">Expense EXP-1041</p>
+    <h2 style="margin:.2rem 0">{{ bill.supplier }}</h2>
+    <p class="muted">Expense <a href="{% url 'expenses:detail' bill.id %}">{{ bill.number }}</a></p>
     <div class="metrics-4" style="margin-top:.8rem">
-        <div class="metric"><span class="tiny">Total</span><b>$3,000</b></div>
-        <div class="metric"><span class="tiny">Already paid</span><b>$2,000</b></div>
-        <div class="metric"><span class="tiny">Remaining</span><b>$1,000</b></div>
-        <div class="metric"><span class="tiny">Terms</span><b style="font-size:1rem">Net 14</b></div>
+        <div class="metric"><span class="tiny">Total</span><b>{{ bill.amount|money }}</b></div>
+        <div class="metric"><span class="tiny">Already paid</span><b>{{ bill.paid|money }}</b></div>
+        <div class="metric"><span class="tiny">Remaining</span><b>{{ bill.remaining|money }}</b></div>
+        <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ bill.due }}</b></div>
     </div>
-    <div class="form-grid" style="max-width:420px;margin-top:1rem">
-        <label>Payment amount
-            <input class="field" type="number" value="1000" max="1000" data-sp-amount data-max="1000">
-        </label>
-        <p class="err-inline" data-sp-error>Amount cannot exceed the remaining supplier balance of $1,000.</p>
-        <p>Remaining after payment: <strong data-sp-after>$0</strong></p>
-        <label>Method
-            <select class="field"><option>Bank transfer</option><option>Cash</option></select>
-        </label>
-        <label>Reference<input class="field" placeholder="AP-…"></label>
-        <button class="btn btn-warm" type="button" data-toast="Supplier payment SP-1009 recorded against EXP-1041.">Record payment</button>
-    </div>
+    {% if bill.has_remaining %}
+    <p style="margin-top:1rem">
+        <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ bill.id }}">Pay remaining {{ bill.remaining|money }}</a>
+    </p>
+    {% else %}
+    <p class="muted" style="margin-top:1rem">This bill is paid in full.</p>
+    {% endif %}
 </section>
+{% endif %}
 
 <div class="panel" style="padding:0">
     <table class="data">
         <thead><tr><th>Payment</th><th>Supplier</th><th>Expense</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref</th></tr></thead>
         <tbody>
-        {% for sp in m.supplier_payments %}
+        {% for sp in payments %}
             <tr>
                 <td><a class="mono" href="{% url 'supplier_payments:detail' sp.id %}">{{ sp.number }}</a></td>
                 <td>{{ sp.supplier }}</td>
-                <td>{{ sp.expense }}</td>
+                <td>{% if sp.expense_id %}<a href="{% url 'expenses:detail' sp.expense_id %}">{{ sp.expense }}</a>{% else %}{{ sp.expense }}{% endif %}</td>
                 <td>{{ sp.amount|money }}</td>
                 <td>{{ sp.date }}</td>
                 <td>{{ sp.method|labelize }}</td>
                 <td class="mono">{{ sp.ref }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="7">
+                    {% url 'supplier_payments:create' as pay_create_url %}
+                    {% include "components/empty_state.html" with title="No supplier payments yet" body="Record a payment against an open expense bill." cta="Record payment" cta_url=pay_create_url %}
+                </td>
             </tr>
         {% endfor %}
         </tbody>

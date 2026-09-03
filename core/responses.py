@@ -1,12 +1,3 @@
-"""
-Consistent JSON API responses.
-
-Success:
-    {"success": true, "data": {...}}
-
-Error:
-    {"success": false, "error": {"code": "...", "message": "..."}}
-"""
 from __future__ import annotations
 
 from typing import Any
@@ -34,7 +25,6 @@ def error_response(
 
 
 def not_implemented(message: str = "This endpoint is not implemented yet.") -> JsonResponse:
-    """Placeholder for API contracts that teams have not built yet."""
     return error_response("NOT_IMPLEMENTED", message, status=501)
 
 
@@ -45,7 +35,6 @@ def from_exception(exc: Exception) -> JsonResponse:
 
 
 def not_implemented_view(request, *args, **kwargs):
-    """Drop-in view for URL contracts that are still skeleton-only."""
     feature = kwargs.get("feature") or request.path
     return not_implemented(
         f"API endpoint {request.method} {request.path} is not implemented yet. "

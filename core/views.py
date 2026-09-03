@@ -1,4 +1,3 @@
-"""Shared HTML helpers: placeholder pages and error handlers."""
 from django.shortcuts import render
 
 

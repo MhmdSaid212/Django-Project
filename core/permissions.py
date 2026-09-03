@@ -1,13 +1,3 @@
-"""
-Authentication and role helpers.
-
-TourOps users live in MongoDB (users collection), not Django's auth.User.
-We store a small, non-secret snapshot in the signed-cookie session:
-
-    user_id, email, first_name, last_name, role
-
-Do not put password_hash in the session.
-"""
 from __future__ import annotations
 
 from functools import wraps
@@ -16,6 +6,7 @@ from typing import Callable
 from django.http import HttpRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.constants import UserRole
 from core.responses import error_response
@@ -46,6 +37,18 @@ def is_authenticated(request: HttpRequest) -> bool:
     return get_session_user(request) is not None
 
 
+def safe_next_url(request: HttpRequest, candidate: str | None) -> str | None:
+    if not candidate:
+        return None
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return None
+
+
 def _wants_json(request: HttpRequest) -> bool:
     return request.path.startswith("/api/") or "application/json" in request.headers.get(
         "Accept", ""
@@ -53,8 +56,6 @@ def _wants_json(request: HttpRequest) -> bool:
 
 
 def login_required(view: Callable) -> Callable:
-    """Require a logged-in TourOps user (MongoDB session)."""
-
     @wraps(view)
     def wrapper(request: HttpRequest, *args, **kwargs):
         if not is_authenticated(request):
@@ -68,14 +69,6 @@ def login_required(view: Callable) -> Callable:
 
 
 def role_required(*roles: str) -> Callable:
-    """
-    Require one of the given roles.
-
-    Usage:
-        @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
-        def invoice_list(request):
-            ...
-    """
     allowed = {getattr(role, "value", role) for role in roles}
 
     def decorator(view: Callable) -> Callable:
@@ -103,7 +96,6 @@ def owner_required(view: Callable) -> Callable:
 
 
 def staff_required(view: Callable) -> Callable:
-    """Any authenticated role (agent, accountant, or owner)."""
     return role_required(
         UserRole.TRAVEL_AGENT,
         UserRole.ACCOUNTANT,

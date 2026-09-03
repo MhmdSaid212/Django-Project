@@ -1,9 +1,3 @@
-"""
-Notification document contract. NOT a Django model.
-
-OWNER: Shared — all developers may create notifications.
-Collection: notifications
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

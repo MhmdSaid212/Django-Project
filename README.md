@@ -11,4 +11,10 @@ python manage.py seed_demo_user
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000/login/ — seed user `owner@tourops.local` / `changeme`.
+Open http://127.0.0.1:8000/login/
+
+| Email | Password | Role |
+| --- | --- | --- |
+| `owner@tourops.local` | `changeme` | Owner / Admin |
+| `agent@tourops.local` | `changeme` | Travel Agent |
+| `accountant@tourops.local` | `changeme` | Accountant |

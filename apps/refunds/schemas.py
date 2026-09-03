@@ -1,15 +1,3 @@
-"""
-Refund document contract. NOT a Django model.
-
-OWNER: Dev 3 — Customer Finance
-Collection: refunds
-
-A refund is a new document. The original payment stays.
-Example: Payment +800, Refund -300 — both records remain.
-
-Policy audit (BR-REF-04–08): store which tier, policy version, percent,
-deposit excluded, and retained fee — do not rely on free-text `reason`.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

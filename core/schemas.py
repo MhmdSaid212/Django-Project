@@ -1,10 +1,3 @@
-"""
-Shared nested document contracts.
-
-These are NOT Django ORM models. They document the shape of embedded objects
-that appear in more than one collection (address, bank details, money-related
-line items). Feature apps keep their top-level document contracts in schemas.py.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -45,11 +38,6 @@ class BankDetails:
     iban: Optional[str] = None
 
 
-# ---------------------------------------------------------------------------
-# Supplier type-specific blocks (Approach C).
-# Only the block that matches supplier_type is filled; the others stay null.
-# Shared contact / address / bank stay on the supplier root.
-# ---------------------------------------------------------------------------
 @dataclass
 class HotelInfo:
     star_rating: Optional[int] = None
@@ -58,12 +46,12 @@ class HotelInfo:
     check_in_time: Optional[str] = None
     check_out_time: Optional[str] = None
     amenities: list[str] = field(default_factory=list)
-    board_basis: Optional[str] = None  # RO, BB, HB, FB, AI
+    board_basis: Optional[str] = None
 
 
 @dataclass
 class TransportationInfo:
-    vehicle_type: Optional[str] = None  # coach, minivan, car, boat
+    vehicle_type: Optional[str] = None
     fleet_size: Optional[int] = None
     seats_per_vehicle: Optional[int] = None
     license_number: Optional[str] = None
@@ -117,8 +105,6 @@ class Destination:
 
 @dataclass
 class SupplierServiceLine:
-    """Embedded on tours and packages — estimated cost, not an expense record."""
-
     supplier_id: ObjectId
     supplier_type: str
     description: str
@@ -146,7 +132,7 @@ class Discount:
     value: Decimal = ZERO
     amount: Decimal = ZERO
     reason: Optional[str] = None
-    applied_by: Optional[ObjectId] = None  # who applied it; not updated_by
+    applied_by: Optional[ObjectId] = None
 
 
 @dataclass
@@ -154,7 +140,7 @@ class Tax:
     name: str = "VAT"
     rate: Decimal = ZERO
     amount: Decimal = ZERO
-    tax_id: Optional[ObjectId] = None  # snapshot of taxes._id at issue time
+    tax_id: Optional[ObjectId] = None
 
 
 @dataclass

@@ -63,5 +63,6 @@
 <section class="panel settings-panel" data-settings-panel="security" hidden>
     <p class="muted">Passwords are hashed. Sessions store a non-secret snapshot only — never password_hash.</p>
     <label>Session length<input class="field" value="8 hours" readonly></label>
+    <p style="margin-top:.8rem"><a class="btn btn-warm" href="{% url 'accounts:password' %}">Change my password</a></p>
 </section>
 {% endblock %}

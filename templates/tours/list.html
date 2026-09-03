@@ -52,59 +52,12 @@
       </div>
     </div>
 
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
-      <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-      </div>
-      <div>
-        <p class="text-2xl font-black text-slate-900 leading-tight">458</p>
-        <p class="text-xs text-slate-500 font-medium">Total Booked Pax</p>
-      </div>
-    </div>
-
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
-      <div class="relative w-11 h-11 shrink-0 flex items-center justify-center">
-        <svg class="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-          <path class="text-slate-100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-          <path class="text-[#00B49F]" stroke-dasharray="72, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-        </svg>
-        <span class="absolute text-[10px] font-black text-slate-800">72%</span>
-      </div>
-      <div>
-        <p class="text-base font-black text-slate-900 leading-tight">329 / 458</p>
-        <p class="text-xs text-slate-500 font-medium">Overall Capacity</p>
-      </div>
-    </div>
-
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3.5">
-      <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      </div>
-      <div>
-        <p class="text-xl font-black text-slate-900 leading-tight">$312,540</p>
-        <p class="text-xs text-slate-500 font-medium">Est. Revenue</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tabs Navigation -->
-  <div class="flex items-center gap-6 border-b border-slate-200 text-sm font-semibold text-slate-600">
-    <button class="pb-3 text-slate-500 hover:text-slate-900 transition">All Tours</button>
-    <button class="pb-3 text-[#00B49F] border-b-2 border-[#00B49F] font-bold">Departures</button>
-    <button class="pb-3 text-slate-500 hover:text-slate-900 transition">Upcoming</button>
-    <button class="pb-3 text-slate-500 hover:text-slate-900 transition">Past</button>
-  </div>
-
-  <!-- Master-Detail Layout -->
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-    
-    <!-- LEFT: Departures List (6 Cols) -->
-    <div class="lg:col-span-6 space-y-4">
-      <div class="flex items-center gap-2">
-        <div class="relative flex-1">
-          <input type="text" placeholder="Search departures..." 
-            class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm">
-          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+<div class="cards">
+    {% for t in tours %}
+    <a class="t-card" href="{% url 'tours:detail' t.id %}">
+        <div class="t-hero">
+            <small>{{ t.city }}{% if t.country %} · {{ t.country }}{% endif %}</small>
+            <h2 style="color:#fff;margin-top:.2rem">{{ t.name }}</h2>
         </div>
         <button class="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-sm">
           Filter
@@ -348,8 +301,10 @@
             Edit Tour
           </button>
         </div>
-      </div>
-    </div>
-  </div>
+    </a>
+    {% empty %}
+    {% url 'tours:create' as tour_create_url %}
+    {% include "components/empty_state.html" with title="No tours yet" body="Create your first departure and start accepting bookings." cta="Create tour" cta_url=tour_create_url %}
+    {% endfor %}
 </div>
 {% endblock %}

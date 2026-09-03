@@ -1,4 +1,3 @@
-"""Shared smoke tests for the TourOps skeleton. Feature tests belong in each app."""
 import json
 
 from django.urls import reverse

@@ -1,4 +1,3 @@
-"""HTML views. Keep these thin — call services, do not query MongoDB here."""
 from core.constants import UserRole
 from core.permissions import login_required, role_required
 from core.wireframes import wireframe

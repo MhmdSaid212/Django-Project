@@ -1,10 +1,36 @@
 {% extends "base.html" %}
+{% load tourops %}
 {% block content %}
-<div class="page-head"><div><h1>Expense breakdown</h1><p>Where cost sits: hotels, transport, guides, and overhead.</p></div></div>
-<div class="waterfall" style="max-width:560px">
-    <div class="wf"><span>Hotel</span><div class="track"><i class="cost" style="width:70%"></i></div><b>$12,400</b></div>
-    <div class="wf"><span>Transport</span><div class="track"><i class="cost" style="width:22%"></i></div><b>$3,100</b></div>
-    <div class="wf"><span>Guides</span><div class="track"><i class="cost" style="width:12%"></i></div><b>$1,800</b></div>
-    <div class="wf"><span>Overhead</span><div class="track"><i class="cost" style="width:18%;background:#78716c"></i></div><b>$2,900</b></div>
+<div class="page-head">
+    <div>
+        <h1>Expense breakdown</h1>
+        <p>Where cost sits: hotels, transport, guides, and overhead.</p>
+    </div>
 </div>
+<form class="filters" method="get">
+    <input class="field" type="month" name="month" value="{{ filters.month }}">
+    <select class="field" name="tour">
+        <option value="">All tours</option>
+        {% for id, name in tour_choices %}
+        <option value="{{ id }}" {% if filters.tour == id %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn btn-ghost" type="submit">Apply</button>
+</form>
+{% if report %}
+<div class="waterfall" style="max-width:560px">
+    {% for group in report.groups %}
+    <div class="wf">
+        <span>{{ group.label }}</span>
+        <div class="track"><i class="cost" style="width:{{ group.pct }}%;{% if group.label == 'Overhead' %}background:#78716c{% endif %}"></i></div>
+        <b>{{ group.amount|money }}</b>
+    </div>
+    {% empty %}
+    <p class="muted">No expenses in this range.</p>
+    {% endfor %}
+</div>
+{% if report.categories %}
+<p class="muted" style="margin-top:1rem">Total {{ report.total|money }} across {{ report.count }} expense{{ report.count|pluralize }}.</p>
+{% endif %}
+{% endif %}
 {% endblock %}

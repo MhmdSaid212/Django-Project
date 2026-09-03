@@ -1,9 +1,3 @@
-"""
-Receipt document contract. NOT a Django model.
-
-OWNER: Dev 3 — Customer Finance
-Collection: receipts
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

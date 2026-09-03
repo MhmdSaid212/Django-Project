@@ -1,13 +1,3 @@
-"""
-Attachment document contract. NOT a Django model.
-
-OWNER: Shared
-Collection: attachments
-
-Files hang off a parent via entity_type + entity_id (polymorphic). Categories
-cover passport scans, supplier contracts, expense receipts, and booking docs.
-expenses.receipt_file remains an optional path shortcut; prefer this collection.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

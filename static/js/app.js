@@ -7,29 +7,50 @@
         });
     }
 
-    const collapse = document.querySelector("[data-sidebar-collapse]");
-    if (collapse) {
-        if (localStorage.getItem("tourops-sidebar") === "collapsed") {
-            document.body.classList.add("sidebar-collapsed");
-        }
-        collapse.addEventListener("click", function () {
-            document.body.classList.toggle("sidebar-collapsed");
-            localStorage.setItem(
-                "tourops-sidebar",
-                document.body.classList.contains("sidebar-collapsed") ? "collapsed" : "open"
-            );
-        });
+    document.addEventListener("click", function (event) {
+        const collapse = event.target.closest("[data-sidebar-collapse]");
+
+        if (!collapse) return;
+
+        document.body.classList.toggle("sidebar-collapsed");
+
+        localStorage.setItem(
+            "tourops-sidebar",
+            document.body.classList.contains("sidebar-collapsed")
+                ? "collapsed"
+                : "open"
+        );
+
+        console.log(
+            "SIDEBAR COLLAPSED:",
+            document.body.classList.contains("sidebar-collapsed")
+        );
+    });
+
+    if (localStorage.getItem("tourops-sidebar") === "collapsed") {
+        document.body.classList.add("sidebar-collapsed");
     }
 
     const quickBtn = document.querySelector("[data-quick-create]");
     const quickMenu = document.querySelector("[data-quick-menu]");
+
+
     if (quickBtn && quickMenu) {
         quickBtn.addEventListener("click", function (event) {
+            event.preventDefault();
             event.stopPropagation();
-            quickMenu.classList.toggle("open");
+
+            console.log("CREATE CLICKED");
+
+            quickMenu.classList.toggle("hidden");
         });
+
+        quickMenu.addEventListener("click", function (event) {
+            event.stopPropagation();
+        });
+
         document.addEventListener("click", function () {
-            quickMenu.classList.remove("open");
+            quickMenu.classList.add("hidden");
         });
     }
 
@@ -113,7 +134,13 @@
             });
             wizard.querySelectorAll("[data-wz]").forEach(function (item) {
                 const n = Number(item.getAttribute("data-wz"));
-                item.classList.toggle("is-on", n === step);
+                const active = n === step;
+
+                item.classList.toggle("bg-blue-50", active);
+                item.classList.toggle("text-brand-blue", active);
+
+                item.classList.toggle("bg-white", !active);
+                item.classList.toggle("text-gray-400", !active);
             });
         }
         function recalc() {
@@ -138,19 +165,29 @@
             });
         }
         wizard.addEventListener("click", function (event) {
+            console.log("WIZARD CLICK:", event.target);
             const next = event.target.closest("[data-next]");
             const prev = event.target.closest("[data-prev]");
             const pick = event.target.closest(".pick");
+            console.log("PICK:", pick);
+
             if (pick) {
-                pick.parentElement.querySelectorAll(".pick").forEach(function (p) {
+                console.log("PICK CLICKED:", pick);
+                const group = pick.parentElement;
+
+                group.querySelectorAll(".pick").forEach(function (p) {
                     p.classList.remove("is-on");
                 });
+
                 pick.classList.add("is-on");
             }
+
             if (next) {
                 step = Math.min(total, step + 1);
+                console.log("CURRENT STEP:", step);
                 show();
             }
+
             if (prev) {
                 step = Math.max(1, step - 1);
                 show();
@@ -188,6 +225,8 @@
         });
     });
 
+    
+
     document.querySelectorAll("[data-settings-tab]").forEach(function (tab) {
         tab.addEventListener("click", function (event) {
             event.preventDefault();
@@ -200,4 +239,58 @@
             });
         });
     });
+    $(document).ready(function () {
+        $("#nationality").countrySelect();
+
+        $("#address-country").countrySelect();
+
+        $("#passport-country").countrySelect();
+    });
+
+$(document).ready(function () {
+    const phoneInput = document.getElementById("phone");
+    const emergencyPhoneInput = document.getElementById("emergency-phone");
+
+    const phoneOptions = {
+        initialCountry: "lb",
+        separateDialCode: true,
+        preferredCountries: ["lb", "us", "gb", "fr"],
+        utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/utils.js"
+    };
+
+    if (phoneInput && typeof intlTelInput === "function") {
+        const phoneIti = intlTelInput(phoneInput, phoneOptions);
+
+        phoneInput.addEventListener("input", function () {
+            document.getElementById("phone-full").value =
+                phoneIti.getNumber();
+        });
+
+        phoneInput.addEventListener("countrychange", function () {
+            document.getElementById("phone-full").value =
+                phoneIti.getNumber();
+        });
+    }
+
+    if (emergencyPhoneInput && typeof intlTelInput === "function") {
+        const emergencyIti = intlTelInput(
+            emergencyPhoneInput,
+            phoneOptions
+        );
+
+        emergencyPhoneInput.addEventListener("input", function () {
+            document.getElementById("emergency-phone-full").value =
+                emergencyIti.getNumber();
+        });
+
+        emergencyPhoneInput.addEventListener("countrychange", function () {
+            document.getElementById("emergency-phone-full").value =
+                emergencyIti.getNumber();
+        });
+    }
+});
+
+
+
 })();
+

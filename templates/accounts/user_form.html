@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <p class="tiny">Users</p>
+        <h1>{{ page_heading }}</h1>
+        <p>Create a Travel Agent, Accountant, or Owner / Admin account.</p>
+    </div>
+</div>
+<form method="post" class="panel form-grid" style="max-width:640px">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>First name{{ form.first_name }}{{ form.first_name.errors }}</label>
+        <label>Last name{{ form.last_name }}{{ form.last_name.errors }}</label>
+    </div>
+    <label>Email{{ form.email }}{{ form.email.errors }}</label>
+    <label>Phone{{ form.phone }}{{ form.phone.errors }}</label>
+    <label>Role{{ form.role }}{{ form.role.errors }}</label>
+    <label>Password{{ form.password }}{{ form.password.errors }}</label>
+    <label>Confirm password{{ form.confirm_password }}{{ form.confirm_password.errors }}</label>
+    <div class="actions">
+        <button class="btn btn-warm" type="submit">Create user</button>
+        <a class="btn btn-ghost" href="{% url 'accounts:users' %}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

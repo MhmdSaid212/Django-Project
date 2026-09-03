@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% load tourops %}
 {% block content %}
 <div class="page-head">
     <div>
         <p class="tiny">Access</p>
         <h1>Staff directory</h1>
     </div>
+    <a class="btn btn-warm" href="{% url 'accounts:user_create' %}">New user</a>
 </div>
 <div class="panel" style="padding:0">
     <table class="data">
         <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th></tr></thead>
         <tbody>
-        {% for u in m.users %}
+        {% for u in users %}
             <tr>
                 <td>
                     <div class="row-main">
@@ -26,6 +26,8 @@
                 <td>{% include "components/status_badge.html" with status=u.status %}</td>
                 <td>{{ u.last }}</td>
             </tr>
+        {% empty %}
+            <tr><td colspan="4" class="muted" style="padding:1rem">No staff users yet.</td></tr>
         {% endfor %}
         </tbody>
     </table>

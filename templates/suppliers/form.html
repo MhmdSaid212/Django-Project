@@ -1,21 +1,141 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head"><div><h1>{{ page_heading }}</h1></div></div>
-<form class="panel form-grid" style="max-width:640px" onsubmit="event.preventDefault()">
-    <label>Company name<input class="field" value="{{ record.name|default:'' }}"></label>
-    <label>Type
-        <select class="field">
-            <option>Hotel</option><option>Transportation</option><option>Guide</option>
-            <option>Airline</option><option>Restaurant</option><option>Activity</option>
-            <option>Insurance</option><option>Other</option>
-        </select>
-    </label>
-    <label>Contact<input class="field" value="{{ record.contact|default:'' }}"></label>
-    <label>City<input class="field" value="{{ record.city|default:'' }}"></label>
-    <label>Payment terms<input class="field" value="{{ record.terms|default:'Net 14' }}"></label>
+<div class="page-head">
+    <div>
+        <p class="tiny">Suppliers</p>
+        <h1>{{ page_heading }}</h1>
+        <p>Company profile plus type-specific details. Extra panels appear when you choose a type.</p>
+    </div>
+</div>
+<form method="post" class="panel form-grid" style="max-width:720px">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label>Company name{{ form.name }}{{ form.name.errors }}</label>
+    <label>Type{{ form.supplier_type }}{{ form.supplier_type.errors }}</label>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Contact{{ form.contact_person }}{{ form.contact_person.errors }}</label>
+        <label>Phone{{ form.phone }}{{ form.phone.errors }}</label>
+    </div>
+    <label>Email{{ form.email }}{{ form.email.errors }}</label>
+    <div class="two-col" style="grid-template-columns:1fr 1fr 1fr">
+        <label>Country{{ form.country }}{{ form.country.errors }}</label>
+        <label>City{{ form.city }}{{ form.city.errors }}</label>
+        <label>Street{{ form.street }}{{ form.street.errors }}</label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr">
+        <label>Tax number{{ form.tax_number }}{{ form.tax_number.errors }}</label>
+        <label>Payment terms{{ form.payment_terms }}{{ form.payment_terms.errors }}</label>
+    </div>
+    <div class="two-col" style="grid-template-columns:1fr 1fr 1fr">
+        <label>Bank{{ form.bank_name }}{{ form.bank_name.errors }}</label>
+        <label>Account name{{ form.account_name }}{{ form.account_name.errors }}</label>
+        <label>IBAN{{ form.iban }}{{ form.iban.errors }}</label>
+    </div>
+    {% if form.status %}
+    <label>Status{{ form.status }}{{ form.status.errors }}</label>
+    {% endif %}
+
+    <div data-supplier-type="HOTEL">
+        <p class="tiny" style="grid-column:1/-1">Hotel details</p>
+        <div class="two-col" style="grid-template-columns:1fr 1fr 1fr">
+            <label>Stars{{ form.star_rating }}{{ form.star_rating.errors }}</label>
+            <label>Rooms{{ form.room_count }}{{ form.room_count.errors }}</label>
+            <label>Board{{ form.board_basis }}{{ form.board_basis.errors }}</label>
+        </div>
+        <div class="two-col" style="grid-template-columns:1fr 1fr">
+            <label>Check-in{{ form.check_in_time }}{{ form.check_in_time.errors }}</label>
+            <label>Check-out{{ form.check_out_time }}{{ form.check_out_time.errors }}</label>
+        </div>
+        <label>Room types{{ form.room_types }}{{ form.room_types.errors }}</label>
+        <label>Amenities{{ form.amenities }}{{ form.amenities.errors }}</label>
+    </div>
+
+    <div data-supplier-type="TRANSPORTATION">
+        <p class="tiny" style="grid-column:1/-1">Fleet</p>
+        <label>Vehicle type{{ form.vehicle_type }}{{ form.vehicle_type.errors }}</label>
+        <div class="two-col" style="grid-template-columns:1fr 1fr">
+            <label>Fleet size{{ form.fleet_size }}{{ form.fleet_size.errors }}</label>
+            <label>Seats / vehicle{{ form.seats_per_vehicle }}{{ form.seats_per_vehicle.errors }}</label>
+        </div>
+        <label>License number{{ form.license_number }}{{ form.license_number.errors }}</label>
+        <label>Coverage areas{{ form.coverage_areas }}{{ form.coverage_areas.errors }}</label>
+    </div>
+
+    <div data-supplier-type="TOUR_GUIDE">
+        <p class="tiny" style="grid-column:1/-1">Guide profile</p>
+        <label>Languages{{ form.languages }}{{ form.languages.errors }}</label>
+        <div class="two-col" style="grid-template-columns:1fr 1fr">
+            <label>Years{{ form.years_experience }}{{ form.years_experience.errors }}</label>
+            <label>License number{{ form.guide_license_number }}{{ form.guide_license_number.errors }}</label>
+        </div>
+        <label>Specialties{{ form.specialties }}{{ form.specialties.errors }}</label>
+    </div>
+
+    <div data-supplier-type="AIRLINE">
+        <p class="tiny" style="grid-column:1/-1">Airline</p>
+        <div class="two-col" style="grid-template-columns:1fr 1fr">
+            <label>IATA code{{ form.iata_code }}{{ form.iata_code.errors }}</label>
+            <label>Alliance{{ form.alliance }}{{ form.alliance.errors }}</label>
+        </div>
+    </div>
+
+    <div data-supplier-type="ACTIVITY_PROVIDER">
+        <p class="tiny" style="grid-column:1/-1">Activity</p>
+        <label>Activity kinds{{ form.activity_kinds }}{{ form.activity_kinds.errors }}</label>
+        <div class="two-col" style="grid-template-columns:1fr 1fr">
+            <label>Typical duration (hours){{ form.typical_duration_hours }}{{ form.typical_duration_hours.errors }}</label>
+            <label>Location{{ form.location }}{{ form.location.errors }}</label>
+        </div>
+    </div>
+
+    <div data-supplier-type="RESTAURANT">
+        <p class="tiny" style="grid-column:1/-1">Restaurant</p>
+        <label>Cuisine{{ form.cuisine }}{{ form.cuisine.errors }}</label>
+        <div class="two-col" style="grid-template-columns:1fr 1fr">
+            <label>Seating capacity{{ form.seating_capacity }}{{ form.seating_capacity.errors }}</label>
+            <label>Meal types{{ form.meal_types }}{{ form.meal_types.errors }}</label>
+        </div>
+    </div>
+
+    <div data-supplier-type="INSURANCE">
+        <p class="tiny" style="grid-column:1/-1">Insurance</p>
+        <label>Policy types{{ form.policy_types }}{{ form.policy_types.errors }}</label>
+        <label>Coverage notes{{ form.coverage_notes }}{{ form.coverage_notes.errors }}</label>
+    </div>
+
+    <div data-supplier-type="OTHER">
+        <p class="tiny" style="grid-column:1/-1">Other</p>
+        <label>Details{{ form.details }}{{ form.details.errors }}</label>
+    </div>
+
+    <label>Notes{{ form.notes }}{{ form.notes.errors }}</label>
     <div class="actions">
-        <button class="btn btn-warm" type="submit">Save supplier</button>
+        <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save supplier" }}</button>
+        {% if record %}
+        <a class="btn btn-ghost" href="{% url 'suppliers:detail' record.id %}">Cancel</a>
+        {% else %}
         <a class="btn btn-ghost" href="{% url 'suppliers:list' %}">Cancel</a>
+        {% endif %}
     </div>
 </form>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const type = document.querySelector('[name="supplier_type"]');
+    if (!type) return;
+    const panels = document.querySelectorAll("[data-supplier-type]");
+    function sync() {
+        panels.forEach(function (panel) {
+            const on = panel.getAttribute("data-supplier-type") === type.value;
+            panel.hidden = !on;
+            panel.querySelectorAll("input, select, textarea").forEach(function (el) {
+                el.disabled = !on;
+            });
+        });
+    }
+    type.addEventListener("change", sync);
+    sync();
+})();
+</script>
 {% endblock %}

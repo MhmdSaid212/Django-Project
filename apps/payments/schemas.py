@@ -1,19 +1,3 @@
-"""
-Payment document contract. NOT a Django model.
-
-OWNER: Dev 3 — Customer Finance
-Collection: payments
-
-Never delete a payment to represent a refund. Keep both records.
-Soft-delete is only for hiding a mistaken payment from lists — it is not a refund.
-Do not allow payment greater than remaining invoice balance unless
-overpayment is explicitly added later.
-
-Invoice payment_status rollup:
-    paid == 0            → UNPAID
-    0 < paid < total     → PARTIALLY_PAID
-    paid >= total        → PAID
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -35,7 +19,7 @@ class PaymentDocument:
     customer_id: ObjectId
     amount: Decimal
     currency: str
-    payment_method: str  # PaymentMethod
+    payment_method: str
     payment_date: datetime
     recorded_by: ObjectId
     created_at: datetime

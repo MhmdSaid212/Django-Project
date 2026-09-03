@@ -1,17 +1,32 @@
 {% extends "base.html" %}
+{% load tourops %}
 {% block content %}
-<div class="page-head"><div><h1>Cash flow</h1><p>Customer payments in versus supplier payments and expenses out.</p></div></div>
+<div class="page-head">
+    <div>
+        <h1>Cash flow</h1>
+        <p>Customer payments in versus supplier payments and completed refunds out.</p>
+    </div>
+</div>
+<form class="filters" method="get">
+    <input class="field" type="month" name="month" value="{{ filters.month }}">
+    <input class="field" type="date" name="from" value="{{ filters.from }}">
+    <span class="muted">to</span>
+    <input class="field" type="date" name="to" value="{{ filters.to }}">
+    <button class="btn btn-ghost" type="submit">Apply</button>
+</form>
+{% if report %}
 <div class="money-split">
     <div class="money-in">
         <span class="tiny">In</span>
-        <div style="font-size:1.6rem;font-weight:750">$18,420</div>
-        <p class="muted">Customer payments this month</p>
+        <div style="font-size:1.6rem;font-weight:750">{{ report.money_in|money }}</div>
+        <p class="muted">Customer payments</p>
     </div>
     <div class="money-out">
         <span class="tiny">Out</span>
-        <div style="font-size:1.6rem;font-weight:750">$6,120</div>
-        <p class="muted">Supplier payments + expenses</p>
+        <div style="font-size:1.6rem;font-weight:750">{{ report.money_out|money }}</div>
+        <p class="muted">Supplier payments{% if report.refunds %} + refunds{% endif %}</p>
     </div>
 </div>
-<p style="margin-top:1rem;font-size:1.2rem;font-weight:750">Net $12,300</p>
+<p style="margin-top:1rem;font-size:1.2rem;font-weight:750">Net {{ report.net|money }}</p>
+{% endif %}
 {% endblock %}

@@ -7,12 +7,13 @@
         <h1>Seat availability</h1>
         <p>Available seats are never stored. This board is a live reading of each departure.</p>
     </div>
+    <div class="actions"><a class="btn btn-warm" href="{% url 'tours:create' %}">New tour</a></div>
 </div>
 <div class="panel" style="padding:0">
     <table class="data">
         <thead><tr><th>Tour</th><th>Dates</th><th>Capacity</th><th>Booked</th><th>Available</th><th></th></tr></thead>
         <tbody>
-        {% for t in m.tours %}
+        {% for t in tours %}
         <tr>
             <td><a href="{% url 'tours:detail' t.id %}">{{ t.name }}</a></td>
             <td>{{ t.dates }}</td>
@@ -20,6 +21,13 @@
             <td>{{ t.booked }}</td>
             <td><strong>{{ t.available }}</strong></td>
             <td style="min-width:140px">{% include "components/capacity_bar.html" with pct=t.pct %}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6">
+                {% url 'tours:create' as tour_create_url %}
+                {% include "components/empty_state.html" with title="No departures" body="Create a tour to see live seat counts." cta="New tour" cta_url=tour_create_url %}
+            </td>
         </tr>
         {% endfor %}
         </tbody>
