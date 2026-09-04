@@ -1,33 +1,1932 @@
 {% extends "base.html" %}
+{% load static %}
+{% load tourops %}
+
+{% block title %}Create Booking{% endblock %}
+
 {% block content %}
-<div class="page-head">
+
+<div class="max-w-7xl mx-auto">
+
+  <!-- Header -->
+
+  <div class="flex items-center justify-between mb-8">
     <div>
-        <p class="tiny">Sales</p>
-        <h1>New booking</h1>
-        <p>Saved as pending. Confirm later to take tour seats. Hotel rooms are assigned on the rooming list.</p>
+      <h1 class="text-2xl font-semibold text-gray-900">
+        New Booking
+      </h1>
+      <p class="text-sm text-gray-500 mt-1">
+        Create a new customer booking
+      </p>
     </div>
+
+
+<a
+  href="{% url 'bookings:list' %}"
+  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+>
+  Cancel
+</a>
+
+
+  </div>
+
+{% if error %}
+
+  <div class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- Wizard -->
+
+  <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+
+
+<!-- Steps -->
+<div class="border-b border-gray-200 px-6 py-5">
+  <div class="flex items-center justify-between">
+
+    <div class="flex items-center gap-3" data-step-indicator="1">
+      <div
+        class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold"
+        data-step-number="1"
+      >
+        1
+      </div>
+      <span class="text-sm font-medium text-gray-900">
+        Customer
+      </span>
+    </div>
+
+    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
+
+    <div class="flex items-center gap-3" data-step-indicator="2">
+      <div
+        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
+        data-step-number="2"
+      >
+        2
+      </div>
+      <span class="text-sm font-medium text-gray-500">
+        Tour
+      </span>
+    </div>
+
+    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
+
+    <div class="flex items-center gap-3" data-step-indicator="3">
+      <div
+        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
+        data-step-number="3"
+      >
+        3
+      </div>
+      <span class="text-sm font-medium text-gray-500">
+        Travelers
+      </span>
+    </div>
+
+    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
+
+    <div class="flex items-center gap-3" data-step-indicator="4">
+      <div
+        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
+        data-step-number="4"
+      >
+        4
+      </div>
+      <span class="text-sm font-medium text-gray-500">
+        Pricing
+      </span>
+    </div>
+
+    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
+
+    <div class="flex items-center gap-3" data-step-indicator="5">
+      <div
+        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
+        data-step-number="5"
+      >
+        5
+      </div>
+      <span class="text-sm font-medium text-gray-500">
+        Review
+      </span>
+    </div>
+
+    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
+
+    <div class="flex items-center gap-3" data-step-indicator="6">
+      <div
+        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
+        data-step-number="6"
+      >
+        6
+      </div>
+      <span class="text-sm font-medium text-gray-500">
+        Confirm
+      </span>
+    </div>
+
+  </div>
 </div>
-<form method="post" class="panel form-grid" style="max-width:720px">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    <label>Customer{{ form.customer_id }}{{ form.customer_id.errors }}</label>
-    <label>Tour{{ form.tour_id }}{{ form.tour_id.errors }}</label>
-    <h2>Travelers</h2>
-    <p class="muted">Each confirmed traveler uses one tour seat.</p>
-    {% for i in traveler_rows %}
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>First name<input class="field" name="traveler_{{ i }}_first"></label>
-        <label>Last name<input class="field" name="traveler_{{ i }}_last"></label>
+
+
+<form method="post" id="booking-form">
+  {% csrf_token %}
+
+  <!-- Hidden values -->
+  <input type="hidden" name="customer_id" id="customer-id">
+  <input type="hidden" name="tour_id" id="tour-id">
+  <input type="hidden" name="travelers_count" id="travelers-count" value="1">
+
+  <input type="hidden" name="unit_price" id="unit-price">
+  <input type="hidden" name="discount" id="discount" value="0">
+  <input type="hidden" name="tax_rate" id="tax-rate" value="11">
+
+
+  <!-- ========================= -->
+  <!-- STEP 1: CUSTOMER -->
+  <!-- ========================= -->
+
+  <section
+    class="p-8"
+    data-wizard-step="1"
+  >
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-900">
+        Select Customer
+      </h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Choose the customer this booking belongs to.
+      </p>
     </div>
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Passport<input class="field" name="traveler_{{ i }}_passport"></label>
-        <label>Nationality<input class="field" name="traveler_{{ i }}_nationality"></label>
+
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      {% for customer in customers %}
+
+      <button
+        type="button"
+        class="customer-card text-left border border-gray-200 rounded-xl p-5 hover:border-blue-400 hover:bg-blue-50/30 transition"
+        data-customer-id="{{ customer.id }}"
+        data-customer-name="{{ customer.name }}"
+        data-customer-number="{{ customer.number }}"
+      >
+
+        <div class="flex items-start justify-between">
+
+          <div>
+
+            <h3 class="font-semibold text-gray-900">
+              {{ customer.name }}
+            </h3>
+
+            <p class="text-sm text-gray-500 mt-1">
+              {{ customer.number }}
+            </p>
+
+            {% if customer.city %}
+            <p class="text-xs text-gray-400 mt-2">
+              {{ customer.city }}
+            </p>
+            {% endif %}
+
+          </div>
+
+          <div
+            class="customer-check hidden w-5 h-5 rounded-full bg-blue-600 text-white text-xs items-center justify-center"
+          >
+            ✓
+          </div>
+
+        </div>
+
+      </button>
+
+      {% empty %}
+
+      <div class="col-span-full border border-dashed border-gray-300 rounded-xl p-10 text-center">
+        <p class="text-sm text-gray-500">
+          No active customers available.
+        </p>
+      </div>
+
+      {% endfor %}
+
     </div>
-    {% endfor %}
-    <label>Notes{{ form.notes }}{{ form.notes.errors }}</label>
-    <div class="actions">
-        <button class="btn btn-warm" type="submit">Save as pending</button>
-        <a class="btn btn-ghost" href="{% url 'bookings:list' %}">Cancel</a>
+
+
+    <div class="flex justify-end mt-8">
+
+      <button
+        type="button"
+        data-next
+        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+      >
+        Continue
+      </button>
+
     </div>
+
+  </section>
+
+
+  <!-- ========================= -->
+  <!-- STEP 2: TOUR -->
+  <!-- ========================= -->
+
+  <section
+    class="p-8 hidden"
+    data-wizard-step="2"
+  >
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-900">
+        Select Tour
+      </h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Choose the tour for this booking.
+      </p>
+    </div>
+
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      {% for tour in tours %}
+
+      <button
+        type="button"
+        class="tour-card text-left border border-gray-200 rounded-xl p-5 hover:border-blue-400 hover:bg-blue-50/30 transition"
+        data-tour-id="{{ tour.id }}"
+        data-tour-name="{{ tour.name }}"
+        data-tour-price="{{ tour.price }}"
+        data-tour-start="{{ tour.start_date }}"
+        data-tour-end="{{ tour.end_date }}"
+        data-tour-city="{{ tour.city }}"
+        data-tour-country="{{ tour.country }}"
+        data-tour-capacity="{{ tour.capacity }}"
+        data-tour-available="{{ tour.available_seats }}"
+      >
+
+        <div class="flex items-start justify-between">
+
+          <div class="pr-4">
+
+            <h3 class="font-semibold text-gray-900">
+              {{ tour.name }}
+            </h3>
+
+            {% if tour.city or tour.country %}
+            <p class="text-sm text-gray-500 mt-1">
+              {{ tour.city }}{% if tour.city and tour.country %}, {% endif %}{{ tour.country }}
+            </p>
+            {% endif %}
+
+            <p class="text-xs text-gray-400 mt-2">
+              {{ tour.start_date }} – {{ tour.end_date }}
+            </p>
+
+          </div>
+
+          <div
+            class="tour-check hidden w-5 h-5 rounded-full bg-blue-600 text-white text-xs items-center justify-center flex-shrink-0"
+          >
+            ✓
+          </div>
+
+        </div>
+
+
+        <div class="flex items-end justify-between mt-5">
+
+          <div>
+            <p class="text-xs text-gray-400">
+              Price per traveler
+            </p>
+
+            <p class="text-lg font-semibold text-gray-900">
+              ${{ tour.price }}
+            </p>
+          </div>
+
+          <div class="text-right">
+
+            <p class="text-xs text-gray-400">
+              Available
+            </p>
+
+            <p class="text-sm font-medium text-gray-700">
+              {{ tour.available_seats }} seats
+            </p>
+
+          </div>
+
+        </div>
+
+      </button>
+
+      {% empty %}
+
+      <div class="col-span-full border border-dashed border-gray-300 rounded-xl p-10 text-center">
+        <p class="text-sm text-gray-500">
+          No available tours found.
+        </p>
+      </div>
+
+      {% endfor %}
+
+    </div>
+
+
+    <div class="flex justify-between mt-8">
+
+      <button
+        type="button"
+        data-prev
+        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        data-next
+        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+      >
+        Continue
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ========================= -->
+  <!-- STEP 3: TRAVELERS -->
+  <!-- ========================= -->
+
+  <section
+    class="p-8 hidden"
+    data-wizard-step="3"
+  >
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-900">
+        Travelers
+      </h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Enter the details of everyone traveling.
+      </p>
+    </div>
+
+
+    <div class="max-w-xs mb-8">
+
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        Number of Travelers
+      </label>
+
+      <input
+        type="number"
+        min="1"
+        max="10"
+        value="1"
+        data-travelers
+        id="traveler-count-input"
+        class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
+      >
+
+    </div>
+
+
+    <div
+      id="traveler-fields"
+      class="space-y-4"
+    >
+    </div>
+
+
+    <div class="flex justify-between mt-8">
+
+      <button
+        type="button"
+        data-prev
+        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        data-next
+        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+      >
+        Continue
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ========================= -->
+  <!-- STEP 4: PRICING -->
+  <!-- ========================= -->
+
+  <section
+    class="p-8 hidden"
+    data-wizard-step="4"
+  >
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-900">
+        Pricing
+      </h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Review and adjust the booking pricing.
+      </p>
+    </div>
+
+
+    <div class="max-w-2xl">
+
+      <div class="border border-gray-200 rounded-xl overflow-hidden">
+
+        <div class="p-5 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+
+            <div>
+              <p class="text-sm font-medium text-gray-900" id="pricing-tour-name">
+                —
+              </p>
+
+              <p class="text-xs text-gray-500 mt-1">
+                <span id="pricing-travelers">1</span>
+                traveler(s)
+              </p>
+            </div>
+
+            <p class="text-sm text-gray-500">
+              $<span id="pricing-unit-price-display">0.00</span> / traveler
+            </p>
+
+          </div>
+        </div>
+
+
+        <div class="p-5 space-y-5">
+
+          <!-- Unit Price -->
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Price per Traveler
+            </label>
+
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              id="unit-price-input"
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+              value="0"
+            >
+
+          </div>
+
+
+          <!-- Discount -->
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Discount
+            </label>
+
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              id="discount-input"
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+              value="0"
+            >
+
+          </div>
+
+
+          <!-- Tax -->
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Tax Rate (%)
+            </label>
+
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              id="tax-rate-input"
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+              value="11"
+            >
+
+          </div>
+
+
+          <div class="border-t border-gray-200 pt-5 space-y-3">
+
+            <div class="flex justify-between text-sm">
+
+              <span class="text-gray-500">
+                Subtotal
+              </span>
+
+              <span class="font-medium text-gray-900">
+                $<span id="subtotal-display">0.00</span>
+              </span>
+
+            </div>
+
+
+            <div class="flex justify-between text-sm">
+
+              <span class="text-gray-500">
+                Discount
+              </span>
+
+              <span class="font-medium text-gray-900">
+                − $<span id="discount-display">0.00</span>
+              </span>
+
+            </div>
+
+
+            <div class="flex justify-between text-sm">
+
+              <span class="text-gray-500">
+                Taxable Amount
+              </span>
+
+              <span class="font-medium text-gray-900">
+                $<span id="taxable-display">0.00</span>
+              </span>
+
+            </div>
+
+
+            <div class="flex justify-between text-sm">
+
+              <span class="text-gray-500">
+                Tax
+              </span>
+
+              <span class="font-medium text-gray-900">
+                $<span id="tax-display">0.00</span>
+              </span>
+
+            </div>
+
+
+            <div class="border-t border-gray-200 pt-4 flex justify-between">
+
+              <span class="font-semibold text-gray-900">
+                Total
+              </span>
+
+              <span class="text-xl font-semibold text-gray-900">
+                $<span id="total-display">0.00</span>
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Notes -->
+
+      <div class="mt-6">
+
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Notes
+        </label>
+
+        <textarea
+          name="notes"
+          id="notes"
+          rows="4"
+          placeholder="Add any notes about this booking..."
+          class="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm"
+        ></textarea>
+
+      </div>
+
+    </div>
+
+
+    <div class="flex justify-between mt-8">
+
+      <button
+        type="button"
+        data-prev
+        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        data-next
+        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+      >
+        Review Booking
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ========================= -->
+  <!-- STEP 5: REVIEW -->
+  <!-- ========================= -->
+
+  <section
+    class="p-8 hidden"
+    data-wizard-step="5"
+  >
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-900">
+        Review Booking
+      </h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Make sure everything looks correct before creating the booking.
+      </p>
+    </div>
+
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+
+      <!-- Customer -->
+
+      <div class="border border-gray-200 rounded-xl p-6">
+
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
+          Customer
+        </p>
+
+        <p
+          class="text-lg font-semibold text-gray-900 mt-2"
+          id="review-customer-name"
+        >
+          —
+        </p>
+
+        <p
+          class="text-sm text-gray-500 mt-1"
+          id="review-customer-number"
+        >
+          —
+        </p>
+
+      </div>
+
+
+      <!-- Tour -->
+
+      <div class="border border-gray-200 rounded-xl p-6">
+
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
+          Tour
+        </p>
+
+        <p
+          class="text-lg font-semibold text-gray-900 mt-2"
+          id="review-tour-name"
+        >
+          —
+        </p>
+
+        <p
+          class="text-sm text-gray-500 mt-1"
+          id="review-tour-dates"
+        >
+          —
+        </p>
+
+        <p
+          class="text-sm text-gray-500 mt-1"
+          id="review-tour-destination"
+        >
+          —
+        </p>
+
+      </div>
+
+
+      <!-- Travelers -->
+
+      <div class="border border-gray-200 rounded-xl p-6">
+
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
+          Travelers
+        </p>
+
+        <p
+          class="text-lg font-semibold text-gray-900 mt-2"
+          id="review-travelers-count"
+        >
+          1
+        </p>
+
+        <div
+          id="review-travelers-list"
+          class="mt-4 space-y-2"
+        >
+        </div>
+
+      </div>
+
+
+      <!-- Pricing -->
+
+      <div class="border border-gray-200 rounded-xl p-6">
+
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
+          Booking Total
+        </p>
+
+        <p
+          class="text-2xl font-semibold text-gray-900 mt-2"
+        >
+          $<span id="review-total">0.00</span>
+        </p>
+
+        <div class="mt-4 space-y-2 text-sm">
+
+          <div class="flex justify-between">
+            <span class="text-gray-500">
+              Subtotal
+            </span>
+            <span>
+              $<span id="review-subtotal">0.00</span>
+            </span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-gray-500">
+              Discount
+            </span>
+            <span>
+              − $<span id="review-discount">0.00</span>
+            </span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-gray-500">
+              Tax
+            </span>
+            <span>
+              $<span id="review-tax">0.00</span>
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="flex justify-between mt-8">
+
+      <button
+        type="button"
+        data-prev
+        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        data-next
+        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+      >
+        Continue
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ========================= -->
+  <!-- STEP 6: CONFIRM -->
+  <!-- ========================= -->
+
+  <section
+    class="p-8 hidden"
+    data-wizard-step="6"
+  >
+
+    <div class="max-w-2xl mx-auto text-center">
+
+      <div class="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
+        ✓
+      </div>
+
+      <h2 class="text-xl font-semibold text-gray-900 mt-5">
+        Ready to Create Booking
+      </h2>
+
+      <p class="text-sm text-gray-500 mt-2">
+        Review the information below and create the booking.
+      </p>
+
+
+      <div class="mt-8 border border-gray-200 rounded-xl p-6 text-left">
+
+        <div class="space-y-4">
+
+          <div class="flex justify-between">
+
+            <span class="text-sm text-gray-500">
+              Customer
+            </span>
+
+            <span
+              class="text-sm font-medium text-gray-900"
+              id="confirm-customer"
+            >
+              —
+            </span>
+
+          </div>
+
+
+          <div class="flex justify-between">
+
+            <span class="text-sm text-gray-500">
+              Tour
+            </span>
+
+            <span
+              class="text-sm font-medium text-gray-900"
+              id="confirm-tour"
+            >
+              —
+            </span>
+
+          </div>
+
+
+          <div class="flex justify-between">
+
+            <span class="text-sm text-gray-500">
+              Travelers
+            </span>
+
+            <span
+              class="text-sm font-medium text-gray-900"
+              id="confirm-travelers"
+            >
+              —
+            </span>
+
+          </div>
+
+
+          <div class="border-t border-gray-200 pt-4 flex justify-between">
+
+            <span class="font-semibold text-gray-900">
+              Total
+            </span>
+
+            <span
+              class="text-xl font-semibold text-gray-900"
+            >
+              $<span id="confirm-total">0.00</span>
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="flex justify-center gap-3 mt-8">
+
+        <button
+          type="button"
+          data-prev
+          class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+        >
+          Back
+        </button>
+
+        <button
+          type="submit"
+          class="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+        >
+          Create Booking
+        </button>
+
+      </div>
+
+    </div>
+
+  </section>
+
 </form>
+
+
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  let currentStep = 1;
+
+  const form = document.getElementById("booking-form");
+
+  const customerIdInput = document.getElementById("customer-id");
+  const tourIdInput = document.getElementById("tour-id");
+  const travelersCountInput = document.getElementById("travelers-count");
+
+  const travelerCountInput =
+    document.getElementById("traveler-count-input");
+
+  const travelerFields =
+    document.getElementById("traveler-fields");
+
+
+  /*
+   * -----------------------------
+   * Wizard
+   * -----------------------------
+   */
+
+  const steps =
+    document.querySelectorAll("[data-wizard-step]");
+
+  const indicators =
+    document.querySelectorAll("[data-step-indicator]");
+
+
+  function showStep(step) {
+
+    currentStep = step;
+
+    steps.forEach(function (section) {
+
+      const sectionStep =
+        Number(section.dataset.wizardStep);
+
+      section.classList.toggle(
+        "hidden",
+        sectionStep !== step
+      );
+
+    });
+
+
+    indicators.forEach(function (indicator) {
+
+      const indicatorStep =
+        Number(indicator.dataset.stepIndicator);
+
+      const number =
+        indicator.querySelector(
+          "[data-step-number]"
+        );
+
+      const label =
+        indicator.querySelector("span");
+
+
+      if (indicatorStep === step) {
+
+        number.classList.remove(
+          "bg-gray-100",
+          "text-gray-500"
+        );
+
+        number.classList.add(
+          "bg-blue-600",
+          "text-white"
+        );
+
+        label.classList.remove(
+          "text-gray-500"
+        );
+
+        label.classList.add(
+          "text-gray-900"
+        );
+
+      } else if (indicatorStep < step) {
+
+        number.classList.remove(
+          "bg-gray-100",
+          "text-gray-500"
+        );
+
+        number.classList.add(
+          "bg-blue-100",
+          "text-blue-600"
+        );
+
+        label.classList.remove(
+          "text-gray-500"
+        );
+
+        label.classList.add(
+          "text-gray-700"
+        );
+
+      } else {
+
+        number.classList.remove(
+          "bg-blue-600",
+          "text-white",
+          "bg-blue-100",
+          "text-blue-600"
+        );
+
+        number.classList.add(
+          "bg-gray-100",
+          "text-gray-500"
+        );
+
+        label.classList.remove(
+          "text-gray-900",
+          "text-gray-700"
+        );
+
+        label.classList.add(
+          "text-gray-500"
+        );
+
+      }
+
+    });
+
+
+    if (step === 5) {
+      updateReview();
+    }
+
+    if (step === 6) {
+      updateConfirmation();
+    }
+
+  }
+
+
+  /*
+   * -----------------------------
+   * Customer selection
+   * -----------------------------
+   */
+
+  document
+    .querySelectorAll(".customer-card")
+    .forEach(function (card) {
+
+      card.addEventListener("click", function () {
+
+        document
+          .querySelectorAll(".customer-card")
+          .forEach(function (other) {
+
+            other.classList.remove(
+              "border-blue-500",
+              "bg-blue-50"
+            );
+
+            const check =
+              other.querySelector(".customer-check");
+
+            check.classList.add("hidden");
+            check.classList.remove("flex");
+
+          });
+
+
+        card.classList.add(
+          "border-blue-500",
+          "bg-blue-50"
+        );
+
+
+        const check =
+          card.querySelector(".customer-check");
+
+        check.classList.remove("hidden");
+        check.classList.add("flex");
+
+
+        customerIdInput.value =
+          card.dataset.customerId;
+
+      });
+
+    });
+
+
+  /*
+   * -----------------------------
+   * Tour selection
+   * -----------------------------
+   */
+
+  document
+    .querySelectorAll(".tour-card")
+    .forEach(function (card) {
+
+      card.addEventListener("click", function () {
+
+        document
+          .querySelectorAll(".tour-card")
+          .forEach(function (other) {
+
+            other.classList.remove(
+              "border-blue-500",
+              "bg-blue-50"
+            );
+
+            const check =
+              other.querySelector(".tour-check");
+
+            check.classList.add("hidden");
+            check.classList.remove("flex");
+
+          });
+
+
+        card.classList.add(
+          "border-blue-500",
+          "bg-blue-50"
+        );
+
+
+        const check =
+          card.querySelector(".tour-check");
+
+        check.classList.remove("hidden");
+        check.classList.add("flex");
+
+
+        tourIdInput.value =
+          card.dataset.tourId;
+
+
+        const price =
+          parseFloat(card.dataset.tourPrice || 0);
+
+
+        document.getElementById(
+          "unit-price-input"
+        ).value = price.toFixed(2);
+
+
+        document.getElementById(
+          "unit-price"
+        ).value = price.toFixed(2);
+
+
+        document.getElementById(
+          "pricing-tour-name"
+        ).textContent =
+          card.dataset.tourName;
+
+
+        document.getElementById(
+          "pricing-unit-price-display"
+        ).textContent =
+          price.toFixed(2);
+
+
+        calculatePricing();
+
+      });
+
+    });
+
+
+  /*
+   * -----------------------------
+   * Travelers
+   * -----------------------------
+   */
+
+  function renderTravelerFields() {
+
+    let count =
+      parseInt(
+        travelerCountInput.value || "1",
+        10
+      );
+
+
+    if (count < 1) {
+      count = 1;
+    }
+
+    if (count > 10) {
+      count = 10;
+    }
+
+
+    travelerCountInput.value = count;
+    travelersCountInput.value = count;
+
+
+    travelerFields.innerHTML = "";
+
+
+    for (let i = 0; i < count; i++) {
+
+      const wrapper =
+        document.createElement("div");
+
+      wrapper.className =
+        "border border-gray-200 rounded-xl p-5";
+
+
+      wrapper.innerHTML = `
+
+        <div class="flex items-center justify-between mb-4">
+
+          <h3 class="font-medium text-gray-900">
+            Traveler ${i + 1}
+          </h3>
+
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              First Name
+            </label>
+
+            <input
+              type="text"
+              name="traveler_${i}_first_name"
+              required
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+            >
+
+          </div>
+
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Last Name
+            </label>
+
+            <input
+              type="text"
+              name="traveler_${i}_last_name"
+              required
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+            >
+
+          </div>
+
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Passport Number
+            </label>
+
+            <input
+              type="text"
+              name="traveler_${i}_passport"
+              required
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+            >
+
+          </div>
+
+
+          <div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Traveler Type
+            </label>
+
+            <select
+              name="traveler_${i}_type"
+              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+            >
+
+              <option value="ADULT">
+                Adult
+              </option>
+
+              <option value="CHILD">
+                Child
+              </option>
+
+              <option value="INFANT">
+                Infant
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+      `;
+
+
+      travelerFields.appendChild(wrapper);
+
+    }
+
+  }
+
+
+  travelerCountInput.addEventListener(
+    "input",
+    renderTravelerFields
+  );
+
+
+  renderTravelerFields();
+
+
+  /*
+   * -----------------------------
+   * Pricing
+   * -----------------------------
+   */
+
+  const unitPriceInput =
+    document.getElementById(
+      "unit-price-input"
+    );
+
+  const discountInput =
+    document.getElementById(
+      "discount-input"
+    );
+
+  const taxRateInput =
+    document.getElementById(
+      "tax-rate-input"
+    );
+
+
+  function money(value) {
+
+    return Number(value || 0)
+      .toFixed(2);
+
+  }
+
+
+  function calculatePricing() {
+
+    const travelers =
+      parseInt(
+        travelerCountInput.value || "1",
+        10
+      );
+
+
+    const unitPrice =
+      parseFloat(
+        unitPriceInput.value || "0"
+      );
+
+
+    const discount =
+      parseFloat(
+        discountInput.value || "0"
+      );
+
+
+    const taxRate =
+      parseFloat(
+        taxRateInput.value || "0"
+      );
+
+
+    const subtotal =
+      unitPrice * travelers;
+
+
+    const discountAmount =
+      Math.min(
+        Math.max(discount, 0),
+        subtotal
+      );
+
+
+    const taxable =
+      subtotal - discountAmount;
+
+
+    const tax =
+      taxable * taxRate / 100;
+
+
+    const total =
+      taxable + tax;
+
+
+    document.getElementById(
+      "unit-price"
+    ).value =
+      money(unitPrice);
+
+
+    document.getElementById(
+      "discount"
+    ).value =
+      money(discount);
+
+
+    document.getElementById(
+      "tax-rate"
+    ).value =
+      money(taxRate);
+
+
+    document.getElementById(
+      "pricing-travelers"
+    ).textContent =
+      travelers;
+
+
+    document.getElementById(
+      "pricing-unit-price-display"
+    ).textContent =
+      money(unitPrice);
+
+
+    document.getElementById(
+      "subtotal-display"
+    ).textContent =
+      money(subtotal);
+
+
+    document.getElementById(
+      "discount-display"
+    ).textContent =
+      money(discountAmount);
+
+
+    document.getElementById(
+      "taxable-display"
+    ).textContent =
+      money(taxable);
+
+
+    document.getElementById(
+      "tax-display"
+    ).textContent =
+      money(tax);
+
+
+    document.getElementById(
+      "total-display"
+    ).textContent =
+      money(total);
+
+  }
+
+
+  [
+    unitPriceInput,
+    discountInput,
+    taxRateInput
+  ].forEach(function (input) {
+
+    input.addEventListener(
+      "input",
+      calculatePricing
+    );
+
+  });
+
+
+  /*
+   * -----------------------------
+   * Review
+   * -----------------------------
+   */
+
+  function updateReview() {
+
+    const customer =
+      document.querySelector(
+        ".customer-card.border-blue-500"
+      );
+
+
+    const tour =
+      document.querySelector(
+        ".tour-card.border-blue-500"
+      );
+
+
+    if (customer) {
+
+      document.getElementById(
+        "review-customer-name"
+      ).textContent =
+        customer.dataset.customerName;
+
+
+      document.getElementById(
+        "review-customer-number"
+      ).textContent =
+        customer.dataset.customerNumber;
+
+    }
+
+
+    if (tour) {
+
+      document.getElementById(
+        "review-tour-name"
+      ).textContent =
+        tour.dataset.tourName;
+
+
+      document.getElementById(
+        "review-tour-dates"
+      ).textContent =
+        `${tour.dataset.tourStart} – ${tour.dataset.tourEnd}`;
+
+
+      document.getElementById(
+        "review-tour-destination"
+      ).textContent =
+        `${tour.dataset.tourCity || ""}${tour.dataset.tourCity && tour.dataset.tourCountry ? ", " : ""}${tour.dataset.tourCountry || ""}`;
+
+    }
+
+
+    const count =
+      parseInt(
+        travelerCountInput.value || "1",
+        10
+      );
+
+
+    document.getElementById(
+      "review-travelers-count"
+    ).textContent =
+      count;
+
+
+    const reviewTravelers =
+      document.getElementById(
+        "review-travelers-list"
+      );
+
+
+    reviewTravelers.innerHTML = "";
+
+
+    for (let i = 0; i < count; i++) {
+
+      const first =
+        document.querySelector(
+          `[name="traveler_${i}_first_name"]`
+        );
+
+
+      const last =
+        document.querySelector(
+          `[name="traveler_${i}_last_name"]`
+        );
+
+
+      if (!first || !last) {
+        continue;
+      }
+
+
+      const row =
+        document.createElement("div");
+
+      row.className =
+        "text-sm text-gray-700";
+
+
+      row.textContent =
+        `${first.value || "—"} ${last.value || ""}`;
+
+
+      reviewTravelers.appendChild(row);
+
+    }
+
+
+    calculatePricing();
+
+
+    document.getElementById(
+      "review-subtotal"
+    ).textContent =
+      document.getElementById(
+        "subtotal-display"
+      ).textContent;
+
+
+    document.getElementById(
+      "review-discount"
+    ).textContent =
+      document.getElementById(
+        "discount-display"
+      ).textContent;
+
+
+    document.getElementById(
+      "review-tax"
+    ).textContent =
+      document.getElementById(
+        "tax-display"
+      ).textContent;
+
+
+    document.getElementById(
+      "review-total"
+    ).textContent =
+      document.getElementById(
+        "total-display"
+      ).textContent;
+
+  }
+
+
+  /*
+   * -----------------------------
+   * Confirmation
+   * -----------------------------
+   */
+
+  function updateConfirmation() {
+
+    const customer =
+      document.querySelector(
+        ".customer-card.border-blue-500"
+      );
+
+
+    const tour =
+      document.querySelector(
+        ".tour-card.border-blue-500"
+      );
+
+
+    if (customer) {
+
+      document.getElementById(
+        "confirm-customer"
+      ).textContent =
+        customer.dataset.customerName;
+
+    }
+
+
+    if (tour) {
+
+      document.getElementById(
+        "confirm-tour"
+      ).textContent =
+        tour.dataset.tourName;
+
+    }
+
+
+    document.getElementById(
+      "confirm-travelers"
+    ).textContent =
+      travelerCountInput.value;
+
+
+    document.getElementById(
+      "confirm-total"
+    ).textContent =
+      document.getElementById(
+        "total-display"
+      ).textContent;
+
+  }
+
+
+  /*
+   * -----------------------------
+   * Validation
+   * -----------------------------
+   */
+
+  function validateStep(step) {
+
+    if (step === 1) {
+
+      if (!customerIdInput.value) {
+
+        alert(
+          "Please select a customer."
+        );
+
+        return false;
+
+      }
+
+    }
+
+
+    if (step === 2) {
+
+      if (!tourIdInput.value) {
+
+        alert(
+          "Please select a tour."
+        );
+
+        return false;
+
+      }
+
+    }
+
+
+    if (step === 3) {
+
+      const count =
+        parseInt(
+          travelerCountInput.value || "0",
+          10
+        );
+
+
+      if (
+        !count ||
+        count < 1 ||
+        count > 10
+      ) {
+
+        alert(
+          "Please enter a valid number of travelers."
+        );
+
+        return false;
+
+      }
+
+
+      const fields =
+        travelerFields.querySelectorAll(
+          "input[required]"
+        );
+
+
+      for (const field of fields) {
+
+        if (!field.value.trim()) {
+
+          alert(
+            "Please complete all traveler details."
+          );
+
+          field.focus();
+
+          return false;
+
+        }
+
+      }
+
+    }
+
+
+    if (step === 4) {
+
+      const unitPrice =
+        parseFloat(
+          unitPriceInput.value || "0"
+        );
+
+
+      if (unitPrice < 0) {
+
+        alert(
+          "Price cannot be negative."
+        );
+
+        return false;
+
+      }
+
+
+      calculatePricing();
+
+    }
+
+
+    return true;
+
+  }
+
+
+  /*
+   * -----------------------------
+   * Next buttons
+   * -----------------------------
+   */
+
+  document
+    .querySelectorAll("[data-next]")
+    .forEach(function (button) {
+
+      button.addEventListener(
+        "click",
+        function () {
+
+          if (!validateStep(currentStep)) {
+            return;
+          }
+
+
+          if (currentStep < 6) {
+
+            showStep(
+              currentStep + 1
+            );
+
+          }
+
+        }
+      );
+
+    });
+
+
+  /*
+   * -----------------------------
+   * Previous buttons
+   * -----------------------------
+   */
+
+  document
+    .querySelectorAll("[data-prev]")
+    .forEach(function (button) {
+
+      button.addEventListener(
+        "click",
+        function () {
+
+          if (currentStep > 1) {
+
+            showStep(
+              currentStep - 1
+            );
+
+          }
+
+        }
+      );
+
+    });
+
+
+  /*
+   * -----------------------------
+   * Initial state
+   * -----------------------------
+   */
+
+  showStep(1);
+
+});
+</script>
+
 {% endblock %}

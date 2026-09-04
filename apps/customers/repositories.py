@@ -22,5 +22,27 @@ class CustomerRepository(SoftDeleteRepositoryMixin):
     def find_by_email(self, email: str) -> dict | None:
         return self.collection.find_one(live_query({"email": email}))
 
+    def find_all(
+        self,
+        limit: int = 50,
+        *,
+        query: str | None = None,
+        status: str | None = None,
+        include_deleted: bool = False,
+    ) -> list[dict]:
+        filters: dict = {}
+        if query:
+            filters["$or"] = [
+                {"first_name": {"$regex": query, "$options": "i"}},
+                {"last_name": {"$regex": query, "$options": "i"}},
+                {"email": {"$regex": query, "$options": "i"}},
+                {"phone": {"$regex": query, "$options": "i"}},
+                {"customer_number": {"$regex": query, "$options": "i"}},
+            ]
+        if status:
+            filters["status"] = status
+        query_filter = filters if include_deleted else live_query(filters)
+        return list(self.collection.find(query_filter).sort("last_name", 1).limit(limit))
+
     def list_customers(self, extra: dict | None = None) -> list[dict]:
         return list(self.collection.find(live_query(extra)).sort("last_name", 1))

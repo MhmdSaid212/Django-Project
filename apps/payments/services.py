@@ -63,6 +63,9 @@ class PaymentService:
     def for_invoice(self, invoice_id: str) -> list[dict]:
         return [present_payment(d) for d in self.repository.find_for_invoice(invoice_id)]
 
+    def find_for_booking(self, booking_id) -> list[dict]:
+        return [present_payment(d) for d in self.repository.find_for_booking(booking_id)]
+
     # ---- record a payment against an invoice (the main path) ---------------
     def record_for_invoice(self, invoice_id: str, *, amount, method: str,
                            recorded_by: str, reference_number: str | None = None,

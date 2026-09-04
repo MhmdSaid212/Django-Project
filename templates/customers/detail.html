@@ -1,24 +1,342 @@
 {% extends "base.html" %}
-{% load tourops %}
+{% load tourops static %}
 {% block content %}
-<div class="page-head">
+<div class="profile-hero">
+    <span class="avatar lg warm">{{ record.initials }}</span>
     <div>
         <p class="tiny">{{ record.number }}</p>
         <h1>{{ record.name }}</h1>
-        <p class="muted">{{ record.email }} · {{ record.phone|default:"—" }}</p>
+        <p class="muted">{{ record.phone }} · {{ record.email }} · {{ record.city }}, {{ record.country }}</p>
     </div>
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
-        <a class="btn btn-warm" href="{% url 'bookings:create' %}?customer_id={{ record.id }}">Create booking</a>
-        <a class="btn btn-ghost" href="{% url 'customers:list' %}">Back</a>
+        <a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>
+        <a class="btn btn-ghost" href="{% url 'customers:edit' record.id %}">Edit</a>
     </div>
 </div>
-<section class="panel">
-    <dl class="kv">
-        <dt>City</dt><dd>{{ record.city|default:"—" }}</dd>
-        <dt>Country</dt><dd>{{ record.country|default:"—" }}</dd>
-        <dt>Passport</dt><dd>{{ record.passport|default:"—" }}</dd>
-        <dt>Nationality</dt><dd>{{ record.nationality|default:"—" }}</dd>
-    </dl>
+
+<div class="tabs">
+    <a class="{% if tab == 'overview' %}is-on{% endif %}" href="?tab=overview">Overview</a>
+    <a class="{% if tab == 'additional' %}is-on{% endif %}" href="?tab=additional">Additional Info</a>
+    <a class="{% if tab == 'bookings' %}is-on{% endif %}" href="?tab=bookings">Bookings</a>
+    <a class="{% if tab == 'invoices' %}is-on{% endif %}" href="?tab=invoices">Invoices</a>
+    <a class="{% if tab == 'payments' %}is-on{% endif %}" href="?tab=payments">Payments</a>
+    <a class="{% if tab == 'documents' %}is-on{% endif %}" href="?tab=documents">Documents</a>
+    <a class="{% if tab == 'activity' %}is-on{% endif %}" href="?tab=activity">Activity</a>
+</div>
+
+{% if tab == 'overview' %}
+<div class="metrics-4">
+    <div class="metric"><span class="tiny">Upcoming trip</span><b style="font-size:.95rem">{{ record.upcoming|default:"None scheduled" }}</b></div>
+    <div class="metric"><span class="tiny">Balance</span><b>{{ record.balance|money }}</b></div>
+    <div class="metric"><span class="tiny">Bookings</span><b>{{ record.bookings }}</b></div>
+    <div class="metric"><span class="tiny">Lifetime spending</span><b>{{ record.lifetime|money }}</b></div>
+</div>
+<div class="two-col">
+    <section class="panel">
+        <div class="timeline">
+            {% for ev in financial_timeline %}
+            <div class="tl">
+                <i></i>
+                <div>
+                    <strong>{{ ev.title }}</strong>
+
+                    {% if ev.amount %}
+                        <span class="{% if ev.type == 'PAYMENT' %}ledger-in{% else %}muted{% endif %}">
+                            {{ ev.amount|money }}
+                        </span>
+                    {% endif %}
+
+                    <div class="tiny" style="text-transform:none">
+                        {{ ev.description }} · {{ ev.date }}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+                <p class="muted">No financial activity yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+    <div class="stack">
+        <section class="panel">
+            <h2>Contact</h2>
+            <dl class="kv" style="margin-top:.7rem">
+                <dt>Phone</dt><dd>{{ record.phone }}</dd>
+                <dt>Email</dt><dd>{{ record.email }}</dd>
+                <dt>City</dt><dd>{{ record.city }}, {{ record.country }}</dd>
+            </dl>
+        </section>
+        <section class="panel">
+            <h2>Travel documents</h2>
+            <dl class="kv" style="margin-top:.7rem">
+                <dt>Passport</dt><dd>{{ record.passport }}</dd>
+                <dt>Expiry</dt><dd>{{ record.passport_expiry }}</dd>
+            </dl>
+        </section>
+    </div>
+</div>
+
+{% elif tab == 'additional' %}
+<div class="two-col">
+    <section class="panel">
+        <h2>Personal Information</h2>
+        <dl class="kv" style="margin-top:.7rem">
+            <dt>Date of birth</dt>
+            <dd>{{ record.date_of_birth|default:"—" }}</dd>
+
+            <dt>Nationality</dt>
+            <dd>{{ record.nationality|default:"—" }}</dd>
+        </dl>
+    </section>
+
+    <section class="panel">
+        <h2>Address</h2>
+        <dl class="kv" style="margin-top:.7rem">
+            <dt>Country</dt>
+            <dd>{{ record.address_country|default:"—" }}</dd>
+
+            <dt>City</dt>
+            <dd>{{ record.address_city|default:"—" }}</dd>
+
+            <dt>Street</dt>
+            <dd>{{ record.address_street|default:"—" }}</dd>
+        </dl>
+    </section>
+
+    <section class="panel">
+        <h2>Passport Information</h2>
+        <dl class="kv" style="margin-top:.7rem">
+            <dt>Issuing country</dt>
+            <dd>{{ record.passport_issuing_country|default:"—" }}</dd>
+        </dl>
+    </section>
+
+    <section class="panel">
+        <h2>Emergency Contact</h2>
+        <dl class="kv" style="margin-top:.7rem">
+            <dt>Name</dt>
+            <dd>{{ record.emergency|default:"—" }}</dd>
+
+            <dt>Phone</dt>
+            <dd>{{ record.emergency_phone|default:"—" }}</dd>
+
+            <dt>Relationship</dt>
+            <dd>{{ record.emergency_relationship|default:"—" }}</dd>
+        </dl>
+    </section>
+
+    <section class="panel" style="grid-column:1/-1">
+        <h2>Notes</h2>
+        <p class="muted" style="margin-top:.7rem">
+            {{ record.notes|default:"No notes added." }}
+        </p>
+    </section>
+</div>
+{% elif tab == 'bookings' %}
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr>
+                <th>Booking</th>
+                <th>Product</th>
+                <th>Dates</th>
+                <th>Status</th>
+                <th>Remaining</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for b in bookings %}
+            <tr>
+                <td>
+                    <a href="{% url 'bookings:detail' b.id %}">
+                        {{ b.number }}
+                    </a>
+                </td>
+                <td>{{ b.product }}</td>
+                <td>{{ b.dates }}</td>
+                <td>
+                    {% include "components/status_badge.html" with status=b.status %}
+                </td>
+                <td>{{ b.remaining|money }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5" class="muted" style="text-align:center; padding:2rem;">
+                    No bookings found.
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif tab == 'invoices' %}
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr>
+                <th>Invoice</th>
+                <th>Booking</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Remaining</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for inv in invoices %}
+            <tr>
+                <td>
+                    <a href="{% url 'invoices:detail' inv.id %}">
+                        {{ inv.number }}
+                    </a>
+                </td>
+                <td>{{ inv.booking_number|default:"—" }}</td>
+                <td>{{ inv.total|money }}</td>
+                <td>{{ inv.paid|money }}</td>
+                <td>{{ inv.remaining|money }}</td>
+                <td>
+                    {% include "components/status_badge.html" with status=inv.status %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="6" class="muted" style="text-align:center; padding:2rem;">
+                    No invoices found.
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif tab == 'payments' %}
+<div class="panel" style="padding:0">
+    <table class="data">
+        <thead>
+            <tr>
+                <th>Payment</th>
+                <th>Invoice</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in payments %}
+            <tr>
+                <td>
+                    <a href="{% url 'payments:detail' p.id %}">
+                        {{ p.number }}
+                    </a>
+                </td>
+                <td>{{ p.invoice }}</td>
+                <td>{{ p.date|date:"M d, Y" }}</td>
+                <td>{{ p.amount|money }}</td>
+                <td>{{ p.method|labelize }}</td>
+                <td>
+                    {% include "components/status_badge.html" with status=p.status %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="6" class="muted" style="text-align:center; padding:2rem;">
+                    No payments found.
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif tab == 'documents' %}
+<div class="panel">
+    <div class="panel-h">
+        <div>
+            <h2>Documents</h2>
+            <p class="muted">Files attached to this customer.</p>
+        </div>
+    </div>
+
+    {% if attachments %}
+        <div class="stack" style="margin-top:1rem;">
+            {% for file in attachments %}
+                <div class="panel" style="border:1px solid #E2E8F0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                        <div>
+                            <strong>{{ file.file_name }}</strong>
+
+                            <div class="tiny" style="text-transform:none; margin-top:.25rem;">
+                                {{ file.category|default:"Uncategorized" }}
+                                ·
+                                {{ file.content_type|default:"Unknown type" }}
+                            </div>
+
+                            {% if file.notes %}
+                                <p class="muted" style="margin-top:.5rem;">
+                                    {{ file.notes }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <form
+                            method="post"
+                            action="{% url 'customers:attachment_delete' id=customer_id attachment_id=file.id %}"
+                        >
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-ghost">
+                                Delete
+                            </button>
+                        </form>
+
+                        <a
+                            class="btn btn-ghost"
+                            href="{% get_media_prefix %}{{ file.storage_key }}"
+                            target="_blank"
+                        >
+                            View
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        {% include "components/empty_state.html" with title="No files attached" body="Passport scans and signed forms will appear here." %}
+    {% endif %}
+</div>
+{% elif tab == 'activity' %}
+<div class="panel">
+    <div class="panel-h">
+        <div>
+            <h2>Activity</h2>
+            <p class="muted">Recent activity for this customer.</p>
+        </div>
+    </div>
+
+    {% if activities %}
+        <div class="stack" style="margin-top:1rem;">
+            {% for activity in activities %}
+                <div
+                    class="panel"
+                    style="border:1px solid #E2E8F0;"
+                >
+                    <div style="display:flex; justify-content:space-between; gap:1rem;">
+                        <div>
+                            <strong>{{ activity.action }}</strong>
+
+                            <p class="muted" style="margin-top:.25rem;">
+                                {{ activity.description }}
+                            </p>
+                        </div>
+
+                        <div class="tiny">
+                            {{ activity.created_at|date:"M d, Y H:i" }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        {% include "components/empty_state.html" with title="No activity yet" body="Customer activity will appear here." %}
+    {% endif %}
+</div>
 </section>
+{% endif %}
 {% endblock %}

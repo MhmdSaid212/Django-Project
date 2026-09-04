@@ -4,7 +4,9 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from apps.bookings.constants import STATUS_LABELS
 from apps.bookings.repositories import BookingRepository
+from apps.customers.repositories import CustomerRepository
 from apps.packages.validators import format_dates, parse_optional_object_id, parse_when
+from apps.tours.repositories import TourRepository
 from apps.tours.services import TourService
 from core.constants import BookingStatus, Collections, DEFAULT_CURRENCY, DiscountType, PaymentStatus
 from core.exceptions import BusinessRuleViolation, DatabaseUnavailableError, NotFoundError, ValidationError
@@ -116,6 +118,7 @@ def clean_travelers(raw) -> list[dict]:
                 "room_type": (item.get("room_type") or "").strip().upper() or None,
                 "room_number": (item.get("room_number") or "").strip() or None,
                 "hotel_reservation_id": hotel_id,
+                "type": (item.get("type") or "").strip().upper() or None,
             }
         )
     if not people:
@@ -128,9 +131,13 @@ class BookingService:
         self,
         repository: BookingRepository | None = None,
         tours: TourService | None = None,
+        tour_repository: TourRepository | None = None,
+        customer_repository: CustomerRepository | None = None,
     ):
         self.repository = repository or BookingRepository()
         self.tours = tours or TourService()
+        self.tour_repository = tour_repository or TourRepository()
+        self.customer_repository = customer_repository or CustomerRepository()
 
     def list_items(self, *, tour_id=None, customer_id=None, status: str | None = None) -> list[dict]:
         extra = {}
@@ -157,12 +164,45 @@ class BookingService:
     def get_presented(self, booking_id) -> dict:
         return self._present(self.get(booking_id))
 
-    def create(self, *, actor_id, customer_id, tour_id, travelers, notes: str | None = None) -> dict:
+    def create(self, data=None, user=None, *, actor_id=None, customer_id=None, tour_id=None, travelers=None, notes: str | None = None) -> dict:
+        if isinstance(data, dict):
+            actor_id = actor_id or (user or {}).get("id")
+            return self._create_record(
+                actor_id=actor_id,
+                customer_id=data.get("customer_id"),
+                tour_id=data.get("tour_id"),
+                travelers=data.get("travelers"),
+                notes=data.get("notes"),
+                pricing=data.get("pricing"),
+                travelers_count=data.get("travelers_count"),
+            )
+        return self._create_record(
+            actor_id=actor_id,
+            customer_id=customer_id,
+            tour_id=tour_id,
+            travelers=travelers,
+            notes=notes,
+        )
+
+    def _create_record(
+        self,
+        *,
+        actor_id,
+        customer_id,
+        tour_id,
+        travelers,
+        notes: str | None = None,
+        pricing=None,
+        travelers_count=None,
+    ) -> dict:
         customer = self.repository.find_customer(customer_id)
         if not customer:
             raise ValidationError("Customer not found.")
         tour = self.tours.get(tour_id)
         people = clean_travelers(travelers)
+        count = int(travelers_count or len(people) or 0)
+        if travelers_count is not None and count != len(people):
+            raise ValidationError("Travelers count does not match the number of travelers.")
         now = utcnow()
         document = {
             "booking_number": next_number(Collections.BOOKINGS),
@@ -171,11 +211,11 @@ class BookingService:
             "travelers_count": len(people),
             "travelers": people,
             "booking_date": now,
-            "pricing": _pricing_from(tour, len(people)),
+            "pricing": self._pricing_document(tour, len(people), pricing),
             "booking_status": BookingStatus.PENDING.value,
             "payment_status": PaymentStatus.UNPAID.value,
             "notes": (notes or "").strip() or None,
-            "created_by": parse_object_id(actor_id, field="created_by"),
+            "created_by": parse_object_id(actor_id, field="created_by") if actor_id else None,
             "created_at": now,
             "updated_at": now,
         }
@@ -188,7 +228,32 @@ class BookingService:
         document["_id"] = result.inserted_id
         return self.get(document["_id"])
 
-    def confirm(self, booking_id, *, actor_id) -> dict:
+    def _pricing_document(self, tour: dict, traveler_count: int, pricing=None) -> dict:
+        if not isinstance(pricing, dict):
+            return _pricing_from(tour, traveler_count)
+        unit = to_money(pricing.get("unit_price", tour.get("selling_price_per_person")))
+        subtotal = to_money(pricing.get("subtotal", unit * traveler_count))
+        discount_amount = to_money(pricing.get("discount_amount", ZERO))
+        discount_value = to_money(pricing.get("discount_value", discount_amount))
+        taxable_amount = to_money(pricing.get("taxable_amount", subtotal - discount_amount))
+        tax_amount = to_money(pricing.get("tax_amount", ZERO))
+        total_amount = to_money(pricing.get("total_amount", taxable_amount + tax_amount))
+        return {
+            "unit_price": to_decimal128(unit),
+            "subtotal": to_decimal128(subtotal),
+            "discount_type": pricing.get("discount_type") or DiscountType.NONE.value,
+            "discount_value": to_decimal128(discount_value),
+            "discount_amount": to_decimal128(discount_amount),
+            "discount_reason": pricing.get("discount_reason"),
+            "discount_applied_by": pricing.get("discount_applied_by"),
+            "taxable_amount": to_decimal128(taxable_amount),
+            "tax_id": pricing.get("tax_id"),
+            "tax_rate": to_decimal128(pricing.get("tax_rate", ZERO)),
+            "tax_amount": to_decimal128(tax_amount),
+            "total_amount": to_decimal128(total_amount),
+        }
+
+    def confirm(self, booking_id, user=None, *, actor_id=None) -> dict:
         document = self.get(booking_id)
         status = document.get("booking_status")
         if status == BookingStatus.CONFIRMED.value:
@@ -216,7 +281,7 @@ class BookingService:
             raise DatabaseUnavailableError("Could not confirm the booking.") from extra
         return self.get(document["_id"])
 
-    def cancel(self, booking_id, *, actor_id) -> dict:
+    def cancel(self, booking_id, user=None, *, actor_id=None) -> dict:
         document = self.get(booking_id)
         status = document.get("booking_status")
         if status == BookingStatus.CANCELLED.value:

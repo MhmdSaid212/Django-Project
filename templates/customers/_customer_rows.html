@@ -1,0 +1,65 @@
+{% for c in customers %}
+<tr>
+    <td>
+        <div class="row-main">
+            <span class="avatar {% cycle 'warm' 'teal' '' 'warm' %}">
+                {{ c.initials }}
+            </span>
+            <div>
+                <a href="{% url 'customers:detail' c.id %}">
+                    <strong>{{ c.name }}</strong>
+                </a>
+                <small class="mono">{{ c.number }}</small>
+            </div>
+        </div>
+    </td>
+
+    <td>
+        {{ c.phone }}<br>
+        <span class="muted">{{ c.email }}</span>
+    </td>
+
+    <td>
+        {% if c.upcoming %}
+            <strong>{{ c.upcoming.name }}</strong><br>
+            <span class="muted">
+                {{ c.upcoming.date|date:"M d, Y" }}
+            </span>
+        {% else %}
+            <span class="muted">None</span>
+        {% endif %}
+    </td>
+
+    <td>
+        <strong>
+            {% if c.balance %}
+                ${{ c.balance }}
+            {% else %}
+                —
+            {% endif %}
+        </strong>
+    </td>
+
+    <td>
+        {% include "components/status_badge.html" with status=c.status %}
+    </td>
+
+    <td>
+        <a class="btn btn-ghost btn-sm"
+           href="{% url 'bookings:create' %}">
+            Book
+        </a>
+
+        <a class="btn btn-ghost btn-sm"
+           href="{% url 'customers:edit' c.id %}">
+            Edit
+        </a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" style="text-align:center; padding:2rem;">
+        <span class="muted">No customers found.</span>
+    </td>
+</tr>
+{% endfor %}

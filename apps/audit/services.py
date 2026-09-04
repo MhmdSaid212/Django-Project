@@ -98,6 +98,33 @@ class AuditService:
         document["_id"] = result.inserted_id
         return document
 
+    def create(
+        self,
+        *,
+        user_id=None,
+        actor_id=None,
+        action: str,
+        entity_type: str,
+        entity_id,
+        description: str,
+        before=None,
+        after=None,
+        ip_address=None,
+    ) -> dict:
+        return self.log(
+            actor_id=actor_id or user_id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            description=description,
+            before=before,
+            after=after,
+            ip_address=ip_address,
+        )
+
+    def list_items(self, **filters) -> list[dict]:
+        return self.repository.find_all(**filters)
+
     def list_presented(self, **filters) -> list[dict]:
         rows = self.repository.find_all(**filters)
         cache: dict[str, dict | None] = {}

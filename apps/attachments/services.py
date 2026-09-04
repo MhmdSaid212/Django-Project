@@ -182,6 +182,30 @@ class AttachmentService:
         )
         return saved
 
+    def list_for_customer(self, customer_id: str) -> list[dict]:
+        return self.list_for_entity(AttachmentEntityType.CUSTOMERS.value, customer_id)
+
+    def upload_for_customer(
+        self,
+        customer_id: str,
+        uploaded_file,
+        *,
+        category: str,
+        uploaded_by: str,
+        notes: str | None = None,
+    ) -> dict:
+        return self.create(
+            actor_id=uploaded_by,
+            entity_type=AttachmentEntityType.CUSTOMERS.value,
+            entity_id=customer_id,
+            category=(category or AttachmentCategory.OTHER.value).upper(),
+            upload=uploaded_file,
+            notes=notes,
+        )
+
+    def delete(self, attachment_id: str, deleted_by: str):
+        return self.soft_delete(attachment_id, actor_id=deleted_by)
+
     def soft_delete(self, doc_id, *, actor_id) -> None:
         document = self.get(doc_id)
         try:

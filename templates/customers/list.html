@@ -3,30 +3,325 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Traveler book</p>
+        <p class="tiny">Customer book</p>
         <h1>Customers</h1>
-        <p>Who is traveling with you.</p>
+        <p>Who is traveling, what they booked, and how much they still owe.</p>
     </div>
     <div class="actions">
         <a class="btn btn-warm" href="{% url 'customers:create' %}">New customer</a>
     </div>
 </div>
-<div class="panel" style="padding:0">
-    <table class="data">
-        <thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th>City</th><th>Status</th></tr></thead>
-        <tbody>
-        {% for c in customers %}
-            <tr>
-                <td><a href="{% url 'customers:detail' c.id %}"><strong>{{ c.name }}</strong></a><div class="mono muted">{{ c.number }}</div></td>
-                <td>{{ c.email }}</td>
-                <td>{{ c.phone|default:"—" }}</td>
-                <td>{{ c.city|default:"—" }}</td>
-                <td>{% include "components/status_badge.html" with status=c.status %}</td>
-            </tr>
-        {% empty %}
-            <tr><td colspan="5">{% url 'customers:create' as create_url %}{% include "components/empty_state.html" with title="No customers yet" body="Add a traveler before you can book a tour." cta="New customer" cta_url=create_url %}</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+
+<div class="metrics-4">
+    <div class="metric">
+        <span class="tiny">Total</span>
+        <b>{{ total_customers }}</b>
+    </div>
+
+    <div class="metric">
+        <span class="tiny">Active</span>
+        <b>{{ active_customers }}</b>
+    </div>
+
+    <div class="metric">
+        <span class="tiny">With outstanding balance</span>
+        <b>{{ outstanding_customers }}</b>
+    </div>
+
+    <div class="metric">
+        <span class="tiny">Outstanding AR</span>
+        <b>{{ outstanding_ar|money }}</b>
+    </div>
 </div>
+
+<form class="filters" method="get" data-chips>
+    <input
+    class="field"
+    id="customer-search"
+    name="search"
+    value="{{ request.GET.search }}"
+    placeholder="Search name, phone, CUS number…"
+    style="min-width:220px"
+    autocomplete="off"
+>
+<a
+    href="{% url 'customers:list' %}"
+    class="chip {% if not request.GET.status %}is-on{% endif %}"
+>
+    All
+</a>
+<button
+    type="button"
+    id="active-filter"
+    class="chip"
+>
+    Active
+</button>
+
+<button
+    type="button"
+    id="inactive-filter"
+    class="chip"
+>
+    Inactive
+</button>
+<button
+    type="button"
+    id="has-balance-filter"
+    class="chip {% if request.GET.has_balance == '1' %}is-on{% endif %}"
+>
+    Has balance
+</button>
+    <button
+    type="button"
+    id="upcoming-filter"
+    class="chip"
+>
+    Has upcoming booking
+</button>
+    <button
+    type="button"
+    id="recent-filter"
+    class="chip"
+>
+    Recent
+</button>
+</form>
+
+<div class="panel" style="padding:0">
+    <div class="table-wrap">
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>Upcoming booking</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="customer-rows">
+                {% include "customers/_customer_rows.html" with customers=customers %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const searchInput = document.getElementById("customer-search");
+const customerRows = document.getElementById("customer-rows");
+
+const activeFilter = document.getElementById("active-filter");
+const inactiveFilter = document.getElementById("inactive-filter");
+const balanceFilter = document.getElementById("has-balance-filter");
+const upcomingFilter = document.getElementById("upcoming-filter");
+const recentFilter = document.getElementById("recent-filter");
+
+
+function getFilterParams() {
+    const params = new URLSearchParams(window.location.search);
+
+    const search = searchInput.value.trim();
+
+    if (search) {
+        params.set("search", search);
+    } else {
+        params.delete("search");
+    }
+
+    return params;
+}
+
+
+function updateFilterStates(params) {
+    activeFilter.classList.toggle(
+        "is-on",
+        params.get("status") === "ACTIVE"
+    );
+
+    inactiveFilter.classList.toggle(
+        "is-on",
+        params.get("status") === "INACTIVE"
+    );
+
+    balanceFilter.classList.toggle(
+        "is-on",
+        params.get("has_balance") === "1"
+    );
+
+    upcomingFilter.classList.toggle(
+        "is-on",
+        params.get("has_upcoming") === "1"
+    );
+
+    recentFilter.classList.toggle(
+        "is-on",
+        params.get("recent") === "1"
+    );
+}
+
+
+async function applyFilters(params) {
+    const response = await fetch(
+        `{% url 'customers:search' %}?${params.toString()}`,
+        {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error("Filter request failed");
+    }
+
+    customerRows.innerHTML = await response.text();
+
+    // Update browser URL
+    const newUrl = params.toString()
+        ? `?${params.toString()}`
+        : window.location.pathname;
+
+    window.history.replaceState({}, "", newUrl);
+
+    // IMPORTANT:
+    // Use the SAME params we just applied
+    updateFilterStates(params);
+}
+
+
+// ========================
+// SEARCH
+// ========================
+
+let searchTimeout;
+
+searchInput.addEventListener("input", function () {
+    clearTimeout(searchTimeout);
+
+    searchTimeout = setTimeout(async () => {
+        try {
+            const params = getFilterParams();
+            await applyFilters(params);
+        } catch (error) {
+            console.error("Customer search error:", error);
+        }
+    }, 300);
+});
+
+
+// ========================
+// ACTIVE
+// ========================
+
+activeFilter.addEventListener("click", async function () {
+    const params = getFilterParams();
+
+    if (params.get("status") === "ACTIVE") {
+        params.delete("status");
+    } else {
+        params.set("status", "ACTIVE");
+    }
+
+    try {
+        await applyFilters(params);
+    } catch (error) {
+        console.error("Active filter error:", error);
+    }
+});
+
+
+// ========================
+// INACTIVE
+// ========================
+
+inactiveFilter.addEventListener("click", async function () {
+    const params = getFilterParams();
+
+    if (params.get("status") === "INACTIVE") {
+        params.delete("status");
+    } else {
+        params.set("status", "INACTIVE");
+    }
+
+    try {
+        await applyFilters(params);
+    } catch (error) {
+        console.error("Inactive filter error:", error);
+    }
+});
+
+
+// ========================
+// HAS BALANCE
+// ========================
+
+balanceFilter.addEventListener("click", async function () {
+    const params = getFilterParams();
+
+    if (params.get("has_balance") === "1") {
+        params.delete("has_balance");
+    } else {
+        params.set("has_balance", "1");
+    }
+
+    try {
+        await applyFilters(params);
+    } catch (error) {
+        console.error("Balance filter error:", error);
+    }
+});
+
+
+// ========================
+// HAS UPCOMING BOOKING
+// ========================
+
+upcomingFilter.addEventListener("click", async function () {
+    const params = getFilterParams();
+
+    if (params.get("has_upcoming") === "1") {
+        params.delete("has_upcoming");
+    } else {
+        params.set("has_upcoming", "1");
+    }
+
+    try {
+        await applyFilters(params);
+    } catch (error) {
+        console.error("Upcoming filter error:", error);
+    }
+});
+
+
+// ========================
+// RECENT
+// ========================
+
+recentFilter.addEventListener("click", async function () {
+    const params = getFilterParams();
+
+    if (params.get("recent") === "1") {
+        params.delete("recent");
+    } else {
+        params.set("recent", "1");
+    }
+
+    try {
+        await applyFilters(params);
+    } catch (error) {
+        console.error("Recent filter error:", error);
+    }
+});
+
+
+// ========================
+// INITIAL STATE
+// ========================
+
+updateFilterStates(
+    new URLSearchParams(window.location.search)
+);
+</script>
 {% endblock %}
