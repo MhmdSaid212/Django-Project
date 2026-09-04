@@ -58,14 +58,71 @@
                 <span class="foot-lab">Actions</span>
                 <a class="btn-teal" href="#" data-open-drawer="pay-drawer">Record Payment</a>
                 <a class="btn-out" href="{% url 'invoices:print' record.id %}">Download</a>
-                {% if record.status == 'PAID' or record.status == 'CANCELLED' %}
-                <span class="btn-out dis">Cancel</span>
-                {% else %}
-                <button class="btn-out" type="button">Cancel</button>
+                {% if record.status == 'DRAFT' or record.can_cancel %}
+                <button class="btn-out cancel-btn" type="button" data-invoice-id="{{ record.id }}">Cancel</button>
+                {% elif record.status != 'CANCELLED' %}
+                <a class="btn-mini warn" href="{% url 'invoices:reissue' record.id %}" title="{{ record.cancel_reason }}">↺ Refund &amp; Reissue</a>
                 {% endif %}
             </div>
             <div class="thanks">♥ Thank you for choosing TourOps.<br><span>We appreciate your business!</span></div>
         </div>
     </div>
 </div>
+<!--
+    Cancel-invoice handler (Refund & Reissue's simpler sibling).
+
+    Why this exists:
+    The Cancel button only renders when the server already told us
+    (`can_cancel`) that this invoice has zero payments against it, so
+    cancelling is legal per the BRD rule ("a paid invoice must be refunded,
+    never cancelled directly"). But the button still needs to actually DO
+    something — Django doesn't wire click events on its own, and a page
+    reload via a normal <form> would lose the SPA-like drawer/list feel of
+    this screen. So this script calls the real cancel endpoint via fetch()
+    instead of a full page POST.
+
+    What each piece is for:
+    - getCookie('csrftoken')  Django blocks any POST/PATCH/DELETE without a
+      CSRF token attached. We're not submitting an HTML <form> (which would
+      auto-include the {% csrf_token %} tag), so we have to read the token
+      Django already dropped in the browser's cookies and attach it by hand
+      via the X-CSRFToken header.
+    - PATCH .../api/invoices/<id>/ with {"action":"cancel"}  this reuses the
+      EXACT endpoint and service method (InvoiceService.cancel()) that
+      already enforces the paid_amount == 0 rule server-side. The frontend
+      flag just decides whether to show the button; this call is what
+      actually performs (and re-validates) the cancellation.
+    - confirm(...)  cancelling can't be undone from the UI, so we ask once
+      before firing the request, rather than cancelling on a stray click.
+    - res.ok check  even though the button only appears when cancellation
+      should be allowed, we still handle a server-side rejection (e.g. a
+      payment landed on the invoice in the seconds between page load and
+      click) by showing the real error message instead of assuming success.
+-->
+<script>
+function getCookie(name){
+    var v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
+document.querySelectorAll('.cancel-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+        if(!confirm('Cancel this invoice? This cannot be undone.')) return;
+        var id = btn.dataset.invoiceId;
+        fetch('/api/invoices/' + id + '/', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({action: 'cancel'}),
+        })
+        .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+        .then(function(res){
+            if(res.ok){ location.href = "{% url 'invoices:list' %}"; }
+            else { alert((res.data.error && res.data.error.message) || 'Could not cancel invoice.'); }
+        })
+        .catch(function(){ alert('Network error — could not reach the server.'); });
+    });
+});
+</script>
 {% endblock %}

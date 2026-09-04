@@ -56,8 +56,10 @@
                 <td>
                     {% if inv.status == 'DRAFT' %}
                     <a class="btn-mini teal" href="{% url 'invoices:detail' inv.id %}">Edit</a>
+                    {% elif inv.can_cancel %}
+                    <button class="btn-mini out cancel-btn" type="button" data-invoice-id="{{ inv.id }}">Cancel</button>
                     {% elif inv.status != 'CANCELLED' %}
-                    <a class="btn-mini warn" href="{% url 'invoices:reissue' inv.id %}">Refund &amp; Reissue</a>
+                    <a class="btn-mini warn" href="{% url 'invoices:reissue' inv.id %}" title="{{ inv.cancel_reason }}">↺ Refund &amp; Reissue</a>
                     {% endif %}
                 </td>
             </tr>
@@ -70,4 +72,31 @@
         <span>Showing {{ rows|length }} of {{ total_count }} invoices</span>
     </div>
 </div>
+
+<script>
+function getCookie(name){
+    var v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
+document.querySelectorAll('.cancel-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+        if(!confirm('Cancel this invoice? This cannot be undone.')) return;
+        var id = btn.dataset.invoiceId;
+        fetch('/api/invoices/' + id + '/', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({action: 'cancel'}),
+        })
+        .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+        .then(function(res){
+            if(res.ok){ location.reload(); }
+            else { alert((res.data.error && res.data.error.message) || 'Could not cancel invoice.'); }
+        })
+        .catch(function(){ alert('Network error — could not reach the server.'); });
+    });
+});
+</script>
 {% endblock %}

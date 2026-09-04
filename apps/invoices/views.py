@@ -25,7 +25,7 @@ from core.permissions import login_required, role_required
 
 # --- TEMP: flip to False (and uncomment the decorators below) once MongoDB
 # is connected and you're ready to test against real data. ---
-USE_MOCK_DATA = True
+USE_MOCK_DATA = False
 
 # Status filter tabs shown on the list page (value, label).
 STATUS_TABS = [
@@ -253,8 +253,8 @@ def invoice_create(request):
 
 
 # TEMP: auth disabled for local preview -- restore before merging
-# @login_required
-# @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
 def invoice_reissue(request, id):
     """Guided flow: refund payments -> cancel this invoice -> generate a new one."""
     if USE_MOCK_DATA:
