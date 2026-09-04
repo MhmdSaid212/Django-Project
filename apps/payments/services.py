@@ -18,7 +18,7 @@ from core.database import get_collection
 from core.exceptions import NotFoundError, ValidationError
 from core.money import ZERO, to_decimal, to_decimal128, to_money
 from core.numbering import next_number
-from core.soft_delete import stamp_new
+from core.soft_delete import live_query, stamp_new
 from core.utils import parse_object_id, serialize_id, utcnow
 
 VALID_METHODS = {m.value for m in PaymentMethod}
@@ -58,6 +58,18 @@ class PaymentService:
 
     def for_invoice(self, invoice_id: str) -> list[dict]:
         return [present_payment(d) for d in self.repository.find_for_invoice(invoice_id)]
+    def find_for_booking(self, booking_id) -> list[dict]:
+        return list(
+            self.collection.find(
+                live_query({
+                    "booking_id": parse_object_id(
+                        booking_id,
+                        field="booking_id",
+                    ),
+                    "status": PaymentRecordStatus.COMPLETED.value,
+                })
+            ).sort("created_at", 1)
+        )
 
     # ---- record a payment against an invoice (the main path) ---------------
     def record_for_invoice(self, invoice_id: str, *, amount, method: str,

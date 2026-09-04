@@ -8,11 +8,23 @@
         <p>Here’s what needs attention across bookings, finance, and upcoming tours.</p>
     </div>
     <div class="actions">
-        <select class="field">
-            <option>This month</option>
-            <option>Last 30 days</option>
-            <option>This quarter</option>
-        </select>
+        <form method="get" style="display:flex;gap:.5rem">
+    <select class="field" name="month" onchange="this.form.submit()">
+        {% for num,name in months %}
+        <option value="{{ num }}" {% if selected_month == num %}selected{% endif %}>
+            {{ name }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <select class="field" name="year" onchange="this.form.submit()">
+        {% for y in years %}
+        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>
+            {{ y }}
+        </option>
+        {% endfor %}
+    </select>
+</form>
         {% if nav.ops %}<a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>{% endif %}
     </div>
 </div>
@@ -20,8 +32,8 @@
 <div class="kpi-strip">
     {% include "components/metric_card.html" with label="Revenue" value=m.kpis.revenue|money delta=m.kpis.revenue_delta up=1 spark=1 accent="#0f766e" %}
     {% include "components/metric_card.html" with label="Customer outstanding" value=m.kpis.ar|money delta=m.kpis.ar_delta up=1 spark=1 accent="#b45309" %}
-    {% include "components/metric_card.html" with label="Supplier payables" value=m.kpis.ap|money delta=m.kpis.ap_delta spark=1 accent="#1d4ed8" %}
-    {% include "components/metric_card.html" with label="Active bookings" value=m.kpis.active_bookings delta=4.1 up=1 spark=1 accent="#1f2a3a" %}
+    {% include "components/metric_card.html" with label="Supplier payables" value=m.kpis.ap|money delta=m.kpis.ap_delta up=1 spark=1 accent="#1d4ed8" %}
+    {% include "components/metric_card.html" with label="Active bookings" value=m.kpis.active_bookings delta=m.kpis.active_bookings_delta up=1 spark=1 accent="#1f2a3a" %}
     {% include "components/metric_card.html" with label="Upcoming tours" value=m.kpis.upcoming spark=1 accent="#ca8a04" %}
     {% include "components/metric_card.html" with label="Monthly profit" value=m.kpis.profit|money delta=m.kpis.profit_delta up=1 spark=1 accent="#047857" %}
 </div>
@@ -35,23 +47,23 @@
         <div class="attn">
             {% if nav.finance %}
             <a href="{% url 'invoices:list' %}">
-                <div><strong>5 overdue invoices</strong><em>Oldest: INV-1042 · Fatima Ghazzawi · $420</em></div>
+                <div><strong>{{ m.attention.overdue_invoices }} overdue invoices</strong></div>
                 <span class="badge b-bad">Due</span>
             </a>
             <a href="{% url 'refunds:list' %}">
-                <div><strong>3 refunds awaiting approval</strong><em>REF-1012 · Ali Mansour · $300</em></div>
+                <div><strong>{{ m.attention.refunds }} refunds awaiting approval</strong></div>
                 <span class="badge b-warn">Review</span>
             </a>
             {% endif %}
             {% if nav.ops %}
             <a href="{% url 'tours:list' %}">
-                <div><strong>2 tours near capacity</strong><em>Cairo Discovery 18/25 · Istanbul fully booked</em></div>
+                <div><strong>{{ m.attention.near_capacity }} tours near capacity</strong></div>
                 <span class="badge b-warm">Seats</span>
             </a>
             {% endif %}
             {% if nav.finance %}
             <a href="{% url 'supplier_payments:list' %}">
-                <div><strong>4 supplier payments due this week</strong><em>Beirut Transport Co. · EXP-1033 · $180 overdue</em></div>
+                <div><strong>{{ m.attention.supplier_payments }} supplier payments due this week</strong></div>
                 <span class="badge b-info">AP</span>
             </a>
             {% endif %}

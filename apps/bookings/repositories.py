@@ -26,10 +26,16 @@ class BookingRepository(SoftDeleteRepositoryMixin):
             filters["booking_status"] = status
 
         if customer_id:
-            filters["customer_id"] = customer_id
+            filters["customer_id"] = parse_object_id(
+                customer_id,
+                field="customer_id",
+            )
 
         if tour_id:
-            filters["tour_id"] = tour_id
+            filters["tour_id"] = parse_object_id(
+                tour_id,
+                field="tour_id",
+            )
 
         query_filter = (
             filters

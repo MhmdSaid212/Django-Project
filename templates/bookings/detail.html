@@ -4,18 +4,6 @@
 {% block page_id %}booking-detail{% endblock %}
 {% block page_title %}Booking Details{% endblock %}
 
-{% block page_action %}
-<div class="flex items-center gap-2">
-    <button class="border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-lg">
-        Actions ▾
-    </button>
-
-    <button class="bg-brand-blue hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-lg">
-        Edit Booking
-    </button>
-</div>
-{% endblock %}
-
 {% block content %}
 
 <!-- Breadcrumb -->
@@ -26,6 +14,42 @@
     <span>/</span>
     <span class="text-gray-800 font-medium">{{ record.number }}</span>
 </div>
+
+
+{% if record.status == "PENDING" %}
+<div class="flex items-center gap-3 mb-6">
+
+    <form
+        method="post"
+        action="{% url 'bookings:confirm' record.number %}"
+    >
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            class="bg-brand-blue hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-lg"
+        >
+            Confirm Booking
+        </button>
+    </form>
+
+    <form
+    method="post"
+    action="{% url 'bookings:cancel' record.number %}"
+>
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            class="border border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium px-4 py-2 rounded-lg"
+        >
+            Cancel Booking
+        </button>
+    </form>
+
+</div>
+{% endif %}
+
 
 <div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
 
@@ -104,7 +128,7 @@
                         Travelers
                     </p>
                     <p class="font-medium text-gray-900 mt-1">
-                        {{ record.travelers }}
+                        {{ record.traveler_count }}
                     </p>
                 </div>
 
@@ -135,23 +159,23 @@
                 </h3>
 
                 <p class="text-sm text-gray-500 mt-1">
-                    {{ record.travelers }} travelers on this booking
+                    {{ record.traveler_count }} travelers on this booking
                 </p>
             </div>
 
             <div class="divide-y divide-gray-100">
 
-                {% for traveler in m.travelers %}
+                {% for traveler in record.travelers %}
 
                     <div class="px-6 py-4 flex items-center justify-between">
 
                         <div>
                             <p class="font-medium text-gray-900">
-                                {{ traveler.name }}
+                                {{ traveler.first_name }} {{ traveler.last_name }}
                             </p>
 
                             <p class="text-sm text-gray-500 mt-1">
-                                {{ traveler.type }} · Passport {{ traveler.passport }}
+                                {{ traveler.type }} · Passport {{ traveler.passport_number }}
                             </p>
                         </div>
 
@@ -188,7 +212,7 @@
 
             <div class="divide-y divide-gray-100">
 
-                {% for item in m.itinerary %}
+                {% for item in record.itinerary %}
 
                     <div class="px-6 py-4 flex items-center justify-between gap-4">
 
@@ -207,7 +231,7 @@
                         </div>
 
                         <div class="font-semibold text-gray-900 whitespace-nowrap">
-                            ${{ item.est }}
+                            ${{ item.amount }}
                         </div>
 
                     </div>
@@ -232,7 +256,7 @@
             </h3>
 
             <p class="text-sm text-gray-500 mt-3">
-                No notes have been added to this booking yet.
+                {{ record.notes }}
             </p>
 
         </div>
@@ -246,7 +270,7 @@
         <!-- Financial Summary -->
         <div class="bg-navy text-white rounded-xl p-6">
 
-            <h3 class="font-semibold text-lg">
+            <h3 class="font-bold text-lg text-white">
                 Booking Summary
             </h3>
 
@@ -290,26 +314,26 @@
 
 
         <!-- Tour -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="bg-navy text-white rounded-xl border border-gray-200 p-6">
 
-            <h3 class="font-semibold text-gray-900">
+            <h3 class="font-bold text-white">
                 Tour
             </h3>
 
             <div class="mt-5">
 
-                <p class="font-medium text-gray-900">
+                <p class="font-medium text-white">
                     {{ record.product }}
                 </p>
 
-                <p class="text-sm text-gray-500 mt-1">
+                <p class="text-sm text-white mt-1">
                     {{ record.package }}
                 </p>
 
                 <div class="mt-4 pt-4 border-t border-gray-100">
 
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">
+                        <span class="text-white">
                             Tour ID
                         </span>
 
@@ -319,7 +343,7 @@
                     </div>
 
                     <div class="flex justify-between text-sm mt-3">
-                        <span class="text-gray-500">
+                        <span class="text-white">
                             Destination
                         </span>
 
@@ -336,11 +360,11 @@
 
 
         <!-- Payment Status -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="bg-navy text-white rounded-xl border border-gray-200 p-6">
 
             <div class="flex items-center justify-between">
 
-                <h3 class="font-semibold text-gray-900">
+                <h3 class="font-semibold text-white">
                     Payment
                 </h3>
 
@@ -370,7 +394,7 @@
 
                 <div class="flex justify-between text-sm mb-2">
 
-                    <span class="text-gray-500">
+                    <span class="text-white">
                         Payment progress
                     </span>
 
@@ -392,9 +416,9 @@
 
 
         <!-- Quick Actions -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="bg-navy text-white rounded-xl border border-gray-200 p-6">
 
-            <h3 class="font-semibold text-gray-900">
+            <h3 class="font-semibold text-white">
                 Quick Actions
             </h3>
 

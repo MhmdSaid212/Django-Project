@@ -5,7 +5,21 @@
 <div class="page-head">
     <div>
         <p class="tiny">Customers</p>
-        <h1>Create customer</h1>
+        <h1>
+        {% if edit_mode %}
+            Edit customer
+        {% else %}
+            Create customer
+        {% endif %}
+    </h1>
+
+    <p>
+        {% if edit_mode %}
+            Update the customer's personal, contact, address, passport, and emergency information.
+        {% else %}
+            Add the customer's personal, contact, address, passport, and emergency information.
+        {% endif %}
+    </p>
         <p>Add the customer's personal, contact, address, passport, and emergency information.</p>
     </div>
 </div>
@@ -14,6 +28,13 @@
     class="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 lg:p-8 w-full"
     method="post"  enctype="multipart/form-data"
 >
+
+{% if error %}
+<div class="panel" style="margin-bottom:1rem; border-left:4px solid #ef4444;">
+    <strong>Unable to save customer</strong>
+    <p class="muted" style="margin-top:.25rem;">{{ error }}</p>
+</div>
+{% endif %}
     {% csrf_token %}
 
     <!-- =========================
@@ -76,8 +97,12 @@
                     class="field w-full mt-1"
                     name="status"
                 >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
+                    <option value="ACTIVE" {% if record.status == "ACTIVE" %}selected{% endif %}>
+                        Active
+                    </option>
+                    <option value="INACTIVE" {% if record.status == "INACTIVE" %}selected{% endif %}>
+                        Inactive
+                    </option>
                 </select>
             </label>
 
@@ -90,6 +115,7 @@
                     type="email"
                     name="email"
                     value="{{ record.email|default:'' }}"
+                    required
                 >
             </label>
 
@@ -103,8 +129,9 @@
         name="phone"
         type="tel"
         class="field w-full"
+        value="{{ record.phone_full|default:record.phone }}"
     >
-    <input type="hidden" id="phone-full" name="phone_full">
+    <input type="hidden" id="phone-full" name="phone_full" required value="{{ record.phone_full|default:record.phone }}"   >
 </label>
 
             <label class="block">
@@ -115,7 +142,8 @@
                     class="field w-full mt-1"
                     type="date"
                     name="date_of_birth"
-                    value="{{ record.date_of_birth|default:'' }}"
+                    value="{{ record.date_of_birth|date:'Y-m-d' }}"
+                    required
                 >
             </label>
 
@@ -125,12 +153,14 @@
     </span>
 
     <input
-        id="nationality"
-        name="nationality"
-        type="text"
-        class="field w-full"
-        placeholder="Select nationality"
-    >
+    id="nationality"
+    name="nationality"
+    type="text"
+    class="field w-full"
+    placeholder="Select nationality"
+    value="{{ record.nationality|default:'' }}"
+    required
+>
 </label>
 
         </div>
@@ -159,12 +189,14 @@
     </span>
 
     <input
-        id="address-country"
-        name="address_country"
-        type="text"
-        class="field w-full"
-        placeholder="Select country"
-    >
+    id="address-country"
+    name="address_country"
+    type="text"
+    class="field w-full"
+    placeholder="Select country"
+    value="{{ record.address.country|default:'' }}"
+    required
+>
 </label>
 
             <label class="block">
@@ -176,6 +208,7 @@
                     type="text"
                     name="address_city"
                     value="{{ record.address.city|default:'' }}"
+                    required
                 >
             </label>
 
@@ -188,6 +221,7 @@
                     type="text"
                     name="address_street"
                     value="{{ record.address.street|default:'' }}"
+                    required
                 >
             </label>
 
@@ -220,6 +254,7 @@
                     type="text"
                     name="passport_number"
                     value="{{ record.passport.number|default:'' }}"
+                    required
                 >
             </label>
 
@@ -232,6 +267,7 @@
                     type="date"
                     name="passport_expiry_date"
                     value="{{ record.passport.expiry_date|default:'' }}"
+                    required
                 >
             </label>
 
@@ -241,12 +277,14 @@
     </span>
 
     <input
-        id="passport-country"
-        name="passport_issuing_country"
-        type="text"
-        class="field w-full"
-        placeholder="Select country"
-    >
+    id="passport-country"
+    name="passport_issuing_country"
+    type="text"
+    class="field w-full"
+    placeholder="Select country"
+    value="{{ record.passport.issuing_country|default:'' }}"
+    required
+>
 </label>
 
         </div>
@@ -278,6 +316,7 @@
                     type="text"
                     name="emergency_contact_name"
                     value="{{ record.emergency_contact.name|default:'' }}"
+                    required
                 >
             </label>
 
@@ -291,11 +330,15 @@
         name="emergency_contact_phone"
         type="tel"
         class="field w-full"
+        required
+        value="{{ record.emergency_contact.phone_full|default:record.emergency_contact.phone }}"
     >
     <input
     type="hidden"
     id="emergency-phone-full"
     name="emergency_contact_phone_full"
+    required
+    value="{{ record.emergency_contact.phone_full|default:record.emergency_contact.phone }}"
 >
 </label>
 
@@ -308,6 +351,7 @@
                     type="text"
                     name="emergency_contact_relationship"
                     value="{{ record.emergency_contact.relationship|default:'' }}"
+                    required
                 >
             </label>
 
