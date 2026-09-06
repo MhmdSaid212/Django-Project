@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% load tourops %}
 {% block content %}
-<div class="hero-tour">
+<div class="hero-tour{% if record.cover %} has-photo{% endif %}">
+    {% if record.cover %}
+    <img class="hero-tour-photo" src="{% url 'attachments:preview' record.cover.id %}" alt="{{ record.name }}">
+    {% endif %}
     <div>
         <p class="tiny">{{ record.city }}{% if record.country %} · {{ record.country }}{% endif %}</p>
         <h1>{{ record.name }}</h1>
@@ -17,14 +20,21 @@
     <div class="hero-kpis">
         <div><span class="tiny">Price</span><b>{{ record.price|money }}</b></div>
         <div><span class="tiny">Status</span><b style="font-size:1rem">{% include "components/status_badge.html" with status=record.status %}</b></div>
-        <div class="actions" style="flex-direction:column">
-            <a class="btn btn-warm" href="{% url 'bookings:create' %}?tour_id={{ record.id }}">Add booking</a>
-            <a class="btn btn-ghost" href="{% url 'tours:edit' record.id %}">Edit</a>
+            <div class="ico-toolbar">
+            {% if record.can_take_bookings %}
+            <a class="ico-btn is-primary" href="{% url 'bookings:create' %}?tour_id={{ record.id }}" title="Add booking" aria-label="Add booking">
+                {% include "components/ico_mark.html" with icon="book" %}
+            </a>
+            {% else %}
+            <a class="ico-btn" href="?tab=reservations" title="Waiting on suppliers" aria-label="Waiting on suppliers">
+                {% include "components/ico_mark.html" with icon="calendar" %}
+            </a>
+            {% endif %}
+            {% url 'tours:edit' record.id as edit_url %}
+            {% include "components/ico_btn.html" with href=edit_url title="Edit" icon="edit" %}
             {% if not record.booked %}
-            <form method="post" action="{% url 'tours:delete' record.id %}" onsubmit="return confirm('Delete {{ record.name }}?');">
-                {% csrf_token %}
-                <button class="btn btn-ghost" type="submit">Delete</button>
-            </form>
+            {% url 'tours:delete' record.id as delete_url %}
+            {% include "components/ico_btn.html" with action=delete_url title="Delete" icon="delete" danger=1 confirm="This departure comes off the board. Bookings must already be empty." confirm_title="Scrap this tour?" confirm_ok="Delete tour" %}
             {% endif %}
         </div>
     </div>
@@ -32,15 +42,22 @@
 
 <div class="tabs">
     <a class="{% if tab == 'overview' %}is-on{% endif %}" href="?tab=overview">Overview</a>
+    <a class="{% if tab == 'gallery' %}is-on{% endif %}" href="?tab=gallery">Gallery</a>
     <a class="{% if tab == 'bookings' %}is-on{% endif %}" href="?tab=bookings">Bookings</a>
     <a class="{% if tab == 'reservations' %}is-on{% endif %}" href="?tab=reservations">Reservations</a>
-    <a href="{% url 'tours:rooming' record.id %}">Rooming list</a>
     <a class="{% if tab == 'travelers' %}is-on{% endif %}" href="?tab=travelers">Travelers</a>
     <a class="{% if tab == 'services' %}is-on{% endif %}" href="?tab=services">Planned services</a>
     <a class="{% if tab == 'expenses' %}is-on{% endif %}" href="?tab=expenses">Finance</a>
     <a class="{% if tab == 'profit' %}is-on{% endif %}" href="?tab=profit">Profitability</a>
     <a class="{% if tab == 'activity' %}is-on{% endif %}" href="?tab=activity">Activity</a>
 </div>
+
+{% if not record.can_take_bookings %}
+<div class="callout callout-info" style="margin:.8rem 0">
+    <p>{{ record.booking_block_reason }}</p>
+    <p><a href="?tab=reservations">Open supplier reservations</a></p>
+</div>
+{% endif %}
 
 {% if tab == 'overview' %}
 <div class="metrics-4">
@@ -49,13 +66,64 @@
     <div class="metric"><span class="tiny">Projected revenue</span><b>{{ record.revenue|money }}</b></div>
     <div class="metric"><span class="tiny">Projected profit</span><b>{{ record.profit|money }}</b></div>
 </div>
-<p class="muted">Tour capacity is travelers you can sell. Hotel rooms are arranged separately.</p>
+{% if record.costing.has_costs %}
+{% include "components/cost_sheet.html" with costing=record.costing heading="Estimated land cost" intro="This is the catalog estimate used to set the selling price. The Finance tab uses recorded expenses after the trip is operating." %}
+{% endif %}
+{% if record.gallery %}
+<section class="gallery-strip">
+    <div class="panel-h">
+        <h2>Show the client</h2>
+        <a class="tiny" href="?tab=gallery">Open full gallery</a>
+    </div>
+    <div class="gallery-grid is-strip" data-gallery>
+        {% for photo in record.gallery %}
+        <button type="button" class="gallery-shot" data-gallery-src="{% url 'attachments:preview' photo.id %}" data-gallery-alt="{{ photo.file_name }}">
+            <img src="{% url 'attachments:preview' photo.id %}" alt="{{ photo.file_name }}">
+        </button>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 {% if record.accommodation.warnings %}
 <div class="callout callout-info" style="margin:.8rem 0">
     {% for warning in record.accommodation.warnings %}<p>{{ warning }}</p>{% endfor %}
-    <p style="margin-top:.5rem"><a href="{% url 'supplier_reservations:rooming' record.id %}">Open rooming list</a></p>
 </div>
 {% endif %}
+{% elif tab == 'gallery' %}
+<section class="gallery-stage">
+    <div class="page-head" style="margin-bottom:0.8rem">
+        <div>
+            <h2 style="margin:0">{{ record.name }}</h2>
+            <p class="muted">{{ record.city }}{% if record.country %} · {{ record.country }}{% endif %} · {{ record.dates }}</p>
+        </div>
+        {% if nav.ops %}
+        <a class="btn btn-ghost" href="{% url 'tours:edit' record.id %}">Add photos</a>
+        {% endif %}
+    </div>
+    {% if record.gallery %}
+    <div class="gallery-grid" data-gallery>
+        {% for photo in record.gallery %}
+        <figure class="gallery-cell">
+            <button type="button" class="gallery-shot" data-gallery-src="{% url 'attachments:preview' photo.id %}" data-gallery-alt="{{ photo.file_name }}">
+                <img src="{% url 'attachments:preview' photo.id %}" alt="{{ photo.file_name }}">
+            </button>
+            {% if nav.ops %}
+            <form method="post" action="{% url 'attachments:delete' photo.id %}" class="gallery-del" data-confirm="This photo leaves the tour gallery." data-confirm-title="Pull this shot?" data-confirm-ok="Remove photo">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button class="ico-btn is-danger" type="submit" title="Remove photo" aria-label="Remove photo">
+                    {% include "components/ico_mark.html" with icon="delete" %}
+                </button>
+            </form>
+            {% endif %}
+        </figure>
+        {% endfor %}
+    </div>
+    {% else %}
+    {% url 'tours:edit' record.id as tour_edit_url %}
+    {% include "components/empty_state.html" with title="No gallery yet" body="Add photos on the tour so agents can walk a client through the departure." cta="Add photos" cta_url=tour_edit_url %}
+    {% endif %}
+</section>
 {% elif tab == 'bookings' %}
 <div class="panel" style="padding:0">
     <table class="data">
@@ -90,12 +158,11 @@
 </div>
 {% elif tab == 'services' %}
 <div class="panel">
-    <p class="tiny">A planned service is an itinerary estimate. It is not a supplier reservation.</p>
     {% for line in record.planned_ops %}
         <div class="it-block" style="margin-top:.85rem">
             <div>
                 <strong>{{ line.title }}</strong>
-                <div class="muted" style="font-size:.84rem">{{ line.type_label }} · {{ line.supplier }} · Est. {{ line.estimated_cost|money }}</div>
+                <div class="muted" style="font-size:.84rem">{{ line.type_label }} · {{ line.supplier }} · Est. {{ line.estimated_cost|money }}{% if line.basis_label %} {{ line.basis_label }}{% endif %}</div>
                 {% if line.has_reservation %}
                     {% for r in line.reservations %}
                         <div style="margin-top:.35rem">Reservation: ✓ <a href="{% url 'supplier_reservations:detail' r.id %}">{{ r.number }}</a> — {% include "components/status_badge.html" with status=r.status %}</div>
@@ -103,7 +170,9 @@
                 {% else %}
                     <p class="muted" style="margin-top:.35rem">No supplier reservation recorded.</p>
                     {% if line.supplier_id %}
-                    <a class="btn btn-ghost" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}&supplier_id={{ line.supplier_id }}">Create reservation</a>
+                    <a class="ico-btn" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}&supplier_id={{ line.supplier_id }}" title="Create reservation" aria-label="Create reservation">
+                        {% include "components/ico_mark.html" with icon="calendar" %}
+                    </a>
                     {% endif %}
                 {% endif %}
             </div>
@@ -113,27 +182,15 @@
     {% endfor %}
 </div>
 {% elif tab == 'reservations' %}
-{% if record.accommodation.capacity_state == 'SHORTAGE' %}
-<div class="callout callout-warn" style="margin-bottom:1rem">
-    <strong>Accommodation shortage: {{ record.accommodation.shortage_travelers }} traveler(s)</strong>
-    <p>{{ record.accommodation.confirmed_travelers }} confirmed travelers / {{ record.accommodation.bed_capacity }} beds. Tour capacity is unchanged. Add rooms or another hotel.</p>
-</div>
-{% elif record.accommodation.capacity_state == 'UNUSED' %}
-<div class="callout callout-ok" style="margin-bottom:1rem">Accommodation capacity is sufficient. {{ record.accommodation.unused_beds }} unused bed(s).</div>
-{% elif record.accommodation.capacity_state == 'OK' %}
-<div class="callout callout-ok" style="margin-bottom:1rem">Accommodation capacity is sufficient.</div>
-{% endif %}
 <div class="metrics-4" style="margin-bottom:1rem">
     <div class="metric"><span class="tiny">Confirmed travelers</span><b>{{ record.accommodation.confirmed_travelers|default:0 }}</b></div>
-    <div class="metric"><span class="tiny">Accommodation beds</span><b>{{ record.accommodation.bed_capacity|default:0 }}</b></div>
-    <div class="metric"><span class="tiny">Difference</span><b>{% if record.accommodation.difference > 0 %}+{% endif %}{{ record.accommodation.difference|default:0 }}</b></div>
+    <div class="metric"><span class="tiny">Hotels</span><b>{{ record.accommodation.hotels|length }}</b></div>
     <div class="metric"><span class="tiny">Supplier reservations</span><b>{{ record.reservations|length }}</b></div>
 </div>
-<p class="tiny" style="margin-bottom:.8rem">{{ record.capacity }} tour capacity · {{ record.booked }} confirmed travelers · hotel quantity is rooms, not people.</p>
-<div class="actions" style="margin-bottom:.8rem">
-    <a class="btn btn-warm" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}">Arrange supplier</a>
-    <a class="btn btn-ghost" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}">Add another hotel</a>
-    <a class="btn btn-ghost" href="{% url 'supplier_reservations:rooming' record.id %}">Generate rooming list</a>
+<div class="ico-toolbar" style="margin-bottom:.8rem">
+    <a class="ico-btn is-primary" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}" title="Arrange supplier" aria-label="Arrange supplier">
+        {% include "components/ico_mark.html" with icon="calendar" %}
+    </a>
 </div>
 
 <section class="panel" style="margin-bottom:1rem">
@@ -153,7 +210,9 @@
                 {% else %}
                     <p class="muted">No supplier reservation recorded.</p>
                     {% if line.supplier_id %}
-                    <a class="btn btn-ghost" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}&supplier_id={{ line.supplier_id }}">Create reservation</a>
+                    <a class="ico-btn" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}&supplier_id={{ line.supplier_id }}" title="Create reservation" aria-label="Create reservation">
+                        {% include "components/ico_mark.html" with icon="calendar" %}
+                    </a>
                     {% endif %}
                 {% endif %}
             </div>
@@ -170,18 +229,20 @@
         <p style="margin-top:.55rem">
             <a href="{% url 'supplier_reservations:detail' hotel.id %}"><strong>{{ hotel.supplier }}</strong></a>
             {% include "components/status_badge.html" with status=hotel.status %}
-            <span class="muted"> · {{ hotel.allocation_label }} · {{ hotel.bed_capacity }} beds</span>
             {% if hotel.confirmation_number %}<span class="tiny">Confirmation {{ hotel.confirmation_number }}</span>{% endif %}
         </p>
     {% endfor %}
-    <p style="margin-top:.85rem"><strong>Total beds: {{ record.accommodation.bed_capacity }}</strong> · Confirmed travelers: {{ record.accommodation.confirmed_travelers }} · Available: {% if record.accommodation.difference > 0 %}+{% endif %}{{ record.accommodation.difference }}</p>
 </section>
 {% elif record.planned_ops %}
 <section class="panel" style="margin-bottom:1rem">
     <p class="tiny">Nothing here yet</p>
     <h2 style="margin:.35rem 0 .4rem">No accommodation reservation yet</h2>
     <p>A hotel may be planned for this tour, but no supplier reservation has been recorded yet.</p>
-    <p style="margin-top:1rem"><a class="btn btn-warm" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}">Create hotel reservation</a></p>
+    <p style="margin-top:1rem">
+        <a class="ico-btn is-primary" href="{% url 'supplier_reservations:create' %}?tour_id={{ record.id }}" title="Create reservation" aria-label="Create reservation">
+            {% include "components/ico_mark.html" with icon="calendar" %}
+        </a>
+    </p>
 </section>
 {% endif %}
 
@@ -193,17 +254,28 @@
             <div>
                 <a href="{% url 'supplier_reservations:detail' r.id %}"><strong>{{ r.supplier }}</strong></a>
                 <div class="tiny">{{ r.number }}{% if r.confirmation_number %} · Confirmation {{ r.confirmation_number }}{% endif %}</div>
-                {% if r.is_hotel %}
-                    <p>{{ r.allocation_label }} · {{ r.bed_capacity }} beds</p>
+                {% if r.quantity %}
+                    <p>{{ r.quantity }} × {{ r.service_label }}</p>
                 {% else %}
-                    <p>{{ r.quantity|default:"1" }} × {{ r.service_label }}</p>
+                    <p>{{ r.service_label }}</p>
                 {% endif %}
             </div>
             <div class="row-actions">
                 {% include "components/status_badge.html" with status=r.status %}
-                {% if r.is_requested %}<a href="{% url 'supplier_reservations:detail' r.id %}#confirm">Record confirmation</a>{% endif %}
-                <a href="{% url 'supplier_reservations:email' r.id %}">Email supplier</a>
-                {% if r.is_hotel %}<a href="{% url 'supplier_reservations:edit' r.id %}">Edit allocation</a>{% endif %}
+                {% url 'supplier_reservations:detail' r.id as view_url %}
+                {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
+                {% if r.is_requested %}
+                <a class="ico-btn" href="{% url 'supplier_reservations:detail' r.id %}#confirm" title="Record confirmation" aria-label="Record confirmation">
+                    {% include "components/ico_mark.html" with icon="check" %}
+                </a>
+                {% endif %}
+                <a class="ico-btn" href="{% url 'supplier_reservations:email' r.id %}" title="Email supplier" aria-label="Email supplier">
+                    {% include "components/ico_mark.html" with icon="mail" %}
+                </a>
+                {% if not r.is_cancelled %}
+                {% url 'supplier_reservations:edit' r.id as edit_url %}
+                {% include "components/ico_btn.html" with href=edit_url title="Edit" icon="edit" %}
+                {% endif %}
             </div>
         </div>
     {% endfor %}
@@ -234,6 +306,9 @@
     </table>
 </div>
 {% elif tab == 'profit' %}
+<div class="callout callout-info" style="margin:.8rem 0">
+    <p>This tab is <strong>actuals</strong>: confirmed booking revenue minus expenses recorded on this tour. Estimated land cost lives on Overview.</p>
+</div>
 <div class="panel">
     <div class="waterfall">
         <div class="wf"><span>Revenue</span><div class="track"><i class="rev" style="width:100%"></i></div><b>{{ record.revenue|money }}</b></div>

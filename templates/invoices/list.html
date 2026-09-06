@@ -4,15 +4,14 @@
 <div class="page-head">
     <div>
         <h1>Invoices</h1>
-        <p>Manage and track all your invoices</p>
     </div>
     <a class="btn-blue" href="{% url 'invoices:create' %}">+ New Invoice</a>
 </div>
 
-<form method="get" class="filter-card">
+<form method="get" class="filter-card" data-live-filters>
     <div class="fl">
         <span class="lab">Status</span>
-        <select class="field" name="status" onchange="this.form.submit()">
+        <select class="field" data-live-field="status">
             {% for tab in status_tabs %}
             <option value="{{ tab.value }}" {% if tab.active %}selected{% endif %}>{{ tab.label }} ({{ tab.count }})</option>
             {% endfor %}
@@ -20,16 +19,14 @@
     </div>
     <div class="fl" style="flex:1">
         <span class="lab">Search</span>
-        <input class="field" style="width:100%" type="search" name="q" value="{{ search }}" placeholder="Search invoices…">
+        <input class="field" style="width:100%" type="search" data-live-q value="{{ search }}" placeholder="Search invoices…" autocomplete="off">
     </div>
-    <button class="btn-soft" type="submit">Filters</button>
 </form>
 
 <div class="card-table">
     <table class="data">
         <thead>
             <tr>
-                <th style="width:34px"></th>
                 <th>Invoice</th><th>Customer</th><th>Booking</th>
                 <th>Issue Date</th><th>Due Date</th>
                 <th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th><th></th>
@@ -37,66 +34,48 @@
         </thead>
         <tbody>
             {% for inv in rows %}
-            <tr class="{% if inv.overdue %}is-overdue{% endif %}">
-                <td><input type="checkbox" aria-label="Select {{ inv.number }}"></td>
+            <tr class="{% if inv.overdue %}is-overdue{% endif %}" data-live-row data-status="{{ inv.status }}" data-search="{{ inv.number }} {{ inv.customer }} {{ inv.booking }}">
                 <td><a class="inv-id" href="{% url 'invoices:detail' inv.id %}">{{ inv.number }}</a></td>
                 <td>
-                    <span class="rowc">
-                        <span class="av" style="background:var(--navy)">{{ inv.customer|slice:":1"|upper }}</span>
-                        {{ inv.customer }}
-                    </span>
+                    {% if inv.customer_id %}
+                    <a href="{% url 'customers:detail' inv.customer_id %}">{{ inv.customer }}</a>
+                    {% else %}
+                    {{ inv.customer }}
+                    {% endif %}
                 </td>
-                <td><a class="bk-id" href="#">{{ inv.booking }}</a></td>
+                <td>
+                    {% if inv.booking_id %}
+                    <a class="bk-id" href="{% url 'bookings:detail' inv.booking_id %}">{{ inv.booking }}</a>
+                    {% else %}
+                    {{ inv.booking }}
+                    {% endif %}
+                </td>
                 <td>{{ inv.issue }}</td>
                 <td {% if inv.overdue %}style="color:#c2410c"{% endif %}>{{ inv.due }}</td>
                 <td>{{ inv.total|money }}</td>
                 <td class="amt-paid">{{ inv.paid|money }}</td>
                 <td><strong>{{ inv.remaining|money }}</strong></td>
                 <td><span class="pill {{ inv.status|lower }}{% if inv.overdue %} overdue{% endif %}">{% if inv.overdue %}OVERDUE{% else %}{{ inv.status }}{% endif %}</span></td>
-                <td>
-                    {% if inv.status == 'DRAFT' %}
-                    <a class="btn-mini teal" href="{% url 'invoices:detail' inv.id %}">Edit</a>
-                    {% elif inv.can_cancel %}
-                    <button class="btn-mini out cancel-btn" type="button" data-invoice-id="{{ inv.id }}">Cancel</button>
-                    {% elif inv.status != 'CANCELLED' %}
-                    <a class="btn-mini warn" href="{% url 'invoices:reissue' inv.id %}" title="{{ inv.cancel_reason }}">↺ Refund &amp; Reissue</a>
+                <td class="row-actions">
+                    {% url 'invoices:detail' inv.id as view_url %}
+                    {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
+                    {% if inv.can_pay %}
+                    <a class="ico-btn is-primary" href="{% url 'invoices:detail' inv.id %}" title="Record payment" aria-label="Record payment">
+                        {% include "components/ico_mark.html" with icon="pay" %}
+                    </a>
                     {% endif %}
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="11" style="text-align:center;padding:2rem;color:#94a3b8">No invoices found.</td></tr>
+            <tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8">No invoices found.</td></tr>
             {% endfor %}
+            <tr data-live-empty hidden>
+                <td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8">No invoices match.</td>
+            </tr>
         </tbody>
     </table>
     <div class="table-foot">
         <span>Showing {{ rows|length }} of {{ total_count }} invoices</span>
     </div>
 </div>
-
-<script>
-function getCookie(name){
-    var v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return v ? v.pop() : '';
-}
-document.querySelectorAll('.cancel-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-        if(!confirm('Cancel this invoice? This cannot be undone.')) return;
-        var id = btn.dataset.invoiceId;
-        fetch('/api/invoices/' + id + '/', {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken'),
-            },
-            body: JSON.stringify({action: 'cancel'}),
-        })
-        .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
-        .then(function(res){
-            if(res.ok){ location.reload(); }
-            else { alert((res.data.error && res.data.error.message) || 'Could not cancel invoice.'); }
-        })
-        .catch(function(){ alert('Network error — could not reach the server.'); });
-    });
-});
-</script>
 {% endblock %}

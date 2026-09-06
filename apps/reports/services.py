@@ -83,8 +83,10 @@ def _booking_total(document: dict) -> Decimal:
 
 def _invoice_remaining(document: dict) -> Decimal:
     if "remaining_amount" in document:
-        return to_money(document.get("remaining_amount"))
-    return to_money(document.get("total_amount")) - to_money(document.get("paid_amount"))
+        leftover = to_money(document.get("remaining_amount"))
+        return leftover if leftover > ZERO else ZERO
+    leftover = to_money(document.get("total_amount")) - to_money(document.get("paid_amount"))
+    return leftover if leftover > ZERO else ZERO
 
 
 def _group_label(category: str) -> str:
@@ -189,6 +191,7 @@ class ReportService:
         filters = self.filters(params)
         rows = []
         total = ZERO
+        currencies = set()
         for invoice in self._invoices(filters):
             if invoice.get("status") not in OPEN_INVOICE_STATUSES:
                 continue
@@ -198,7 +201,17 @@ class ReportService:
             presented = self._present_invoice(invoice, remaining=remaining)
             rows.append(presented)
             total += remaining
-        return self._with_range(filters, {"total": total, "count": len(rows), "invoices": rows})
+            currencies.add(invoice.get("currency") or DEFAULT_CURRENCY)
+        return self._with_range(
+            filters,
+            {
+                "total": total,
+                "count": len(rows),
+                "invoices": rows,
+                "mixed_currency": len(currencies) > 1,
+                "currencies": sorted(currencies),
+            },
+        )
 
     def payments(self, params: dict | None = None) -> dict:
         filters = self.filters(params)
@@ -462,7 +475,9 @@ class ReportService:
                 tour_id = _id_str((booking or {}).get("tour_id")) if booking else None
                 if filters.get("tour_id") and tour_id != str(filters["tour_id"]):
                     continue
-                totals[tour_id or "unassigned"] += to_money(hydrated.get("total_amount"))
+                totals[tour_id or "unassigned"] += to_money(hydrated.get("total_amount")) - to_money(
+                    hydrated.get("refunded_amount")
+                )
             return totals
         for booking in self.repository.live(self.repository.bookings):
             if booking.get("booking_status") not in {BookingStatus.CONFIRMED.value, BookingStatus.COMPLETED.value}:
@@ -579,6 +594,8 @@ class ReportService:
             "remaining": remaining,
             "total": to_money(document.get("total_amount")),
             "status": document.get("status"),
+            "currency": document.get("currency") or DEFAULT_CURRENCY,
+            "has_remaining": remaining > ZERO,
             "overdue": overdue,
         }
 

@@ -5,36 +5,33 @@ from django.urls import reverse
 from apps.audit.constants import AuditAction
 from apps.audit.services import AuditService
 from apps.notifications.constants import NotificationType
-from apps.notifications.services import NotificationService
+from apps.notifications.services import NotificationService, notify_for_type, roles_for_type
 from apps.attachments.services import AttachmentService
-from core.constants import AttachmentCategory, AttachmentEntityType, UserRole, UserStatus
+from core.constants import AttachmentCategory, AttachmentEntityType, UserRole
 from core.exceptions import NotFoundError, ValidationError
-from core.soft_delete import stamp_new
-from core.utils import utcnow
 
 
 OWNER_ID = "000000000000000000000001"
 ACCOUNTANT_ID = "000000000000000000000003"
+AGENT_ID = "000000000000000000000002"
 
 
-def _user(mongo, *, user_id, role, email):
-    mongo.get_collection("users").insert_one(
-        stamp_new(
-            {
-                "_id": ObjectId(user_id),
-                "first_name": role.title().split("_")[0],
-                "last_name": "Staff",
-                "email": email,
-                "role": role,
-                "status": UserStatus.ACTIVE.value,
-                "created_at": utcnow(),
-            }
-        )
+def _user(*, user_id, role, email):
+    from apps.accounts.models import User
+
+    User.objects.create_user(
+        email=email,
+        password="changeme1",
+        first_name=role.title().split("_")[0],
+        last_name="Staff",
+        role=role,
+        mongo_id=user_id,
+        is_active=True,
     )
 
 
-def test_audit_log_and_list_filters(fake_mongo):
-    _user(fake_mongo, user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
+def test_audit_log_and_list_filters(db, fake_mongo):
+    _user(user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
     entity_id = ObjectId()
     saved = AuditService().log(
         actor_id=OWNER_ID,
@@ -68,9 +65,9 @@ def test_audit_rejects_blank_description():
     raise AssertionError("expected ValidationError")
 
 
-def test_notifications_create_mark_read_and_roles(fake_mongo):
-    _user(fake_mongo, user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
-    _user(fake_mongo, user_id=ACCOUNTANT_ID, role=UserRole.ACCOUNTANT.value, email="accountant@tourops.local")
+def test_notifications_create_mark_read_and_roles(db, fake_mongo):
+    _user(user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
+    _user(user_id=ACCOUNTANT_ID, role=UserRole.ACCOUNTANT.value, email="accountant@tourops.local")
     service = NotificationService()
     created = service.create(
         user_id=OWNER_ID,
@@ -98,7 +95,6 @@ def test_notifications_create_mark_read_and_roles(fake_mongo):
 
 
 def test_navbar_has_notifications_and_profile_menu(owner_session, fake_mongo):
-    _user(fake_mongo, user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
     NotificationService().create(
         user_id=OWNER_ID,
         type=NotificationType.EXPENSE.value,
@@ -117,7 +113,6 @@ def test_navbar_has_notifications_and_profile_menu(owner_session, fake_mongo):
 
 
 def test_notification_html_and_api(owner_session, fake_mongo):
-    _user(fake_mongo, user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
     item = NotificationService().create(
         user_id=OWNER_ID,
         type=NotificationType.EXPENSE.value,
@@ -136,7 +131,6 @@ def test_notification_html_and_api(owner_session, fake_mongo):
 
 
 def test_audit_html_and_api(owner_session, fake_mongo):
-    _user(fake_mongo, user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
     saved = AuditService().log(
         actor_id=OWNER_ID,
         action=AuditAction.CREATED.value,
@@ -209,9 +203,9 @@ def test_attachment_rejects_empty_file(settings, tmp_path):
     raise AssertionError("expected ValidationError")
 
 
-def test_expense_create_writes_audit_and_notifies(fake_mongo):
-    _user(fake_mongo, user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
-    _user(fake_mongo, user_id=ACCOUNTANT_ID, role=UserRole.ACCOUNTANT.value, email="accountant@tourops.local")
+def test_expense_create_writes_audit_and_notifies(db, fake_mongo):
+    _user(user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
+    _user(user_id=ACCOUNTANT_ID, role=UserRole.ACCOUNTANT.value, email="accountant@tourops.local")
     from tests.test_expenses import _create_general
 
     expense = _create_general()
@@ -221,3 +215,46 @@ def test_expense_create_writes_audit_and_notifies(fake_mongo):
     assert inbox
     assert inbox[0]["type"] == NotificationType.EXPENSE.value
     assert str(expense["_id"]) == inbox[0]["related_entity_id"]
+
+
+def test_notify_for_type_routes_admin_accountant_and_agent(db, fake_mongo):
+    _user(user_id=OWNER_ID, role=UserRole.OWNER_ADMIN.value, email="owner@tourops.local")
+    _user(user_id=ACCOUNTANT_ID, role=UserRole.ACCOUNTANT.value, email="accountant@tourops.local")
+    _user(user_id=AGENT_ID, role=UserRole.TRAVEL_AGENT.value, email="agent@tourops.local")
+    assert roles_for_type(NotificationType.PAYMENT.value) == (
+        UserRole.ACCOUNTANT.value,
+        UserRole.OWNER_ADMIN.value,
+    )
+    assert roles_for_type(NotificationType.BOOKING.value) == (
+        UserRole.TRAVEL_AGENT.value,
+        UserRole.OWNER_ADMIN.value,
+    )
+    assert roles_for_type(NotificationType.ATTACHMENT.value, entity_type="tours") == (
+        UserRole.TRAVEL_AGENT.value,
+        UserRole.OWNER_ADMIN.value,
+    )
+    assert roles_for_type(NotificationType.ATTACHMENT.value, entity_type="expenses") == (
+        UserRole.ACCOUNTANT.value,
+        UserRole.OWNER_ADMIN.value,
+    )
+    booking_id = ObjectId()
+    notify_for_type(
+        NotificationType.BOOKING.value,
+        title="Booking BK-1001",
+        message="A new booking is waiting to be confirmed.",
+        related_entity_type="bookings",
+        related_entity_id=booking_id,
+        exclude_user_id=OWNER_ID,
+    )
+    assert NotificationService().unread_count(AGENT_ID) == 1
+    assert NotificationService().unread_count(ACCOUNTANT_ID) == 0
+    notify_for_type(
+        NotificationType.PAYMENT.value,
+        title="Payment PAY-1001",
+        message="A customer payment was recorded.",
+        related_entity_type="payments",
+        related_entity_id=ObjectId(),
+        exclude_user_id=OWNER_ID,
+    )
+    assert NotificationService().unread_count(ACCOUNTANT_ID) == 1
+    assert NotificationService().list_for_user(AGENT_ID)[0]["type"] == NotificationType.BOOKING.value

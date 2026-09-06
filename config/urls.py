@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import RedirectView
 
 urlpatterns = [
+    path("admin/", admin.site.urls),
     path("", RedirectView.as_view(pattern_name="dashboard:home"), name="home"),
     path("", include("apps.accounts.urls")),
     path("dashboard/", include("apps.dashboard.urls")),
@@ -25,6 +27,7 @@ urlpatterns = [
     path("notifications/", include("apps.notifications.urls")),
     path("attachments/", include("apps.attachments.urls")),
     path("audit/", include("apps.audit.urls")),
+    path("presentation/", include("apps.presentation.urls")),
     path("api/", include("config.api_urls")),
 ]
 

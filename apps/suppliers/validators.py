@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.suppliers.constants import INT_INFO_FIELDS, LIST_INFO_FIELDS
+from apps.suppliers.constants import INT_INFO_FIELDS, LIST_INFO_FIELDS, PREFERRED_METHODS
 from apps.suppliers.schemas import SupplierDocument
 from core.constants import RecordStatus
 from core.exceptions import ValidationError
@@ -11,6 +11,15 @@ def validate_type(value: str) -> str:
     if supplier_type not in SupplierDocument.ALLOWED_TYPES:
         raise ValidationError("Invalid supplier type.")
     return supplier_type
+
+
+def validate_preferred_payment_method(value) -> str | None:
+    method = (str(value).strip().upper() if value not in (None, "") else "")
+    if not method:
+        return None
+    if method not in PREFERRED_METHODS:
+        raise ValidationError("Invalid preferred payment method.")
+    return method
 
 
 def validate_status(value: str) -> str:

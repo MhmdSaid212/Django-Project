@@ -1,4 +1,4 @@
-from core.constants import RecordStatus, SupplierType
+from core.constants import PaymentMethod, RecordStatus, SupplierType
 
 FIELD_CLASS = "field"
 
@@ -19,11 +19,35 @@ STATUS_CHOICES = (
     (RecordStatus.INACTIVE.value, "Inactive"),
 )
 
+PREFERRED_METHOD_LABELS = {
+    PaymentMethod.BANK_TRANSFER.value: "Bank Transfer",
+    PaymentMethod.CARD.value: "Card",
+    PaymentMethod.CASH.value: "Cash",
+    PaymentMethod.CHEQUE.value: "Cheque",
+}
+PREFERRED_METHOD_CHOICES = (
+    (PaymentMethod.BANK_TRANSFER.value, "Bank Transfer"),
+    (PaymentMethod.CARD.value, "Card"),
+    (PaymentMethod.CASH.value, "Cash"),
+)
+PREFERRED_METHODS = set(PREFERRED_METHOD_LABELS)
+PREFERRED_METHOD_HELP = {
+    PaymentMethod.BANK_TRANSFER.value: "Opens the supplier’s bank account details.",
+    PaymentMethod.CARD.value: "The agency pays with its own card. Card numbers are not stored here.",
+    PaymentMethod.CASH.value: "Optional if the agency pays this supplier in cash.",
+}
+
 CORE_TYPES = (
     SupplierType.HOTEL.value,
     SupplierType.TRANSPORTATION.value,
     SupplierType.TOUR_GUIDE.value,
 )
+CORE_TYPE_CHOICES = tuple((value, TYPE_LABELS[value]) for value in CORE_TYPES)
+CORE_TYPE_HELP = {
+    SupplierType.HOTEL.value: "Opens hotel fields — star rating only.",
+    SupplierType.TRANSPORTATION.value: "Opens fleet fields — vehicle, seats, coverage.",
+    SupplierType.TOUR_GUIDE.value: "Opens guide fields — languages, specialties, experience.",
+}
 OTHER_GROUP_TYPES = tuple(item.value for item in SupplierType if item.value not in CORE_TYPES)
 
 DIRECTORY_TYPES = {
@@ -33,16 +57,27 @@ DIRECTORY_TYPES = {
     "OTHER": OTHER_GROUP_TYPES,
 }
 
+KIND_LABELS = {
+    "ACCOMMODATION": "Accommodation",
+    "TRANSFER": "Transfer",
+    "TRANSPORTATION": "Transportation",
+    "GUIDE": "Guided tour",
+    "ACTIVITY": "Activity",
+    "MEAL": "Meal",
+    "OTHER": "Other",
+}
+KIND_CHOICES = tuple(KIND_LABELS.items())
+
+DEFAULT_KIND_BY_SUPPLIER = {
+    SupplierType.HOTEL.value: "ACCOMMODATION",
+    SupplierType.TRANSPORTATION.value: "TRANSFER",
+    SupplierType.TOUR_GUIDE.value: "GUIDE",
+    SupplierType.ACTIVITY_PROVIDER.value: "ACTIVITY",
+    SupplierType.RESTAURANT.value: "MEAL",
+}
+
 INFO_FIELDS = {
-    SupplierType.HOTEL.value: (
-        "star_rating",
-        "room_count",
-        "room_types",
-        "check_in_time",
-        "check_out_time",
-        "amenities",
-        "board_basis",
-    ),
+    SupplierType.HOTEL.value: ("star_rating",),
     SupplierType.TRANSPORTATION.value: (
         "vehicle_type",
         "fleet_size",
@@ -64,8 +99,6 @@ INFO_FIELDS = {
 }
 
 LIST_INFO_FIELDS = {
-    "room_types",
-    "amenities",
     "coverage_areas",
     "languages",
     "specialties",
@@ -75,7 +108,6 @@ LIST_INFO_FIELDS = {
 }
 INT_INFO_FIELDS = {
     "star_rating",
-    "room_count",
     "fleet_size",
     "seats_per_vehicle",
     "years_experience",

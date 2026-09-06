@@ -3,9 +3,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">AP aging</p>
         <h1>Accounts payable</h1>
-        <p>{{ lead }}</p>
     </div>
     <div class="actions">
         <a class="btn btn-ghost" href="{% url 'expenses:list' %}">Expenses</a>
@@ -29,9 +27,13 @@
                 <td>{{ e.due }}{% if e.overdue %} <span class="badge b-bad">Overdue</span>{% endif %}</td>
                 <td><strong>{{ e.remaining|money }}</strong></td>
                 <td>{% include "components/status_badge.html" with status=e.status %}</td>
-                <td>
+                <td class="row-actions">
+                    {% url 'expenses:detail' e.id as view_url %}
+                    {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
                     {% if e.has_remaining %}
-                    <a class="btn btn-sm btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ e.id }}">Pay</a>
+                    <a class="ico-btn is-primary" href="{% url 'supplier_payments:create' %}?expense_id={{ e.id }}" title="Record payment" aria-label="Record payment">
+                        {% include "components/ico_mark.html" with icon="pay" %}
+                    </a>
                     {% endif %}
                 </td>
             </tr>

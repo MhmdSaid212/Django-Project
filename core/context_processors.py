@@ -18,7 +18,21 @@ BRAND = {
 
 
 def branding(request):
-    return {"brand": BRAND}
+    brand = dict(BRAND)
+    brand.update({"legal_name": "", "email": "", "phone": "", "address": ""})
+    try:
+        from apps.accounts.settings_service import SettingsService
+
+        agency = (SettingsService().get().get("agency") or {})
+        if agency.get("name"):
+            brand["name"] = agency["name"]
+        brand["legal_name"] = agency.get("legal_name") or ""
+        brand["email"] = agency.get("email") or ""
+        brand["phone"] = agency.get("phone") or ""
+        brand["address"] = agency.get("address") or ""
+    except Exception:
+        pass
+    return {"brand": brand}
 
 
 def current_user(request):

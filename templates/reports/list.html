@@ -3,13 +3,10 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Insights desk</p>
         <h1>Financial Reports</h1>
-        <p>Answers to business questions — calculated from live documents, never stored as masters.</p>
     </div>
-    <form class="actions" method="get">
+    <form class="actions" method="get" data-autosubmit>
         <input class="field" type="month" name="month" value="{{ filters.month }}">
-        <button class="btn btn-ghost" type="submit">Apply</button>
     </form>
 </div>
 
@@ -23,14 +20,12 @@
         <div class="stat-copy">
             <span class="tiny">Revenue</span>
             <b>{{ summary.revenue.revenue|money }}</b>
-            <small>Issued invoices</small>
         </div>
     </article>
     <article class="stat-tile stat-money tone-blue">
         <div class="stat-copy">
             <span class="tiny">Net cash</span>
             <b>{{ summary.cash.net|money }}</b>
-            <small>Money in − money out</small>
         </div>
         <span class="stat-mark" aria-hidden="true">Σ</span>
     </article>
@@ -39,7 +34,6 @@
         <div class="stat-copy">
             <span class="tiny">Receivables</span>
             <b>{{ summary.receivables.total|money }}</b>
-            <small>Open customer balances</small>
         </div>
     </article>
     <article class="stat-tile stat-desk tone-navy">
@@ -47,7 +41,6 @@
         <div class="stat-copy">
             <span class="tiny">Payables</span>
             <b>{{ summary.payables.total|money }}</b>
-            <small>Open supplier balances</small>
         </div>
     </article>
 </div>
@@ -56,17 +49,14 @@
 <section class="report-mag panel" style="padding:0">
     <header class="report-mag-head">
         <div>
-            <p class="tiny">Issue index</p>
             <h2>Choose a report</h2>
         </div>
-        <p class="muted">Nine answers. One click each.</p>
     </header>
 
     <a class="report-issue" href="{% url 'reports:revenue' %}{{ query }}">
         <span class="report-num">01</span>
         <div class="report-body">
             <h3>Revenue</h3>
-            <p>What did we sell? Issued invoice totals in range.</p>
         </div>
         <span class="report-tag tone-teal">Sales</span>
         <span class="report-go">Open →</span>
@@ -75,7 +65,6 @@
         <span class="report-num">02</span>
         <div class="report-body">
             <h3>Expenses</h3>
-            <p>What costs did we incur? Hotel, transport, guide, overhead.</p>
         </div>
         <span class="report-tag tone-amber">Costs</span>
         <span class="report-go">Open →</span>
@@ -84,7 +73,6 @@
         <span class="report-num">03</span>
         <div class="report-body">
             <h3>Payments (customer)</h3>
-            <p>Cash in — completed collections from guests.</p>
         </div>
         <span class="report-tag tone-blue">Cash</span>
         <span class="report-go">Open →</span>
@@ -93,7 +81,6 @@
         <span class="report-num">04</span>
         <div class="report-body">
             <h3>Refunds</h3>
-            <p>Cash back to customers — requests and completed payouts.</p>
         </div>
         <span class="report-tag tone-rose">Cash</span>
         <span class="report-go">Open →</span>
@@ -102,7 +89,6 @@
         <span class="report-num">05</span>
         <div class="report-body">
             <h3>Receivables (AR)</h3>
-            <p>Who still owes us? Aging of unpaid customer invoices.</p>
         </div>
         <span class="report-tag tone-blue">Balances</span>
         <span class="report-go">Open →</span>
@@ -111,7 +97,6 @@
         <span class="report-num">06</span>
         <div class="report-body">
             <h3>Payables (AP)</h3>
-            <p>Who do we still owe? Open supplier bills waiting to be paid.</p>
         </div>
         <span class="report-tag tone-amber">Balances</span>
         <span class="report-go">Open →</span>
@@ -120,7 +105,6 @@
         <span class="report-num">07</span>
         <div class="report-body">
             <h3>Tour profitability</h3>
-            <p>Did this departure make money? Margin by tour.</p>
         </div>
         <span class="report-tag tone-purple">Margin</span>
         <span class="report-go">Open →</span>
@@ -129,7 +113,6 @@
         <span class="report-num">08</span>
         <div class="report-body">
             <h3>Profit &amp; Loss</h3>
-            <p>Revenue vs costs — the agency P&amp;L snapshot.</p>
         </div>
         <span class="report-tag tone-purple">P&amp;L</span>
         <span class="report-go">Open →</span>
@@ -138,14 +121,9 @@
         <span class="report-num">09</span>
         <div class="report-body">
             <h3>Transactions</h3>
-            <p>Cash movement ledger — payments, refunds, supplier payouts.</p>
         </div>
         <span class="report-tag tone-teal">Ledger</span>
         <span class="report-go">Open →</span>
     </a>
 </section>
-
-<div class="callout callout-info" style="margin-top:1.1rem">
-    Never store report results as editable masters. Exclude soft-deleted docs.
-</div>
 {% endblock %}

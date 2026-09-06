@@ -3,9 +3,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Reports</p>
         <h1>Customer payments</h1>
-        <p>Completed collections recorded in the selected range.</p>
     </div>
     <a class="btn btn-ghost" href="{% url 'reports:list' %}{{ query }}">All reports</a>
 </div>
@@ -16,7 +14,6 @@
         <div class="stat-copy">
             <span class="tiny">Total collected</span>
             <b>{{ report.total|money }}</b>
-            <small>Completed customer payments</small>
         </div>
         <span class="stat-mark" aria-hidden="true">$</span>
     </article>
@@ -24,7 +21,6 @@
         <div class="stat-ring"><b>{{ report.count }}</b></div>
         <div class="stat-copy">
             <span class="tiny">Payments</span>
-            <small>Receipts in this range</small>
         </div>
     </article>
     <article class="stat-tile stat-range tone-purple">
@@ -32,7 +28,6 @@
         <div class="stat-copy">
             <span class="tiny">Range</span>
             <b>{% if filters.month %}{{ filters.month }}{% else %}All time{% endif %}</b>
-            <small>Filter window</small>
         </div>
     </article>
     <article class="stat-tile stat-desk tone-navy">
@@ -40,7 +35,6 @@
         <div class="stat-copy">
             <span class="tiny">Source</span>
             <b>Customer payments</b>
-            <small>Calculated · not stored</small>
         </div>
     </article>
 </div>

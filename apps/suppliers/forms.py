@@ -1,6 +1,12 @@
 from django import forms
 
-from apps.suppliers.constants import FIELD_CLASS, STATUS_CHOICES, TYPE_CHOICES
+from apps.suppliers.constants import (
+    CORE_TYPE_CHOICES,
+    FIELD_CLASS,
+    PREFERRED_METHOD_CHOICES,
+    STATUS_CHOICES,
+    TYPE_LABELS,
+)
 from apps.suppliers.validators import join_list
 
 
@@ -15,28 +21,30 @@ def _styled(fields: dict[str, forms.Field]) -> None:
 
 class SupplierForm(forms.Form):
     name = forms.CharField(max_length=200, label="Company name")
-    supplier_type = forms.ChoiceField(choices=TYPE_CHOICES, label="Type")
+    supplier_type = forms.ChoiceField(choices=CORE_TYPE_CHOICES, widget=forms.RadioSelect, label="Type")
     contact_person = forms.CharField(required=False, max_length=120, label="Contact")
     email = forms.EmailField(required=False)
     phone = forms.CharField(required=False, max_length=40)
     country = forms.CharField(required=False, max_length=80)
-    city = forms.CharField(required=False, max_length=80)
+    city = forms.CharField(max_length=80, label="City")
     street = forms.CharField(required=False, max_length=200)
     tax_number = forms.CharField(required=False, max_length=80, label="Tax number")
     payment_terms = forms.CharField(required=False, max_length=80, label="Payment terms")
-    bank_name = forms.CharField(required=False, max_length=120)
-    account_name = forms.CharField(required=False, max_length=120)
+    preferred_payment_method = forms.ChoiceField(
+        choices=PREFERRED_METHOD_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        label="Preferred payment method",
+    )
+    bank_name = forms.CharField(required=False, max_length=120, label="Bank name")
+    account_name = forms.CharField(required=False, max_length=120, label="Account holder name")
     iban = forms.CharField(required=False, max_length=80, label="IBAN")
+    swift_bic = forms.CharField(required=False, max_length=40, label="SWIFT/BIC")
+    account_number = forms.CharField(required=False, max_length=40, label="Account number")
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     status = forms.ChoiceField(choices=STATUS_CHOICES, required=False)
 
     star_rating = forms.IntegerField(required=False, min_value=0, max_value=5, label="Stars")
-    room_count = forms.IntegerField(required=False, min_value=0, label="Rooms")
-    board_basis = forms.CharField(required=False, max_length=40, label="Board")
-    check_in_time = forms.CharField(required=False, max_length=20, label="Check-in")
-    check_out_time = forms.CharField(required=False, max_length=20, label="Check-out")
-    room_types = forms.CharField(required=False, label="Room types")
-    amenities = forms.CharField(required=False)
 
     vehicle_type = forms.CharField(required=False, max_length=80, label="Vehicle type")
     fleet_size = forms.IntegerField(required=False, min_value=0, label="Fleet size")
@@ -69,11 +77,32 @@ class SupplierForm(forms.Form):
         super().__init__(*args, **kwargs)
         if not include_status:
             self.fields.pop("status")
+        current = None
+        if self.is_bound:
+            current = (self.data.get("supplier_type") or "").strip()
+        else:
+            current = (self.initial.get("supplier_type") or "").strip()
+        choices = list(CORE_TYPE_CHOICES)
+        if current and current not in dict(CORE_TYPE_CHOICES):
+            choices.append((current, TYPE_LABELS.get(current, current)))
+        self.fields["supplier_type"].choices = choices
+        self.fields["name"].widget.attrs.setdefault("placeholder", "Phoenicia Hotel")
+        self.fields["name"].widget.attrs.setdefault("autocomplete", "organization")
+        self.fields["contact_person"].widget.attrs.setdefault("autocomplete", "name")
+        self.fields["email"].widget.attrs.setdefault("autocomplete", "email")
+        self.fields["phone"].widget.attrs.setdefault("autocomplete", "tel")
+        self.fields["phone"].widget.attrs.setdefault("inputmode", "tel")
+        self.fields["city"].widget.attrs.setdefault("placeholder", "Beirut")
         self.fields["payment_terms"].widget.attrs.setdefault("placeholder", "Net 14")
-        self.fields["room_types"].widget.attrs.setdefault("placeholder", "double, twin, suite")
-        self.fields["amenities"].widget.attrs.setdefault("placeholder", "wifi, pool, breakfast")
+        self.fields["bank_name"].widget.attrs.setdefault("placeholder", "Banque Misr")
+        self.fields["account_name"].widget.attrs.setdefault("placeholder", "Nile View Hotel")
+        self.fields["iban"].widget.attrs.setdefault("placeholder", "EG…")
+        self.fields["swift_bic"].widget.attrs.setdefault("placeholder", "BMISEGCX")
         self.fields["languages"].widget.attrs.setdefault("placeholder", "Arabic, English")
         self.fields["specialties"].widget.attrs.setdefault("placeholder", "history, museums")
+        for field in self.fields.values():
+            if field.required:
+                field.widget.attrs.setdefault("aria-required", "true")
         _styled(self.fields)
 
 
@@ -92,18 +121,15 @@ def initial_from_record(record: dict) -> dict:
         "street": record.get("street") or address.get("street") or "",
         "tax_number": record.get("tax_number") or "",
         "payment_terms": record.get("payment_terms") or "",
+        "preferred_payment_method": record.get("preferred_payment_method") or "",
         "bank_name": bank.get("bank_name") or "",
         "account_name": bank.get("account_name") or "",
         "iban": bank.get("iban") or "",
+        "swift_bic": bank.get("swift_bic") or "",
+        "account_number": bank.get("account_number") or "",
         "notes": record.get("notes") or "",
         "status": record.get("status") or "",
         "star_rating": info.get("star_rating"),
-        "room_count": info.get("room_count"),
-        "board_basis": info.get("board_basis") or "",
-        "check_in_time": info.get("check_in_time") or "",
-        "check_out_time": info.get("check_out_time") or "",
-        "room_types": join_list(info.get("room_types")),
-        "amenities": join_list(info.get("amenities")),
         "vehicle_type": info.get("vehicle_type") or "",
         "fleet_size": info.get("fleet_size"),
         "seats_per_vehicle": info.get("seats_per_vehicle"),

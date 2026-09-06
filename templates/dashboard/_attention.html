@@ -7,7 +7,7 @@
         {% endwith %}
     </div>
     {% for inv in dash.overdue_invoices %}
-    <a class="dash-ticket" href="{% url 'finance:receivables' %}">
+    <a class="dash-ticket" href="{% url 'invoices:detail' inv.id %}">
         <span class="dash-stamp">AR</span>
         <div>
             <strong>{{ inv.number }}</strong>

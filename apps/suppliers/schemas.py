@@ -35,6 +35,7 @@ class SupplierDocument:
     address: Address = field(default_factory=Address)
     tax_number: Optional[str] = None
     payment_terms: Optional[str] = None
+    preferred_payment_method: Optional[str] = None
     bank_details: BankDetails = field(default_factory=BankDetails)
     hotel_info: Optional[HotelInfo] = None
     transportation_info: Optional[TransportationInfo] = None
@@ -76,19 +77,16 @@ SUPPLIER_HOTEL_EXAMPLE = {
     "address": {"country": "Egypt", "city": "Cairo", "street": "Corniche El Nile"},
     "tax_number": "TAX-7788",
     "payment_terms": "Net 14",
+    "preferred_payment_method": "BANK_TRANSFER",
     "bank_details": {
         "bank_name": "Banque Misr",
         "account_name": "Nile View Hotel",
         "iban": "EG...",
+        "swift_bic": "BMISEGCX",
+        "account_number": None,
     },
     "hotel_info": {
         "star_rating": 4,
-        "room_count": 120,
-        "room_types": ["double", "twin", "suite"],
-        "check_in_time": "14:00",
-        "check_out_time": "12:00",
-        "amenities": ["wifi", "pool", "breakfast"],
-        "board_basis": "BB",
     },
     "transportation_info": None,
     "tour_guide_info": None,

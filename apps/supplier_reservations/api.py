@@ -30,6 +30,8 @@ def list_reservations(request, **kwargs):
 @guarded
 def create_reservation(request, **kwargs):
     payload = dict(json_body(request))
+    payload.pop("room_allocations", None)
+    payload.pop("allocations", None)
     if kwargs.get("id") or kwargs.get("tour_id"):
         payload["tour_id"] = kwargs.get("tour_id") or kwargs.get("id")
     reservation = SupplierReservationService().create(actor_id=actor_id(request), **payload)
@@ -71,15 +73,3 @@ def cancel_reservation(request, **kwargs):
 @guarded
 def tour_accommodation(request, **kwargs):
     return success_response(_json_safe(SupplierReservationService().accommodation_snapshot(resource_id(kwargs, "id", "tour_id"))))
-
-
-@guarded
-def tour_rooming(request, **kwargs):
-    return success_response(
-        _json_safe(
-            SupplierReservationService().rooming_list(
-                resource_id(kwargs, "id", "tour_id"),
-                reservation_id=query_value(request, "reservation_id"),
-            )
-        )
-    )

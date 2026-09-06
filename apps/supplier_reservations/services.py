@@ -6,18 +6,15 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from apps.audit.constants import AuditAction
 from apps.audit.services import safe_audit
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import notify_for_type
 from apps.packages.validators import format_dates, parse_when
 from apps.supplier_reservations.constants import (
-    DEFAULT_OCCUPANCY,
-    ROOM_TYPE_LABELS,
     SERVICE_TYPE_LABELS,
     STATUS_LABELS,
 )
 from apps.supplier_reservations.repositories import SupplierReservationRepository
 from apps.supplier_reservations.validators import (
-    bed_capacity,
-    clean_room_allocations,
-    room_count,
     validate_service_type,
     validate_status,
 )
@@ -47,21 +44,7 @@ def _as_date(value) -> date | None:
     return None
 
 
-def present_allocation(line: dict) -> dict:
-    room_type = line.get("room_type") or ""
-    quantity = int(line.get("quantity") or 0)
-    occupancy = int(line.get("occupancy") or DEFAULT_OCCUPANCY.get(room_type, 1))
-    return {
-        "room_type": room_type,
-        "type_label": ROOM_TYPE_LABELS.get(room_type, room_type),
-        "quantity": quantity,
-        "occupancy": occupancy,
-        "beds": quantity * occupancy,
-    }
-
-
 def present_reservation(document: dict, *, supplier: dict | None = None, tour: dict | None = None) -> dict:
-    allocations = [present_allocation(line) for line in document.get("room_allocations") or []]
     status = document.get("status") or SupplierReservationStatus.REQUESTED.value
     service_type = document.get("service_type") or ""
     start = document.get("start_date")
@@ -71,7 +54,6 @@ def present_reservation(document: dict, *, supplier: dict | None = None, tour: d
     release_day = _as_date(release)
     start_day = _as_date(start)
     release_days = (release_day - today).days if release_day else None
-    allocation_label = ", ".join(f"{line['quantity']} {line['type_label']}" for line in allocations) or "—"
     created = document.get("created_at")
     return {
         "id": str(document["_id"]),
@@ -100,10 +82,6 @@ def present_reservation(document: dict, *, supplier: dict | None = None, tour: d
         "release_days": release_days,
         "release_approaching": release_days is not None and 0 <= release_days <= 7,
         "release_passed": release_days is not None and release_days < 0,
-        "room_allocations": allocations,
-        "allocation_label": allocation_label,
-        "room_count": room_count(document.get("room_allocations") or []),
-        "bed_capacity": bed_capacity(document.get("room_allocations") or []),
         "quantity": document.get("quantity"),
         "notes": document.get("notes") or "",
         "is_cancelled": status == SupplierReservationStatus.CANCELLED.value,
@@ -119,6 +97,28 @@ def present_reservation(document: dict, *, supplier: dict | None = None, tour: d
 class SupplierReservationService:
     def __init__(self, repository: SupplierReservationRepository | None = None):
         self.repository = repository or SupplierReservationRepository()
+
+    def customer_booking_block_reason(self, tour: dict) -> str | None:
+        rows = self.repository.list_for_tour(tour["_id"])
+        confirmed = set()
+        waiting = []
+        for row in rows:
+            status = row.get("status")
+            if status == SupplierReservationStatus.CANCELLED.value:
+                continue
+            supplier_id = str(row.get("supplier_id") or "")
+            if status == SupplierReservationStatus.CONFIRMED.value:
+                if supplier_id:
+                    confirmed.add(supplier_id)
+                continue
+            waiting.append(row)
+        if waiting:
+            return "This tour cannot take client bookings until every planned supplier has confirmed."
+        for line in tour.get("services") or []:
+            supplier_id = str(line.get("supplier_id") or "")
+            if supplier_id and supplier_id not in confirmed:
+                return "This tour cannot take client bookings until every planned supplier has confirmed."
+        return None
 
     def list_items(self, *, tour_id=None, supplier_id=None, status: str | None = None) -> list[dict]:
         extra = {}
@@ -160,7 +160,6 @@ class SupplierReservationService:
         status: str | None = None,
         confirmation_number: str | None = None,
         release_date=None,
-        room_allocations=None,
         quantity=None,
         notes: str | None = None,
         service_type: str | None = None,
@@ -175,12 +174,6 @@ class SupplierReservationService:
         if end < start:
             raise ValidationError("End date cannot be before start date.")
         release = parse_when(release_date, field="release_date", required=False) if release_date not in (None, "") else None
-
-        allocations = clean_room_allocations(room_allocations)
-        if service_type == SupplierType.HOTEL.value and not allocations:
-            raise ValidationError("Hotel reservations need at least one room type allocation.")
-        if service_type != SupplierType.HOTEL.value:
-            allocations = []
 
         qty = None
         if quantity not in (None, ""):
@@ -206,7 +199,6 @@ class SupplierReservationService:
             "status": next_status,
             "confirmation_number": confirmation,
             "release_date": release,
-            "room_allocations": allocations,
             "quantity": qty,
             "notes": _blank(notes),
             "recorded_by": parse_object_id(actor_id, field="recorded_by"),
@@ -228,10 +220,19 @@ class SupplierReservationService:
             entity_id=saved["_id"],
             description=f"Recorded supplier reservation {saved.get('reservation_number')}.",
         )
+        notify_for_type(
+            NotificationType.TOUR.value,
+            title=f"Reservation {saved.get('reservation_number')}",
+            message="A supplier arrangement was recorded for a departure.",
+            related_entity_type="supplier_reservations",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
         return saved
 
     def update(self, reservation_id, *, actor_id=None, **fields) -> dict:
         document = self.get(reservation_id)
+        fields.pop("room_allocations", None)
         if document.get("status") == SupplierReservationStatus.CANCELLED.value:
             raise BusinessRuleViolation("A cancelled reservation cannot be edited.")
         updates = {}
@@ -261,11 +262,6 @@ class SupplierReservationService:
                 if qty < 1:
                     raise ValidationError("Quantity must be at least 1.")
                 updates["quantity"] = qty
-        if "room_allocations" in fields:
-            allocations = clean_room_allocations(fields["room_allocations"])
-            if document.get("service_type") == SupplierType.HOTEL.value and not allocations:
-                raise ValidationError("Hotel reservations need at least one room type allocation.")
-            updates["room_allocations"] = allocations
         if "status" in fields and fields["status"] is not None:
             updates["status"] = self._next_status(document, fields["status"], updates)
         if not updates:
@@ -291,16 +287,34 @@ class SupplierReservationService:
             document = self.get(reservation_id)
             existing = (document.get("notes") or "").strip()
             extra["notes"] = f"{existing}\n{notes.strip()}".strip() if existing else notes.strip()
-        return self.update(
+        saved = self.update(
             reservation_id,
             actor_id=actor_id,
             status=SupplierReservationStatus.CONFIRMED.value,
             confirmation_number=confirmation_number,
             **extra,
         )
+        notify_for_type(
+            NotificationType.TOUR.value,
+            title=f"Reservation {saved.get('reservation_number')}",
+            message="The supplier confirmed. Update the client itinerary if needed.",
+            related_entity_type="supplier_reservations",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
+        return saved
 
     def cancel(self, reservation_id, *, actor_id) -> dict:
-        return self.update(reservation_id, actor_id=actor_id, status=SupplierReservationStatus.CANCELLED.value)
+        saved = self.update(reservation_id, actor_id=actor_id, status=SupplierReservationStatus.CANCELLED.value)
+        notify_for_type(
+            NotificationType.TOUR.value,
+            title=f"Reservation {saved.get('reservation_number')}",
+            message="A supplier reservation was cancelled.",
+            related_entity_type="supplier_reservations",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
+        return saved
 
     def accommodation_snapshot(self, tour_id) -> dict:
         tour = self._require_tour(tour_id)
@@ -312,126 +326,24 @@ class SupplierReservationService:
         ]
         travelers = self._confirmed_travelers(tour["_id"])
         confirmed_count = len(travelers)
-        beds = sum(row["bed_capacity"] for row in hotels)
-        rooms = sum(row["room_count"] for row in hotels)
-        shortage = max(confirmed_count - beds, 0)
-        unused_beds = max(beds - confirmed_count, 0)
-        unassigned = [person for person in travelers if not person.get("room_number")]
-        assignment_warnings = self._assignment_warnings(hotels, travelers)
         today = utcnow().date()
-        release_notes = []
+        warnings = []
         for hotel in hotels:
             release = _as_date(hotel.get("release_date"))
-            if release and release <= today and unused_beds:
-                release_notes.append(
-                    f"{hotel['supplier']} release date {hotel['release']} — {unused_beds} bed(s) currently unused."
-                )
-        warnings = []
-        if shortage:
-            warnings.append(f"Accommodation allocation is insufficient for {shortage} traveler(s).")
-        if unassigned and confirmed_count:
-            warnings.append(f"{len(unassigned)} confirmed traveler(s) have no room assignment.")
-        warnings.extend(assignment_warnings)
-        warnings.extend(release_notes)
-        if shortage:
-            capacity_state = "SHORTAGE"
-            capacity_label = "Shortage"
-        elif unused_beds:
-            capacity_state = "UNUSED"
-            capacity_label = "Unused capacity"
-        elif beds:
-            capacity_state = "OK"
-            capacity_label = "Capacity OK"
-        else:
-            capacity_state = "NONE"
-            capacity_label = "No hotel allocation"
-        difference = beds - confirmed_count
+            if release and release <= today:
+                warnings.append(f"{hotel['supplier']} release date {hotel['release']} has passed.")
+            elif release and 0 <= (release - today).days <= 7:
+                warnings.append(f"{hotel['supplier']} release date {hotel['release']} is approaching.")
         return {
             "tour_id": str(tour["_id"]),
             "tour_name": tour.get("name") or tour.get("tour_code") or "Tour",
             "tour_code": tour.get("tour_code") or "",
             "dates": format_dates(tour.get("start_date"), tour.get("end_date")),
             "confirmed_travelers": confirmed_count,
-            "bed_capacity": beds,
-            "room_count": rooms,
-            "shortage_travelers": shortage,
-            "unused_beds": unused_beds,
-            "difference": difference,
-            "capacity_state": capacity_state,
-            "capacity_label": capacity_label,
-            "unassigned_count": len(unassigned),
             "hotels": hotels,
             "reservations": reservations,
             "warnings": warnings,
-            "ok": not shortage and not assignment_warnings,
         }
-
-    def rooming_list(self, tour_id, *, reservation_id=None) -> dict:
-        tour = self._require_tour(tour_id)
-        snapshot = self.accommodation_snapshot(tour["_id"])
-        reservation = None
-        if reservation_id:
-            reservation = self.get_presented(reservation_id)
-            if reservation["tour_id"] != str(tour["_id"]):
-                raise ValidationError("Reservation does not belong to this tour.")
-        travelers = self._confirmed_travelers(tour["_id"])
-        if reservation:
-            travelers = [
-                person
-                for person in travelers
-                if person.get("hotel_reservation_id") in {None, "", reservation["id"]}
-                or person.get("hotel_reservation_id") == reservation["id"]
-            ]
-        rooms = self._group_rooms(travelers, reservation_id=reservation["id"] if reservation else None)
-        names = {hotel["id"]: hotel["supplier"] for hotel in snapshot.get("hotels") or []}
-        grouped: dict[str, dict] = {}
-        order: list[str] = []
-        for room in rooms:
-            hotel_id = room.get("hotel_reservation_id") or ""
-            room["hotel_name"] = names.get(hotel_id, "")
-            if hotel_id not in grouped:
-                grouped[hotel_id] = {
-                    "id": hotel_id,
-                    "supplier": room["hotel_name"] or names.get(hotel_id) or "Hotel",
-                    "rooms": [],
-                }
-                order.append(hotel_id)
-            grouped[hotel_id]["rooms"].append(room)
-        unassigned = [person for person in travelers if not (person.get("room_number") or "").strip()]
-        assigned_count = len(travelers) - len(unassigned)
-        return {
-            "tour": {
-                "id": str(tour["_id"]),
-                "name": tour.get("name") or tour.get("tour_code") or "Tour",
-                "code": tour.get("tour_code") or "",
-                "dates": format_dates(tour.get("start_date"), tour.get("end_date")),
-            },
-            "reservation": reservation,
-            "rooms": rooms,
-            "hotels_grouped": [grouped[key] for key in order],
-            "unassigned": unassigned,
-            "assigned_count": assigned_count,
-            "unassigned_count": len(unassigned),
-            "travelers": travelers,
-            "snapshot": snapshot,
-        }
-
-    def assign_rooms(self, tour_id, assignments: list[dict], *, actor_id) -> dict:
-        from apps.bookings.services import BookingService
-
-        tour = self._require_tour(tour_id)
-        bookings = BookingService()
-        grouped: dict[str, list[dict]] = {}
-        for item in assignments or []:
-            if not isinstance(item, dict):
-                continue
-            booking_id = item.get("booking_id")
-            if not booking_id:
-                continue
-            grouped.setdefault(str(booking_id), []).append(item)
-        for booking_id, rows in grouped.items():
-            bookings.assign_rooms(booking_id, rows, actor_id=actor_id, tour_id=tour["_id"])
-        return self.rooming_list(tour["_id"])
 
     def list_supplier_options(self) -> list[tuple[str, str]]:
         return [
@@ -455,6 +367,7 @@ class SupplierReservationService:
                     "supplier_id": line.get("supplier_id"),
                     "type_label": line.get("type_label") or line.get("supplier_type") or "",
                     "estimated_cost": line.get("estimated_cost") or line.get("est"),
+                    "basis_label": line.get("basis_label") or "",
                     "reservations": linked,
                     "has_reservation": bool(linked),
                 }
@@ -468,22 +381,10 @@ class SupplierReservationService:
         confirmed = [row for row in live if row["is_confirmed"]]
         upcoming = [row for row in live if row.get("is_upcoming")]
         release_watch = [row for row in live if row.get("release_approaching") or row.get("release_passed")]
-        shortages = []
-        seen = set()
-        for row in live:
-            tour_id = row.get("tour_id")
-            if not tour_id or tour_id in seen or not row["is_hotel"]:
-                continue
-            seen.add(tour_id)
-            snapshot = self.accommodation_snapshot(tour_id)
-            if snapshot["shortage_travelers"]:
-                shortages.append(snapshot)
         return {
             "requested": len(requested),
             "confirmed": len(confirmed),
             "upcoming": len(upcoming),
-            "shortages": shortages,
-            "shortage_count": len(shortages),
             "release_watch": release_watch,
             "awaiting": requested,
             "reservations": rows,
@@ -548,67 +449,5 @@ class SupplierReservationService:
             for index, person in enumerate(booking.get("travelers") or []):
                 if not isinstance(person, dict):
                     continue
-                row = present_traveler(person, index=index, booking=booking)
-                travelers.append(row)
+                travelers.append(present_traveler(person, index=index, booking=booking))
         return travelers
-
-    def _group_rooms(self, travelers: list[dict], *, reservation_id=None) -> list[dict]:
-        grouped: dict[tuple, dict] = {}
-        for person in travelers:
-            number = (person.get("room_number") or "").strip()
-            if not number:
-                continue
-            hotel_id = person.get("hotel_reservation_id") or ""
-            if reservation_id and hotel_id and hotel_id != reservation_id:
-                continue
-            key = (hotel_id, number, person.get("room_type") or "")
-            bucket = grouped.setdefault(
-                key,
-                {
-                    "room_number": number,
-                    "room_type": person.get("room_type") or "",
-                    "type_label": ROOM_TYPE_LABELS.get(person.get("room_type") or "", person.get("room_type") or "Room"),
-                    "hotel_reservation_id": hotel_id,
-                    "guests": [],
-                },
-            )
-            bucket["guests"].append(person)
-        rooms = list(grouped.values())
-        rooms.sort(key=lambda row: (row["room_number"], row["room_type"]))
-        return rooms
-
-    def _assignment_warnings(self, hotels: list[dict], travelers: list[dict]) -> list[str]:
-        warnings = []
-        by_hotel: dict[str, dict[str, set[str]]] = {}
-        occupancy_used: dict[str, dict[str, int]] = {}
-        for person in travelers:
-            hotel_id = person.get("hotel_reservation_id")
-            room_type = person.get("room_type")
-            room_number = (person.get("room_number") or "").strip()
-            if not hotel_id or not room_type or not room_number:
-                continue
-            by_hotel.setdefault(hotel_id, {}).setdefault(room_type, set()).add(room_number)
-            occupancy_used.setdefault(hotel_id, {}).setdefault(room_type, 0)
-            occupancy_used[hotel_id][room_type] += 1
-        hotels_by_id = {row["id"]: row for row in hotels}
-        for hotel in hotels:
-            allocated = {line["room_type"]: line for line in hotel.get("room_allocations") or []}
-            used_rooms = by_hotel.get(hotel["id"]) or {}
-            used_people = occupancy_used.get(hotel["id"]) or {}
-            for room_type, line in allocated.items():
-                assigned_rooms = len(used_rooms.get(room_type, set()))
-                if assigned_rooms > line["quantity"]:
-                    warnings.append(
-                        f"{hotel['supplier']}: {assigned_rooms} {line['type_label'].lower()} rooms assigned, "
-                        f"only {line['quantity']} allocated."
-                    )
-                people = used_people.get(room_type, 0)
-                if people > line["beds"]:
-                    warnings.append(
-                        f"{hotel['supplier']}: {people} travelers assigned to {line['type_label'].lower()} rooms, "
-                        f"which sleep {line['beds']}."
-                    )
-        for hotel_id, types in by_hotel.items():
-            if hotel_id and hotel_id not in hotels_by_id:
-                warnings.append("Travelers are assigned to a hotel reservation that is missing or cancelled.")
-        return warnings

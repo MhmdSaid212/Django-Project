@@ -1,62 +1,54 @@
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
-from apps.accounts.repositories import UserRepository
-from apps.accounts.services import AuthService
-from core.constants import UserRole, UserStatus
-from core.exceptions import DatabaseUnavailableError
-from core.utils import utcnow
+from apps.accounts.models import User
+from core.constants import UserRole
+
+
+STAFF = (
+    (settings.DEMO_OWNER_EMAIL, settings.DEMO_OWNER_PASSWORD, "Rami", "Khoury", UserRole.OWNER_ADMIN),
+    (settings.DEMO_AGENT_EMAIL, settings.DEMO_AGENT_PASSWORD, "Amina", "Haddad", UserRole.TRAVEL_AGENT),
+    (settings.DEMO_ACCOUNTANT_EMAIL, settings.DEMO_ACCOUNTANT_PASSWORD, "Karim", "Nassar", UserRole.ACCOUNTANT),
+)
 
 
 class Command(BaseCommand):
     help = "Seed demo staff users (owner, agent, accountant) for local development."
 
     def handle(self, *args, **options):
-        seeds = [
-            (settings.DEMO_OWNER_EMAIL, settings.DEMO_OWNER_PASSWORD, "Owner", "Admin", UserRole.OWNER_ADMIN),
-            (settings.DEMO_AGENT_EMAIL, settings.DEMO_AGENT_PASSWORD, "Amina", "Agent", UserRole.TRAVEL_AGENT),
-            (
-                settings.DEMO_ACCOUNTANT_EMAIL,
-                settings.DEMO_ACCOUNTANT_PASSWORD,
-                "Karim",
-                "Books",
-                UserRole.ACCOUNTANT,
-            ),
-        ]
-        try:
-            repo = UserRepository()
-        except DatabaseUnavailableError as exc:
-            self.stderr.write(self.style.ERROR(str(exc)))
-            return
-
+        if not settings.DEBUG:
+            raise CommandError("Refusing to seed demo staff when DEBUG is False.")
         created = 0
-        for email, password, first_name, last_name, role in seeds:
+        for email, password, first_name, last_name, role in STAFF:
             email = email.strip().lower()
-            try:
-                existing = repo.find_by_email(email)
-            except DatabaseUnavailableError as exc:
-                self.stderr.write(self.style.ERROR(str(exc)))
-                return
+            existing = User.objects.filter(email=email).first()
             if existing:
-                self.stdout.write(self.style.WARNING(f"User already exists: {email}"))
+                changed = False
+                if existing.first_name != first_name:
+                    existing.first_name = first_name
+                    changed = True
+                if existing.last_name != last_name:
+                    existing.last_name = last_name
+                    changed = True
+                if existing.role != role.value:
+                    existing.role = role.value
+                    changed = True
+                if not existing.is_active:
+                    existing.is_active = True
+                    changed = True
+                if changed:
+                    existing.save()
+                    self.stdout.write(self.style.SUCCESS(f"Updated {email} ({first_name} {last_name})"))
+                else:
+                    self.stdout.write(self.style.WARNING(f"User already exists: {email}"))
                 continue
-            now = utcnow()
-            repo.insert(
-                {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "email": email,
-                    "password_hash": AuthService.hash_password(password),
-                    "role": role.value,
-                    "phone": None,
-                    "status": UserStatus.ACTIVE.value,
-                    "last_login_at": None,
-                    "is_deleted": False,
-                    "deleted_at": None,
-                    "deleted_by": None,
-                    "created_at": now,
-                    "updated_at": now,
-                }
+            User.objects.create_user(
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                role=role.value,
+                is_active=True,
             )
             created += 1
             self.stdout.write(self.style.SUCCESS(f"Created {email} / {password} ({role.value})"))

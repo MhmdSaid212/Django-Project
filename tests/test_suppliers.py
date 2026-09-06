@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from apps.expenses.services import ExpenseService
 from apps.suppliers.services import SupplierService
-from core.constants import ExpenseCategory, ExpenseScope, SupplierType
+from core.constants import ExpenseCategory, ExpenseScope, PaymentMethod, SupplierType
 from core.exceptions import NotFoundError, ValidationError
 from core.money import ZERO, to_money
 
@@ -29,12 +29,6 @@ def _create_hotel(**overrides):
         "bank_name": "Banque Misr",
         "iban": "EG123",
         "star_rating": 4,
-        "room_count": 120,
-        "board_basis": "BB",
-        "check_in_time": "14:00",
-        "check_out_time": "12:00",
-        "room_types": "double, twin, suite",
-        "amenities": "wifi, pool, breakfast",
     }
     payload.update(overrides)
     return SupplierService().create(**payload)
@@ -87,7 +81,7 @@ def test_create_hotel_and_guide_numbers():
     assert hotel["supplier_number"] == "SUP-1001"
     assert hotel["supplier_type"] == SupplierType.HOTEL.value
     assert hotel["hotel_info"]["star_rating"] == 4
-    assert hotel["hotel_info"]["room_types"] == ["double", "twin", "suite"]
+    assert "room_types" not in (hotel.get("hotel_info") or {})
     assert hotel["tour_guide_info"] is None
     assert guide["supplier_number"] == "SUP-1002"
     assert guide["tour_guide_info"]["languages"] == ["Arabic", "English"]
@@ -152,6 +146,131 @@ def test_soft_delete_hides_supplier():
     assert SupplierService().list_items() == []
 
 
+def test_preferred_bank_transfer_stores_account_details():
+    hotel = _create_hotel(
+        preferred_payment_method=PaymentMethod.BANK_TRANSFER.value,
+        account_name="Nile View Hotel",
+        swift_bic="BMISEGCX",
+        account_number="778899",
+    )
+    assert hotel["preferred_payment_method"] == PaymentMethod.BANK_TRANSFER.value
+    assert hotel["bank_details"]["bank_name"] == "Banque Misr"
+    assert hotel["bank_details"]["account_name"] == "Nile View Hotel"
+    assert hotel["bank_details"]["iban"] == "EG123"
+    assert hotel["bank_details"]["swift_bic"] == "BMISEGCX"
+    assert hotel["bank_details"]["account_number"] == "778899"
+    presented = SupplierService().get_presented(hotel["_id"], include_extras=False)
+    assert presented["preferred_method_label"] == "Bank Transfer"
+    assert presented["prefers_bank_transfer"] is True
+
+
+def test_preferred_card_does_not_store_card_credentials():
+    hotel = _create_hotel(
+        preferred_payment_method=PaymentMethod.CARD.value,
+        bank_name=None,
+        iban=None,
+    )
+    assert hotel["preferred_payment_method"] == PaymentMethod.CARD.value
+    assert hotel["bank_details"]["iban"] is None
+    assert "card_number" not in hotel
+    assert "cvv" not in hotel
+    presented = SupplierService().get_presented(hotel["_id"], include_extras=False)
+    assert presented["prefers_card"] is True
+    assert presented["preferred_method_label"] == "Card"
+
+
+def test_rejects_visa_as_preferred_payment_method():
+    try:
+        _create_hotel(preferred_payment_method="VISA")
+    except ValidationError as extra:
+        assert "payment method" in extra.message.lower()
+    else:
+        raise AssertionError("expected ValidationError")
+
+
+def test_switching_to_card_keeps_saved_bank_details():
+    hotel = _create_hotel(
+        preferred_payment_method=PaymentMethod.BANK_TRANSFER.value,
+        account_name="Nile View Hotel",
+        swift_bic="BMISEGCX",
+    )
+    updated = SupplierService().update(
+        hotel["_id"],
+        preferred_payment_method=PaymentMethod.CARD.value,
+    )
+    assert updated["preferred_payment_method"] == PaymentMethod.CARD.value
+    assert updated["bank_details"]["iban"] == "EG123"
+    assert updated["bank_details"]["swift_bic"] == "BMISEGCX"
+
+
+def test_html_create_bank_transfer_and_card_preference(owner_session):
+    bank = owner_session.post(
+        reverse("suppliers:create"),
+        {
+            "name": "Nile View Hotel",
+            "supplier_type": SupplierType.HOTEL.value,
+            "city": "Cairo",
+            "preferred_payment_method": PaymentMethod.BANK_TRANSFER.value,
+            "bank_name": "Banque Misr",
+            "account_name": "Nile View Hotel",
+            "iban": "EG123",
+            "swift_bic": "BMISEGCX",
+            "account_number": "778899",
+            "star_rating": "4",
+        },
+    )
+    assert bank.status_code == 302, bank.content
+    hotel = SupplierService().list_items()[0]
+    assert hotel["preferred_payment_method"] == PaymentMethod.BANK_TRANSFER.value
+    assert hotel["bank_details"]["swift_bic"] == "BMISEGCX"
+    detail = owner_session.get(reverse("suppliers:detail", args=[str(hotel["_id"])]))
+    assert b"Bank Transfer" in detail.content
+    assert b"BMISEGCX" in detail.content
+
+    card = owner_session.post(
+        reverse("suppliers:create"),
+        {
+            "name": "Desert Camp",
+            "supplier_type": SupplierType.HOTEL.value,
+            "city": "Siwa",
+            "preferred_payment_method": PaymentMethod.CARD.value,
+            "star_rating": "3",
+        },
+    )
+    assert card.status_code == 302, card.content
+    camp = [row for row in SupplierService().list_items() if row["name"] == "Desert Camp"][0]
+    assert camp["preferred_payment_method"] == PaymentMethod.CARD.value
+    assert not (camp.get("bank_details") or {}).get("iban")
+    camp_detail = owner_session.get(reverse("suppliers:detail", args=[str(camp["_id"])]))
+    assert b"Card numbers are not stored" in camp_detail.content
+    assert b"CVV" not in camp_detail.content
+
+
+def test_html_edit_to_card_does_not_clear_bank_details(owner_session):
+    hotel = _create_hotel(
+        preferred_payment_method=PaymentMethod.BANK_TRANSFER.value,
+        account_name="Nile View Hotel",
+        swift_bic="BMISEGCX",
+    )
+    response = owner_session.post(
+        reverse("suppliers:edit", args=[str(hotel["_id"])]),
+        {
+            "name": "Nile View Hotel",
+            "supplier_type": SupplierType.HOTEL.value,
+            "city": "Cairo",
+            "country": "Egypt",
+            "preferred_payment_method": PaymentMethod.CARD.value,
+            "star_rating": "4",
+            "status": "ACTIVE",
+        },
+    )
+    assert response.status_code == 302, response.content
+    updated = SupplierService().get(hotel["_id"])
+    assert updated["preferred_payment_method"] == PaymentMethod.CARD.value
+    assert updated["bank_details"]["iban"] == "EG123"
+    assert updated["bank_details"]["swift_bic"] == "BMISEGCX"
+
+
 def test_patch_phone_keeps_city_and_hotel_info():
     hotel = _create_hotel()
     updated = SupplierService().update(hotel["_id"], phone="+20 100 000 0000")
@@ -165,7 +284,23 @@ def test_agent_and_accountant_can_open_suppliers(agent_session, accountant_sessi
     assert accountant_session.get(reverse("suppliers:list")).status_code == 200
     create = agent_session.get(reverse("suppliers:create"))
     assert create.status_code == 200
+    assert accountant_session.get(reverse("suppliers:create")).status_code == 403
     assert b"New supplier" in create.content
+    assert b"type-picker" in create.content
+    assert b"Hotel" in create.content
+    assert b"Guide" in create.content
+    assert b"Transportation" in create.content
+    assert b"data-supplier-type=\"HOTEL\"" in create.content
+    assert b"Preferred payment method" in create.content
+    assert b"Bank Transfer" in create.content
+    assert b"Card" in create.content
+    assert b"Cash" in create.content
+    assert b"Cheque" not in create.content
+    assert b"Visa" not in create.content
+    assert b'name="card_number"' not in create.content
+    assert b'name="cvv"' not in create.content
+    assert b"IATA" not in create.content
+    assert b"Cuisine" not in create.content
 
 
 def test_html_create_detail_and_directories(owner_session):
@@ -181,8 +316,6 @@ def test_html_create_detail_and_directories(owner_session):
             "city": "Cairo",
             "payment_terms": "Net 14",
             "star_rating": "4",
-            "room_count": "120",
-            "board_basis": "BB",
         },
     )
     assert response.status_code == 302, response.content
@@ -192,7 +325,6 @@ def test_html_create_detail_and_directories(owner_session):
     assert detail.status_code == 200
     assert b"SUP-1001" in detail.content
     assert b"Nile View Hotel" in detail.content
-    assert b"BB" in detail.content
     listing = owner_session.get(reverse("suppliers:list"))
     assert b"SUP-1001" in listing.content
     hotels = owner_session.get(reverse("suppliers:hotels"))
@@ -231,7 +363,7 @@ def test_api_create_list_get_patch(owner_session):
                 "type": "HOTEL",
                 "city": "Cairo",
                 "country": "Egypt",
-                "hotel_info": {"star_rating": 4, "room_count": 120, "board_basis": "BB"},
+                "hotel_info": {"star_rating": 4},
             }
         ),
         content_type="application/json",
@@ -288,3 +420,19 @@ def test_record_payment_filters_expenses_by_supplier(owner_session):
     assert response.status_code == 200
     assert hotel_bill["expense_number"].encode() in response.content
     assert b"EXP-1002" not in response.content
+    assert b"Transaction / reference number" in response.content
+    assert b"Visa" not in response.content
+    assert b"Cheque" not in response.content
+    assert b"Online" not in response.content
+
+
+def test_payment_form_defaults_to_supplier_card_preference(owner_session):
+    hotel = _create_hotel(preferred_payment_method=PaymentMethod.CARD.value, bank_name=None, iban=None)
+    bill = _bill_supplier(hotel, "1500.00")
+    response = owner_session.get(reverse("supplier_payments:create") + f"?expense_id={bill['_id']}")
+    assert response.status_code == 200
+    assert b'value="CARD" selected' in response.content
+    assert b"Preferred method: Card" in response.content
+    assert b"Transaction / reference number" in response.content
+    assert b"Visa" not in response.content
+    assert b"CVV" not in response.content

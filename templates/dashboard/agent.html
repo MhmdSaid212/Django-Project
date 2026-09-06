@@ -4,15 +4,17 @@
 <div class="bazaar dash">
     <header class="bazaar-mast">
         <div>
-            <p class="tiny">Operations · {{ today_label }}</p>
+            <p class="tiny">{{ today_label }}</p>
             <h1>{{ greeting }}, {{ greeting_name }}</h1>
-            <p class="muted">Track supplier arrangements, accommodation capacity and release dates. Suppliers do not log in to TourOps.</p>
         </div>
         <div class="actions">
-            <a class="btn btn-warm" href="{% url 'supplier_reservations:create' %}">New reservation</a>
+            <a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>
+            <a class="btn btn-ghost" href="{% url 'bookings:list' %}">Bookings</a>
             <a class="btn btn-ghost" href="{% url 'tours:list' %}">Open tours</a>
         </div>
     </header>
+
+    {% include "components/product_setup.html" %}
 
     <div class="bazaar-tiles">
         <a class="bazaar-tile" href="{% url 'supplier_reservations:list' %}?status=REQUESTED" style="color:inherit">
@@ -20,7 +22,6 @@
             <div>
                 <span class="tiny">Requested</span>
                 <b>{{ desk.requested|default:0 }}</b>
-                <small>Awaiting recorded confirmation</small>
             </div>
         </a>
         <a class="bazaar-tile" href="{% url 'supplier_reservations:list' %}?status=CONFIRMED" style="color:inherit">
@@ -28,7 +29,6 @@
             <div>
                 <span class="tiny">Confirmed</span>
                 <b>{{ desk.confirmed|default:0 }}</b>
-                <small>Agent recorded the supplier reply</small>
             </div>
         </a>
         <article class="bazaar-tile">
@@ -36,7 +36,6 @@
             <div>
                 <span class="tiny">Upcoming</span>
                 <b>{{ desk.upcoming|default:0 }}</b>
-                <small>Departures still ahead</small>
             </div>
         </article>
         <a class="bazaar-tile" href="{% url 'supplier_reservations:list' %}" style="color:inherit">
@@ -44,7 +43,6 @@
             <div>
                 <span class="tiny">Accommodation alerts</span>
                 <b>{{ desk.shortage_count|default:0 }}</b>
-                <small>Bed shortages vs confirmed travelers</small>
             </div>
         </a>
     </div>

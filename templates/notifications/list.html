@@ -2,7 +2,6 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Inbox</p>
         <h1>Notifications</h1>
         <p>{% if unread_count_page %}{{ unread_count_page }} unread.{% else %}You're up to date.{% endif %}</p>
     </div>
@@ -13,7 +12,7 @@
         </form>
     </div>
 </div>
-<form class="filter-bar" method="get">
+<form class="filter-bar" method="get" data-autosubmit>
     <label>Type
         <select class="field" name="type">
             <option value="">All types</option>
@@ -29,7 +28,6 @@
         </select>
     </label>
     <div class="filter-actions">
-        <button class="btn btn-ghost" type="submit">Apply</button>
         {% if filters.type or filters.unread %}
         <a class="btn btn-ghost" href="{% url 'notifications:list' %}">Clear</a>
         {% endif %}

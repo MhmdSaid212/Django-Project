@@ -1,122 +1,140 @@
 {% extends "base.html" %}
 {% load tourops %}
 {% block content %}
-<div class="bazaar dash">
-    <div class="dash-hero">
-        <section class="dash-hero-main">
-            <div class="dash-kicker">
-                <span>{{ brand.name }}</span>
-                <span>·</span>
-                <span>{{ today_label }}</span>
+<div class="vault">
+    <section class="vault-hero {% if dash and dash.revenue.profit < 0 %}is-down{% endif %}">
+        <div class="vault-hero-top">
+            <div>
+                <p class="tiny">{{ today_label }}</p>
+                <h1>{{ greeting }}, {{ greeting_name }}</h1>
             </div>
-            <h1>{{ greeting }}, {{ greeting_name }}</h1>
-            <p class="lead">A warm look across the whole agency — tours that earn, cash that moves, and balances still open.</p>
-            {% if dash %}
-            <div class="dash-figure {% if dash.revenue.profit < 0 %}is-down{% endif %}">
-                <div>
-                    <span class="tiny" style="color:#E8C37A">Gross profit</span>
-                    <strong>{{ dash.revenue.profit|money }}</strong>
-                </div>
-                <div class="dash-pills">
-                    <span class="dash-pill">Revenue <b>{{ dash.revenue.revenue|money }}</b></span>
-                    <span class="dash-pill">Costs <b>{{ dash.revenue.costs|money }}</b></span>
-                    <span class="dash-pill">Net cash <b>{{ dash.summary.net|money }}</b></span>
-                </div>
-            </div>
-            {% endif %}
-        </section>
-        <aside class="dash-hero-side">
-            <form class="dash-tile dash-month" method="get">
-                <label class="tiny" style="flex:1">Month
+            <form method="get" data-autosubmit>
+                <label class="tiny">Month
                     <input class="field" type="month" name="month" value="{{ filters.month }}">
                 </label>
-                <button class="btn btn-ghost" type="submit">Show</button>
             </form>
-            {% if dash %}
-            <a class="dash-tile clay" href="{% url 'finance:receivables' %}" style="color:inherit">
-                <span class="tiny">Receivables</span>
-                <b>{{ dash.summary.receivables.total|money }}</b>
-                <p class="muted" style="font-size:.8rem;margin-top:.2rem">Still to collect from customers</p>
-            </a>
-            <a class="dash-tile sea" href="{% url 'finance:payables' %}" style="color:inherit">
-                <span class="tiny">Payables</span>
-                <b>{{ dash.summary.payables.total|money }}</b>
-                <p class="muted" style="font-size:.8rem;margin-top:.2rem">Still to pay suppliers</p>
-            </a>
-            {% endif %}
-        </aside>
-    </div>
+        </div>
+        {% if dash %}
+        <div class="vault-profit">
+            <span class="vault-coin" aria-hidden="true">$</span>
+            <div>
+                <span class="tiny">Gross profit</span>
+                <strong>{{ dash.revenue.profit|money }}</strong>
+                <p>Margin {{ dash.margin_pct }}% · Revenue {{ dash.revenue.revenue|money }} · Costs {{ dash.revenue.costs|money }}</p>
+            </div>
+        </div>
+        {% with basis=dash.revenue.revenue %}
+        <div class="vault-mix" role="img" aria-label="Revenue split into costs and profit">
+            <span class="is-cost" style="width:{{ dash.revenue.costs|width_pct:basis }}%"></span>
+            <span class="is-gain" style="width:{{ dash.revenue.profit|width_pct:basis }}%"></span>
+        </div>
+        {% endwith %}
+        {% endif %}
+    </section>
 
     {% if dash %}
-    <div class="bazaar-ribbon">
-        <span>Revenue <b>{{ dash.revenue.revenue|money }}</b></span>
-        <span>Costs <b>{{ dash.revenue.costs|money }}</b></span>
-        <span>Profit <b>{{ dash.revenue.profit|money }}</b></span>
-        <span>Cash net <b>{{ dash.summary.net|money }}</b></span>
+    {% with flow=dash.summary.money_in|add_money:dash.summary.money_out %}
+    <div class="vault-till">
+        <a class="vault-bill is-in" href="{% url 'reports:payments' %}">
+            <div class="bill-stack" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span class="tiny">Cash in</span>
+            <b>{{ dash.summary.money_in|money }}</b>
+            <div class="vault-fill"><i style="width:{{ dash.summary.money_in|width_pct:flow }}%"></i></div>
+        </a>
+        <div class="vault-bill is-net {% if dash.summary.net < 0 %}is-down{% endif %}">
+            <div class="vault-brick" aria-hidden="true"></div>
+            <span class="tiny">Net cash</span>
+            <b>{{ dash.summary.net|money }}</b>
+        </div>
+        <a class="vault-bill is-out" href="{% url 'reports:transactions' %}">
+            <div class="bill-stack is-out" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span class="tiny">Cash out</span>
+            <b>{{ dash.summary.money_out|money }}</b>
+            <div class="vault-fill"><i style="width:{{ dash.summary.money_out|width_pct:flow }}%"></i></div>
+        </a>
     </div>
+    {% endwith %}
 
-    {% include "dashboard/_flow.html" %}
+    {% with books=dash.summary.receivables.total|add_money:dash.summary.payables.total %}
+    <div class="vault-pockets">
+        <a class="vault-pocket is-ar" href="{% url 'finance:receivables' %}">
+            <span class="vault-coin sm" aria-hidden="true">$</span>
+            <div>
+                <span class="tiny">Receivables</span>
+                <b>{{ dash.summary.receivables.total|money }}</b>
+                <small>Still to collect · {{ dash.summary.receivables.count|default:0 }} open</small>
+                <div class="vault-fill"><i style="width:{{ dash.summary.receivables.total|width_pct:books }}%"></i></div>
+            </div>
+        </a>
+        <a class="vault-pocket is-ap" href="{% url 'finance:payables' %}">
+            <span class="vault-coin sm is-pay" aria-hidden="true">$</span>
+            <div>
+                <span class="tiny">Payables</span>
+                <b>{{ dash.summary.payables.total|money }}</b>
+                <small>Still to pay · {{ dash.summary.payables.count|default:0 }} open</small>
+                <div class="vault-fill"><i style="width:{{ dash.summary.payables.total|width_pct:books }}%"></i></div>
+            </div>
+        </a>
+        <a class="vault-pocket is-heat" href="{% url 'finance:receivables' %}">
+            <span class="tiny">Overdue AR</span>
+            <b>{{ dash.overdue_ar_total|money }}</b>
+            <small>{{ dash.overdue_ar_count|default:0 }} invoices past due</small>
+        </a>
+        <a class="vault-pocket is-heat" href="{% url 'finance:payables' %}">
+            <span class="tiny">Overdue AP</span>
+            <b>{{ dash.overdue_ap_total|money }}</b>
+            <small>{{ dash.overdue_ap_count|default:0 }} bills past due</small>
+        </a>
+    </div>
+    {% endwith %}
 
     {% if desk %}
-    <section class="dash-card" style="margin:0.9rem 0">
-        <div class="panel-h">
-            <h2>Supplier operations</h2>
-            <a class="tiny" href="{% url 'dashboard:agent' %}">Open ops desk</a>
-        </div>
-        <div class="metrics-4" style="margin-top:.6rem">
-            <div class="metric"><span class="tiny">Requested</span><b>{{ desk.requested|default:0 }}</b></div>
-            <div class="metric"><span class="tiny">Confirmed</span><b>{{ desk.confirmed|default:0 }}</b></div>
-            <div class="metric"><span class="tiny">Upcoming</span><b>{{ desk.upcoming|default:0 }}</b></div>
-            <div class="metric"><span class="tiny">Bed shortages</span><b>{{ desk.shortage_count|default:0 }}</b></div>
-        </div>
-    </section>
+    <div class="vault-ops">
+        <a href="{% url 'supplier_reservations:list' %}?status=REQUESTED"><span class="tiny">Requested</span><b>{{ desk.requested|default:0 }}</b></a>
+        <a href="{% url 'supplier_reservations:list' %}?status=CONFIRMED"><span class="tiny">Confirmed</span><b>{{ desk.confirmed|default:0 }}</b></a>
+        <a href="{% url 'tours:list' %}"><span class="tiny">Upcoming</span><b>{{ desk.upcoming|default:0 }}</b></a>
+        <a href="{% url 'dashboard:agent' %}"><span class="tiny">Release watch</span><b>{{ desk.release_watch|length }}</b></a>
+    </div>
     {% endif %}
 
     <div class="dash-grid">
         {% include "dashboard/_attention.html" %}
-        <div class="stack">
-            <section class="dash-card bazaar-arch">
-                <div class="panel-h">
-                    <h2>Tour margin</h2>
-                    <a class="tiny" href="{% url 'reports:profitability' %}">Tour profitability</a>
-                </div>
-                <div class="tour-meter">
-                    {% for t in dash.top_tours %}
-                    <a href="{% url 'reports:profitability' %}?tour={{ t.id }}{% if filters.month %}&month={{ filters.month }}{% endif %}">
-                        <div class="row">
-                            <strong>{{ t.name }}</strong>
-                            <span class="mono">{{ t.margin }}%</span>
-                        </div>
-                        <div class="track"><i style="width:{% if t.margin %}{{ t.margin }}{% else %}0{% endif %}%"></i></div>
-                    </a>
-                    {% empty %}
-                    <p class="muted">No tour profitability yet.</p>
-                    {% endfor %}
-                </div>
-                {% if dash.low_tours %}
-                <p class="tiny" style="margin:1rem 0 .5rem">Watch these</p>
-                <div class="tour-meter">
-                    {% for t in dash.low_tours %}
-                    <a href="{% url 'reports:profitability' %}?tour={{ t.id }}{% if filters.month %}&month={{ filters.month }}{% endif %}">
-                        <div class="row">
-                            <span>{{ t.name }}</span>
-                            <span class="mono">{{ t.margin }}%</span>
-                        </div>
-                        <div class="track low"><i style="width:{% if t.margin %}{{ t.margin }}{% else %}0{% endif %}%"></i></div>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </section>
-            <section class="dash-card">
-                <div class="panel-h"><h2>Jump to</h2></div>
-                <div class="dash-jumps">
-                    <a class="btn btn-warm" href="{% url 'reports:list' %}">Reports</a>
-                    <a class="btn btn-ghost" href="{% url 'finance:customer_balances' %}">Balances</a>
-                    <a class="btn btn-ghost" href="{% url 'accounts:users' %}">Users</a>
-                </div>
-            </section>
-        </div>
+        <section class="dash-card is-flush vault-sheet">
+            <div class="panel-h">
+                <h2>Tour margin</h2>
+                <a class="tiny" href="{% url 'reports:profitability' %}">Tour profitability</a>
+            </div>
+            <table class="fin-tours">
+                <thead>
+                    <tr><th>Tour</th><th>Margin</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for t in dash.top_tours %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'reports:profitability' %}?tour={{ t.id }}{% if filters.month %}&month={{ filters.month }}{% endif %}">{{ t.name }}</a>
+                        </td>
+                        <td class="mono">{{ t.margin }}%</td>
+                        <td><div class="track"><i style="width:{% if t.margin %}{{ t.margin }}{% else %}0{% endif %}%"></i></div></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3"><p class="muted" style="margin:.7rem">No tour profitability yet.</p></td></tr>
+                {% endfor %}
+                {% for t in dash.low_tours %}
+                    {% if forloop.first and dash.top_tours %}
+                    <tr class="fin-watch"><td colspan="3">Watch these</td></tr>
+                    {% endif %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'reports:profitability' %}?tour={{ t.id }}{% if filters.month %}&month={{ filters.month }}{% endif %}">{{ t.name }}</a>
+                        </td>
+                        <td class="mono">{{ t.margin }}%</td>
+                        <td><div class="track low"><i style="width:{% if t.margin %}{{ t.margin }}{% else %}0{% endif %}%"></i></div></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
     </div>
 
     {% include "dashboard/_ledger.html" %}

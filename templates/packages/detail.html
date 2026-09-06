@@ -9,14 +9,20 @@
     </div>
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
-        <a class="btn btn-warm" href="{% url 'tours:create' %}?package_id={{ record.id }}">Create departure</a>
-        <a class="btn btn-ghost" href="{% url 'bookings:create' %}?package_id={{ record.id }}">Book package</a>
-        <a class="btn btn-ghost" href="{% url 'packages:edit' record.id %}">Edit</a>
+        {% url 'packages:edit' record.id as edit_url %}
+        {% include "components/ico_btn.html" with href=edit_url title="Edit" icon="edit" %}
+        {% if record.status == 'ACTIVE' %}
+        <a class="ico-btn is-primary" href="{% url 'tours:create' %}?package_id={{ record.id }}" title="Create tour" aria-label="Create tour">
+            {% include "components/ico_mark.html" with icon="calendar" %}
+        </a>
+        {% else %}
+        <button class="ico-btn" type="button" disabled title="Activate this package before creating a departure" aria-label="Create tour">
+            {% include "components/ico_mark.html" with icon="calendar" %}
+        </button>
+        {% endif %}
         {% if not record.tours %}
-        <form method="post" action="{% url 'packages:delete' record.id %}" onsubmit="return confirm('Delete {{ record.name }}?');">
-            {% csrf_token %}
-            <button class="btn btn-ghost" type="submit">Delete</button>
-        </form>
+        {% url 'packages:delete' record.id as delete_url %}
+        {% include "components/ico_btn.html" with action=delete_url title="Delete" icon="delete" danger=1 confirm="Tours already created from this package keep their snapshot. New departures will need another product." confirm_title="Retire this package?" confirm_ok="Delete package" %}
         {% endif %}
     </div>
 </div>
@@ -31,8 +37,7 @@
             <p style="margin-top:.5rem">{{ record.excluded|default:"—" }}</p>
         </section>
         <section class="panel">
-            <h2>Supplier plan</h2>
-            <p class="muted" style="margin-top:.4rem">Typical service mix for this product. Costs become expenses when a departure is operated.</p>
+            <h2>Supplier services</h2>
             <div class="itinerary" style="margin-top:.7rem">
                 {% for line in record.services %}
                 <div class="it-block">
@@ -40,10 +45,10 @@
                         <strong>{{ line.title }}</strong>
                         <div class="muted">{{ line.supplier }} · {{ line.type_label }}</div>
                     </div>
-                    <div>Est. {{ line.est|money }}</div>
+                    <div>Est. {{ line.est|money }} {{ line.basis_label }}</div>
                 </div>
                 {% empty %}
-                <p class="muted" style="margin-top:.5rem">No supplier lines yet. Add them via the API or when you operate a tour.</p>
+                <p class="muted" style="margin-top:.5rem">No supplier services selected. <a href="{% url 'packages:edit' record.id %}">Add services from the catalog</a>.</p>
                 {% endfor %}
             </div>
         </section>
@@ -52,14 +57,10 @@
             {% for tour in record.tours %}
                 <p style="margin-top:.45rem"><a href="{% url 'tours:detail' tour.id %}">{{ tour.name }}</a> · {{ tour.dates }} · {{ tour.status|labelize }}</p>
             {% empty %}
-                <p class="muted" style="margin-top:.5rem">No dated tours yet. <a href="{% url 'tours:create' %}?package_id={{ record.id }}">Create a departure</a>.</p>
+                <p class="muted" style="margin-top:.5rem">No dated tours yet. <a href="{% url 'tours:create' %}?package_id={{ record.id }}">Create a tour from this package</a>.</p>
             {% endfor %}
         </section>
     </div>
-    <div class="fin">
-        <p class="tiny" style="color:#c4b5a5">From price</p>
-        <div class="fin-row total"><span>Per person</span><span>{{ record.price|money }}</span></div>
-        <p class="muted" style="margin-top:.8rem;font-size:.82rem">No capacity bar — packages are not dated seat inventories. Default departure size: {{ record.default_capacity }}.</p>
-    </div>
+    {% include "components/cost_sheet.html" with costing=record.costing heading="Cost sheet" %}
 </div>
 {% endblock %}

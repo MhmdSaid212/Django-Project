@@ -18,7 +18,7 @@ OWNER_ID = "000000000000000000000001"
 def _insert_supplier(mongo, **overrides):
     doc = {
         "_id": ObjectId(),
-        "supplier_number": "SUP-1001",
+        "supplier_number": f"SUP-{ObjectId()}",
         "name": "Nile View Hotel",
         "is_deleted": False,
         "deleted_at": None,
@@ -32,7 +32,7 @@ def _insert_supplier(mongo, **overrides):
 def _insert_tour(mongo, **overrides):
     doc = {
         "_id": ObjectId(),
-        "tour_code": "TOUR-1001",
+        "tour_code": f"TOUR-{ObjectId()}",
         "name": "Cairo Discovery",
         "is_deleted": False,
         "deleted_at": None,
@@ -158,7 +158,7 @@ def test_cannot_lower_amount_below_paid():
     try:
         ExpenseService().update(expense["_id"], amount="500.00")
     except ValidationError as extra:
-        assert "cannot exceed" in extra.message.lower()
+        assert "already has supplier payments" in extra.message.lower()
     else:
         raise AssertionError("expected ValidationError")
 
@@ -264,7 +264,7 @@ def test_api_create_list_get_patch(owner_session, fake_mongo):
         data=json.dumps(
             {
                 "scope": "TOUR",
-                "category": "ACTIVITY",
+                "category": "MARKETING",
                 "amount": 250,
                 "description": "Nile felucca",
                 "expense_date": "2026-08-22",

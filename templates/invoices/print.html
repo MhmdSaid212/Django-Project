@@ -6,7 +6,7 @@
     <a class="btn btn-ghost" href="{% url 'invoices:detail' record.id %}">Back</a>
 </div>
 <div class="invoice-sheet">
-    <div class="inv-brand">TourOps Travel — Invoice</div>
+    <div class="inv-brand">{{ brand.name }} — Invoice</div>
     <h1>{{ record.number }}</h1>
     <p>{{ record.customer }} · {{ record.booking }}</p>
     <p class="muted">Issued {{ record.issue }} · Due {{ record.due }}</p>

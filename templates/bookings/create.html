@@ -1,1932 +1,328 @@
 {% extends "base.html" %}
-{% load static %}
-{% load tourops %}
-
-{% block title %}Create Booking{% endblock %}
-
 {% block content %}
-
-<div class="max-w-7xl mx-auto">
-
-  <!-- Header -->
-
-  <div class="flex items-center justify-between mb-8">
+<div class="page-head">
     <div>
-      <h1 class="text-2xl font-semibold text-gray-900">
-        New Booking
-      </h1>
-      <p class="text-sm text-gray-500 mt-1">
-        Create a new customer booking
-      </p>
+        <h1>New booking</h1>
     </div>
-
-
-<a
-  href="{% url 'bookings:list' %}"
-  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
->
-  Cancel
-</a>
-
-
-  </div>
-
-{% if error %}
-
-  <div class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-    {{ error }}
-  </div>
-  {% endif %}
-
-  <!-- Wizard -->
-
-  <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-
-
-<!-- Steps -->
-<div class="border-b border-gray-200 px-6 py-5">
-  <div class="flex items-center justify-between">
-
-    <div class="flex items-center gap-3" data-step-indicator="1">
-      <div
-        class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold"
-        data-step-number="1"
-      >
-        1
-      </div>
-      <span class="text-sm font-medium text-gray-900">
-        Customer
-      </span>
-    </div>
-
-    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
-
-    <div class="flex items-center gap-3" data-step-indicator="2">
-      <div
-        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
-        data-step-number="2"
-      >
-        2
-      </div>
-      <span class="text-sm font-medium text-gray-500">
-        Tour
-      </span>
-    </div>
-
-    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
-
-    <div class="flex items-center gap-3" data-step-indicator="3">
-      <div
-        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
-        data-step-number="3"
-      >
-        3
-      </div>
-      <span class="text-sm font-medium text-gray-500">
-        Travelers
-      </span>
-    </div>
-
-    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
-
-    <div class="flex items-center gap-3" data-step-indicator="4">
-      <div
-        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
-        data-step-number="4"
-      >
-        4
-      </div>
-      <span class="text-sm font-medium text-gray-500">
-        Pricing
-      </span>
-    </div>
-
-    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
-
-    <div class="flex items-center gap-3" data-step-indicator="5">
-      <div
-        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
-        data-step-number="5"
-      >
-        5
-      </div>
-      <span class="text-sm font-medium text-gray-500">
-        Review
-      </span>
-    </div>
-
-    <div class="flex-1 h-px bg-gray-200 mx-4"></div>
-
-    <div class="flex items-center gap-3" data-step-indicator="6">
-      <div
-        class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-semibold"
-        data-step-number="6"
-      >
-        6
-      </div>
-      <span class="text-sm font-medium text-gray-500">
-        Confirm
-      </span>
-    </div>
-
-  </div>
 </div>
-
-
-<form method="post" id="booking-form">
-  {% csrf_token %}
-
-  <!-- Hidden values -->
-  <input type="hidden" name="customer_id" id="customer-id">
-  <input type="hidden" name="tour_id" id="tour-id">
-  <input type="hidden" name="travelers_count" id="travelers-count" value="1">
-
-  <input type="hidden" name="unit_price" id="unit-price">
-  <input type="hidden" name="discount" id="discount" value="0">
-  <input type="hidden" name="tax_rate" id="tax-rate" value="11">
-
-
-  <!-- ========================= -->
-  <!-- STEP 1: CUSTOMER -->
-  <!-- ========================= -->
-
-  <section
-    class="p-8"
-    data-wizard-step="1"
-  >
-
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900">
-        Select Customer
-      </h2>
-      <p class="text-sm text-gray-500 mt-1">
-        Choose the customer this booking belongs to.
-      </p>
-    </div>
-
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-      {% for customer in customers %}
-
-      <button
-        type="button"
-        class="customer-card text-left border border-gray-200 rounded-xl p-5 hover:border-blue-400 hover:bg-blue-50/30 transition"
-        data-customer-id="{{ customer.id }}"
-        data-customer-name="{{ customer.name }}"
-        data-customer-number="{{ customer.number }}"
-      >
-
-        <div class="flex items-start justify-between">
-
-          <div>
-
-            <h3 class="font-semibold text-gray-900">
-              {{ customer.name }}
-            </h3>
-
-            <p class="text-sm text-gray-500 mt-1">
-              {{ customer.number }}
-            </p>
-
-            {% if customer.city %}
-            <p class="text-xs text-gray-400 mt-2">
-              {{ customer.city }}
-            </p>
-            {% endif %}
-
-          </div>
-
-          <div
-            class="customer-check hidden w-5 h-5 rounded-full bg-blue-600 text-white text-xs items-center justify-center"
-          >
-            ✓
-          </div>
-
-        </div>
-
-      </button>
-
-      {% empty %}
-
-      <div class="col-span-full border border-dashed border-gray-300 rounded-xl p-10 text-center">
-        <p class="text-sm text-gray-500">
-          No active customers available.
-        </p>
-      </div>
-
-      {% endfor %}
-
-    </div>
-
-
-    <div class="flex justify-end mt-8">
-
-      <button
-        type="button"
-        data-next
-        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-      >
-        Continue
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- ========================= -->
-  <!-- STEP 2: TOUR -->
-  <!-- ========================= -->
-
-  <section
-    class="p-8 hidden"
-    data-wizard-step="2"
-  >
-
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900">
-        Select Tour
-      </h2>
-      <p class="text-sm text-gray-500 mt-1">
-        Choose the tour for this booking.
-      </p>
-    </div>
-
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-      {% for tour in tours %}
-
-      <button
-        type="button"
-        class="tour-card text-left border border-gray-200 rounded-xl p-5 hover:border-blue-400 hover:bg-blue-50/30 transition"
-        data-tour-id="{{ tour.id }}"
-        data-tour-name="{{ tour.name }}"
-        data-tour-price="{{ tour.price }}"
-        data-tour-start="{{ tour.start_date }}"
-        data-tour-end="{{ tour.end_date }}"
-        data-tour-city="{{ tour.city }}"
-        data-tour-country="{{ tour.country }}"
-        data-tour-capacity="{{ tour.capacity }}"
-        data-tour-available="{{ tour.available_seats }}"
-      >
-
-        <div class="flex items-start justify-between">
-
-          <div class="pr-4">
-
-            <h3 class="font-semibold text-gray-900">
-              {{ tour.name }}
-            </h3>
-
-            {% if tour.city or tour.country %}
-            <p class="text-sm text-gray-500 mt-1">
-              {{ tour.city }}{% if tour.city and tour.country %}, {% endif %}{{ tour.country }}
-            </p>
-            {% endif %}
-
-            <p class="text-xs text-gray-400 mt-2">
-              {{ tour.start_date }} – {{ tour.end_date }}
-            </p>
-
-          </div>
-
-          <div
-            class="tour-check hidden w-5 h-5 rounded-full bg-blue-600 text-white text-xs items-center justify-center flex-shrink-0"
-          >
-            ✓
-          </div>
-
-        </div>
-
-
-        <div class="flex items-end justify-between mt-5">
-
-          <div>
-            <p class="text-xs text-gray-400">
-              Price per traveler
-            </p>
-
-            <p class="text-lg font-semibold text-gray-900">
-              ${{ tour.price }}
-            </p>
-          </div>
-
-          <div class="text-right">
-
-            <p class="text-xs text-gray-400">
-              Available
-            </p>
-
-            <p class="text-sm font-medium text-gray-700">
-              {{ tour.available_seats }} seats
-            </p>
-
-          </div>
-
-        </div>
-
-      </button>
-
-      {% empty %}
-
-      <div class="col-span-full border border-dashed border-gray-300 rounded-xl p-10 text-center">
-        <p class="text-sm text-gray-500">
-          No available tours found.
-        </p>
-      </div>
-
-      {% endfor %}
-
-    </div>
-
-
-    <div class="flex justify-between mt-8">
-
-      <button
-        type="button"
-        data-prev
-        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-      >
-        Back
-      </button>
-
-      <button
-        type="button"
-        data-next
-        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-      >
-        Continue
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- ========================= -->
-  <!-- STEP 3: TRAVELERS -->
-  <!-- ========================= -->
-
-  <section
-    class="p-8 hidden"
-    data-wizard-step="3"
-  >
-
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900">
-        Travelers
-      </h2>
-      <p class="text-sm text-gray-500 mt-1">
-        Enter the details of everyone traveling.
-      </p>
-    </div>
-
-
-    <div class="max-w-xs mb-8">
-
-      <label class="block text-sm font-medium text-gray-700 mb-2">
-        Number of Travelers
-      </label>
-
-      <input
-        type="number"
-        min="1"
-        max="10"
-        value="1"
-        data-travelers
-        id="traveler-count-input"
-        class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
-      >
-
-    </div>
-
-
-    <div
-      id="traveler-fields"
-      class="space-y-4"
-    >
-    </div>
-
-
-    <div class="flex justify-between mt-8">
-
-      <button
-        type="button"
-        data-prev
-        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-      >
-        Back
-      </button>
-
-      <button
-        type="button"
-        data-next
-        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-      >
-        Continue
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- ========================= -->
-  <!-- STEP 4: PRICING -->
-  <!-- ========================= -->
-
-  <section
-    class="p-8 hidden"
-    data-wizard-step="4"
-  >
-
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900">
-        Pricing
-      </h2>
-      <p class="text-sm text-gray-500 mt-1">
-        Review and adjust the booking pricing.
-      </p>
-    </div>
-
-
-    <div class="max-w-2xl">
-
-      <div class="border border-gray-200 rounded-xl overflow-hidden">
-
-        <div class="p-5 border-b border-gray-200">
-          <div class="flex items-center justify-between">
-
+<form method="post" class="ops-form book-flow" data-book-flow novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <nav class="book-path" aria-label="Booking steps">
+        <button type="button" data-book-tab="1" class="is-on">
+            <span class="book-path-n">1</span>
+            <strong>Who books</strong>
+        </button>
+        <button type="button" data-book-tab="2">
+            <span class="book-path-n">2</span>
+            <strong>Departure</strong>
+        </button>
+        <button type="button" data-book-tab="3">
+            <span class="book-path-n">3</span>
+            <strong>Travelers</strong>
+        </button>
+        <button type="button" data-book-tab="4">
+            <span class="book-path-n">4</span>
+            <strong>Save</strong>
+        </button>
+    </nav>
+
+    <section class="form-card form-card-accent is-on" data-book-stage="1">
+        <header class="form-card-h">
+            <span class="form-step">1</span>
             <div>
-              <p class="text-sm font-medium text-gray-900" id="pricing-tour-name">
-                —
-              </p>
-
-              <p class="text-xs text-gray-500 mt-1">
-                <span id="pricing-travelers">1</span>
-                traveler(s)
-              </p>
+                <h2>Who is booking</h2>
             </div>
+        </header>
+        {% include "components/form_field.html" with field=form.customer_id caption="Customer" %}
+        <p><a href="{% url 'customers:create' %}">Create customer</a></p>
+    </section>
 
-            <p class="text-sm text-gray-500">
-              $<span id="pricing-unit-price-display">0.00</span> / traveler
-            </p>
+    <section class="form-card" data-book-stage="2">
+        <header class="form-card-h">
+            <span class="form-step">2</span>
+            <div>
+                <h2>Which departure</h2>
+            </div>
+        </header>
+        {% include "components/form_field.html" with field=form.tour_id caption="Tour" %}
+    </section>
 
-          </div>
+    <section class="form-card" data-book-stage="3">
+        <header class="form-card-h">
+            <span class="form-step">3</span>
+            <div>
+                <h2>Travelers</h2>
+            </div>
+        </header>
+        <div class="guest-list" data-guest-list>
+            {% for row in traveler_rows %}
+            {% if not row.hidden %}
+            <article class="guest-card" data-guest data-index="{{ row.index }}">
+                <div class="guest-card-h">
+                    <span class="guest-seat" data-guest-n>{{ row.n }}</span>
+                    <strong>Traveler</strong>
+                    <button class="btn btn-ghost" type="button" data-guest-remove>Remove</button>
+                </div>
+                <div class="form-row">
+                    <label class="form-field is-required">
+                        <span class="form-label">First name <span class="req" title="Required">*</span></span>
+                        <input class="field" data-name="first" name="traveler_{{ row.index }}_first" value="{{ row.first }}" autocomplete="given-name">
+                    </label>
+                    <label class="form-field is-required">
+                        <span class="form-label">Last name <span class="req" title="Required">*</span></span>
+                        <input class="field" data-name="last" name="traveler_{{ row.index }}_last" value="{{ row.last }}" autocomplete="family-name">
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label class="form-field">
+                        <span class="form-label">Passport</span>
+                        <input class="field" data-name="passport" name="traveler_{{ row.index }}_passport" value="{{ row.passport }}" autocomplete="off">
+                    </label>
+                    <label class="form-field">
+                        <span class="form-label">Nationality</span>
+                        <input class="field" data-name="nationality" name="traveler_{{ row.index }}_nationality" value="{{ row.nationality }}" autocomplete="country-name">
+                    </label>
+                </div>
+            </article>
+            {% endif %}
+            {% endfor %}
         </div>
+        <template data-guest-template>
+            <article class="guest-card" data-guest data-index="0">
+                <div class="guest-card-h">
+                    <span class="guest-seat" data-guest-n>01</span>
+                    <strong>Traveler</strong>
+                    <button class="btn btn-ghost" type="button" data-guest-remove>Remove</button>
+                </div>
+                <div class="form-row">
+                    <label class="form-field is-required">
+                        <span class="form-label">First name <span class="req" title="Required">*</span></span>
+                        <input class="field" data-name="first" autocomplete="given-name">
+                    </label>
+                    <label class="form-field is-required">
+                        <span class="form-label">Last name <span class="req" title="Required">*</span></span>
+                        <input class="field" data-name="last" autocomplete="family-name">
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label class="form-field">
+                        <span class="form-label">Passport</span>
+                        <input class="field" data-name="passport" autocomplete="off">
+                    </label>
+                    <label class="form-field">
+                        <span class="form-label">Nationality</span>
+                        <input class="field" data-name="nationality" autocomplete="country-name">
+                    </label>
+                </div>
+            </article>
+        </template>
+        <button class="btn btn-ghost guest-add" type="button" data-guest-add>Add another traveler</button>
+    </section>
 
-
-        <div class="p-5 space-y-5">
-
-          <!-- Unit Price -->
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Price per Traveler
-            </label>
-
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              id="unit-price-input"
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-              value="0"
-            >
-
-          </div>
-
-
-          <!-- Discount -->
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Discount
-            </label>
-
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              id="discount-input"
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-              value="0"
-            >
-
-          </div>
-
-
-          <!-- Tax -->
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Tax Rate (%)
-            </label>
-
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              id="tax-rate-input"
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-              value="11"
-            >
-
-          </div>
-
-
-          <div class="border-t border-gray-200 pt-5 space-y-3">
-
-            <div class="flex justify-between text-sm">
-
-              <span class="text-gray-500">
-                Subtotal
-              </span>
-
-              <span class="font-medium text-gray-900">
-                $<span id="subtotal-display">0.00</span>
-              </span>
-
+    <section class="form-card" data-book-stage="4">
+        <header class="form-card-h">
+            <span class="form-step">4</span>
+            <div>
+                <h2>Wrap up</h2>
             </div>
-
-
-            <div class="flex justify-between text-sm">
-
-              <span class="text-gray-500">
-                Discount
-              </span>
-
-              <span class="font-medium text-gray-900">
-                − $<span id="discount-display">0.00</span>
-              </span>
-
-            </div>
-
-
-            <div class="flex justify-between text-sm">
-
-              <span class="text-gray-500">
-                Taxable Amount
-              </span>
-
-              <span class="font-medium text-gray-900">
-                $<span id="taxable-display">0.00</span>
-              </span>
-
-            </div>
-
-
-            <div class="flex justify-between text-sm">
-
-              <span class="text-gray-500">
-                Tax
-              </span>
-
-              <span class="font-medium text-gray-900">
-                $<span id="tax-display">0.00</span>
-              </span>
-
-            </div>
-
-
-            <div class="border-t border-gray-200 pt-4 flex justify-between">
-
-              <span class="font-semibold text-gray-900">
-                Total
-              </span>
-
-              <span class="text-xl font-semibold text-gray-900">
-                $<span id="total-display">0.00</span>
-              </span>
-
-            </div>
-
-          </div>
-
+        </header>
+        <div class="book-recap" aria-live="polite">
+            <b data-book-customer>Customer —</b>
+            <b data-book-tour>Tour —</b>
+            <b data-book-party>Travelers —</b>
         </div>
+        {% include "components/form_field.html" with field=form.notes caption="Internal notes" %}
+    </section>
 
-      </div>
-
-
-      <!-- Notes -->
-
-      <div class="mt-6">
-
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          Notes
-        </label>
-
-        <textarea
-          name="notes"
-          id="notes"
-          rows="4"
-          placeholder="Add any notes about this booking..."
-          class="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm"
-        ></textarea>
-
-      </div>
-
+    <p class="err-inline" data-book-error></p>
+    <div class="ops-form-foot">
+        <button class="btn btn-ghost" type="button" data-book-prev hidden>Back</button>
+        <button class="btn btn-warm" type="button" data-book-next>Continue</button>
+        <button class="btn btn-ok" type="submit" name="action" value="confirm" data-book-save>Save and confirm</button>
+        <button class="btn btn-ghost" type="submit" name="action" value="pending" data-book-save>Save as pending</button>
+        <a class="btn btn-ghost push" href="{% url 'bookings:list' %}">Cancel</a>
     </div>
-
-
-    <div class="flex justify-between mt-8">
-
-      <button
-        type="button"
-        data-prev
-        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-      >
-        Back
-      </button>
-
-      <button
-        type="button"
-        data-next
-        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-      >
-        Review Booking
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- ========================= -->
-  <!-- STEP 5: REVIEW -->
-  <!-- ========================= -->
-
-  <section
-    class="p-8 hidden"
-    data-wizard-step="5"
-  >
-
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900">
-        Review Booking
-      </h2>
-      <p class="text-sm text-gray-500 mt-1">
-        Make sure everything looks correct before creating the booking.
-      </p>
-    </div>
-
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-
-      <!-- Customer -->
-
-      <div class="border border-gray-200 rounded-xl p-6">
-
-        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
-          Customer
-        </p>
-
-        <p
-          class="text-lg font-semibold text-gray-900 mt-2"
-          id="review-customer-name"
-        >
-          —
-        </p>
-
-        <p
-          class="text-sm text-gray-500 mt-1"
-          id="review-customer-number"
-        >
-          —
-        </p>
-
-      </div>
-
-
-      <!-- Tour -->
-
-      <div class="border border-gray-200 rounded-xl p-6">
-
-        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
-          Tour
-        </p>
-
-        <p
-          class="text-lg font-semibold text-gray-900 mt-2"
-          id="review-tour-name"
-        >
-          —
-        </p>
-
-        <p
-          class="text-sm text-gray-500 mt-1"
-          id="review-tour-dates"
-        >
-          —
-        </p>
-
-        <p
-          class="text-sm text-gray-500 mt-1"
-          id="review-tour-destination"
-        >
-          —
-        </p>
-
-      </div>
-
-
-      <!-- Travelers -->
-
-      <div class="border border-gray-200 rounded-xl p-6">
-
-        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
-          Travelers
-        </p>
-
-        <p
-          class="text-lg font-semibold text-gray-900 mt-2"
-          id="review-travelers-count"
-        >
-          1
-        </p>
-
-        <div
-          id="review-travelers-list"
-          class="mt-4 space-y-2"
-        >
-        </div>
-
-      </div>
-
-
-      <!-- Pricing -->
-
-      <div class="border border-gray-200 rounded-xl p-6">
-
-        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
-          Booking Total
-        </p>
-
-        <p
-          class="text-2xl font-semibold text-gray-900 mt-2"
-        >
-          $<span id="review-total">0.00</span>
-        </p>
-
-        <div class="mt-4 space-y-2 text-sm">
-
-          <div class="flex justify-between">
-            <span class="text-gray-500">
-              Subtotal
-            </span>
-            <span>
-              $<span id="review-subtotal">0.00</span>
-            </span>
-          </div>
-
-          <div class="flex justify-between">
-            <span class="text-gray-500">
-              Discount
-            </span>
-            <span>
-              − $<span id="review-discount">0.00</span>
-            </span>
-          </div>
-
-          <div class="flex justify-between">
-            <span class="text-gray-500">
-              Tax
-            </span>
-            <span>
-              $<span id="review-tax">0.00</span>
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <div class="flex justify-between mt-8">
-
-      <button
-        type="button"
-        data-prev
-        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-      >
-        Back
-      </button>
-
-      <button
-        type="button"
-        data-next
-        class="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-      >
-        Continue
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- ========================= -->
-  <!-- STEP 6: CONFIRM -->
-  <!-- ========================= -->
-
-  <section
-    class="p-8 hidden"
-    data-wizard-step="6"
-  >
-
-    <div class="max-w-2xl mx-auto text-center">
-
-      <div class="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
-        ✓
-      </div>
-
-      <h2 class="text-xl font-semibold text-gray-900 mt-5">
-        Ready to Create Booking
-      </h2>
-
-      <p class="text-sm text-gray-500 mt-2">
-        Review the information below and create the booking.
-      </p>
-
-
-      <div class="mt-8 border border-gray-200 rounded-xl p-6 text-left">
-
-        <div class="space-y-4">
-
-          <div class="flex justify-between">
-
-            <span class="text-sm text-gray-500">
-              Customer
-            </span>
-
-            <span
-              class="text-sm font-medium text-gray-900"
-              id="confirm-customer"
-            >
-              —
-            </span>
-
-          </div>
-
-
-          <div class="flex justify-between">
-
-            <span class="text-sm text-gray-500">
-              Tour
-            </span>
-
-            <span
-              class="text-sm font-medium text-gray-900"
-              id="confirm-tour"
-            >
-              —
-            </span>
-
-          </div>
-
-
-          <div class="flex justify-between">
-
-            <span class="text-sm text-gray-500">
-              Travelers
-            </span>
-
-            <span
-              class="text-sm font-medium text-gray-900"
-              id="confirm-travelers"
-            >
-              —
-            </span>
-
-          </div>
-
-
-          <div class="border-t border-gray-200 pt-4 flex justify-between">
-
-            <span class="font-semibold text-gray-900">
-              Total
-            </span>
-
-            <span
-              class="text-xl font-semibold text-gray-900"
-            >
-              $<span id="confirm-total">0.00</span>
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <div class="flex justify-center gap-3 mt-8">
-
-        <button
-          type="button"
-          data-prev
-          class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-        >
-          Back
-        </button>
-
-        <button
-          type="submit"
-          class="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-        >
-          Create Booking
-        </button>
-
-      </div>
-
-    </div>
-
-  </section>
-
 </form>
-
-
-  </div>
-
-</div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+(function () {
+    const flow = document.querySelector("[data-book-flow]");
+    if (!flow) return;
+    const stages = Array.from(flow.querySelectorAll("[data-book-stage]"));
+    const tabs = Array.from(flow.querySelectorAll("[data-book-tab]"));
+    const nextBtn = flow.querySelector("[data-book-next]");
+    const prevBtn = flow.querySelector("[data-book-prev]");
+    const saveBtns = Array.from(flow.querySelectorAll("[data-book-save]"));
+    const errorEl = flow.querySelector("[data-book-error]");
+    const customer = flow.querySelector('[name="customer_id"]');
+    const tour = flow.querySelector('[name="tour_id"]');
+    const MAX_GUESTS = 8;
+    const list = flow.querySelector("[data-guest-list]");
+    const template = flow.querySelector("[data-guest-template]");
+    const addBtn = flow.querySelector("[data-guest-add]");
+    let step = 1;
 
-  let currentStep = 1;
-
-  const form = document.getElementById("booking-form");
-
-  const customerIdInput = document.getElementById("customer-id");
-  const tourIdInput = document.getElementById("tour-id");
-  const travelersCountInput = document.getElementById("travelers-count");
-
-  const travelerCountInput =
-    document.getElementById("traveler-count-input");
-
-  const travelerFields =
-    document.getElementById("traveler-fields");
-
-
-  /*
-   * -----------------------------
-   * Wizard
-   * -----------------------------
-   */
-
-  const steps =
-    document.querySelectorAll("[data-wizard-step]");
-
-  const indicators =
-    document.querySelectorAll("[data-step-indicator]");
-
-
-  function showStep(step) {
-
-    currentStep = step;
-
-    steps.forEach(function (section) {
-
-      const sectionStep =
-        Number(section.dataset.wizardStep);
-
-      section.classList.toggle(
-        "hidden",
-        sectionStep !== step
-      );
-
-    });
-
-
-    indicators.forEach(function (indicator) {
-
-      const indicatorStep =
-        Number(indicator.dataset.stepIndicator);
-
-      const number =
-        indicator.querySelector(
-          "[data-step-number]"
-        );
-
-      const label =
-        indicator.querySelector("span");
-
-
-      if (indicatorStep === step) {
-
-        number.classList.remove(
-          "bg-gray-100",
-          "text-gray-500"
-        );
-
-        number.classList.add(
-          "bg-blue-600",
-          "text-white"
-        );
-
-        label.classList.remove(
-          "text-gray-500"
-        );
-
-        label.classList.add(
-          "text-gray-900"
-        );
-
-      } else if (indicatorStep < step) {
-
-        number.classList.remove(
-          "bg-gray-100",
-          "text-gray-500"
-        );
-
-        number.classList.add(
-          "bg-blue-100",
-          "text-blue-600"
-        );
-
-        label.classList.remove(
-          "text-gray-500"
-        );
-
-        label.classList.add(
-          "text-gray-700"
-        );
-
-      } else {
-
-        number.classList.remove(
-          "bg-blue-600",
-          "text-white",
-          "bg-blue-100",
-          "text-blue-600"
-        );
-
-        number.classList.add(
-          "bg-gray-100",
-          "text-gray-500"
-        );
-
-        label.classList.remove(
-          "text-gray-900",
-          "text-gray-700"
-        );
-
-        label.classList.add(
-          "text-gray-500"
-        );
-
-      }
-
-    });
-
-
-    if (step === 5) {
-      updateReview();
+    function guests() {
+        return Array.from(list ? list.querySelectorAll("[data-guest]") : []);
     }
-
-    if (step === 6) {
-      updateConfirmation();
-    }
-
-  }
-
-
-  /*
-   * -----------------------------
-   * Customer selection
-   * -----------------------------
-   */
-
-  document
-    .querySelectorAll(".customer-card")
-    .forEach(function (card) {
-
-      card.addEventListener("click", function () {
-
-        document
-          .querySelectorAll(".customer-card")
-          .forEach(function (other) {
-
-            other.classList.remove(
-              "border-blue-500",
-              "bg-blue-50"
-            );
-
-            const check =
-              other.querySelector(".customer-check");
-
-            check.classList.add("hidden");
-            check.classList.remove("flex");
-
-          });
-
-
-        card.classList.add(
-          "border-blue-500",
-          "bg-blue-50"
-        );
-
-
-        const check =
-          card.querySelector(".customer-check");
-
-        check.classList.remove("hidden");
-        check.classList.add("flex");
-
-
-        customerIdInput.value =
-          card.dataset.customerId;
-
-      });
-
-    });
-
-
-  /*
-   * -----------------------------
-   * Tour selection
-   * -----------------------------
-   */
-
-  document
-    .querySelectorAll(".tour-card")
-    .forEach(function (card) {
-
-      card.addEventListener("click", function () {
-
-        document
-          .querySelectorAll(".tour-card")
-          .forEach(function (other) {
-
-            other.classList.remove(
-              "border-blue-500",
-              "bg-blue-50"
-            );
-
-            const check =
-              other.querySelector(".tour-check");
-
-            check.classList.add("hidden");
-            check.classList.remove("flex");
-
-          });
-
-
-        card.classList.add(
-          "border-blue-500",
-          "bg-blue-50"
-        );
-
-
-        const check =
-          card.querySelector(".tour-check");
-
-        check.classList.remove("hidden");
-        check.classList.add("flex");
-
-
-        tourIdInput.value =
-          card.dataset.tourId;
-
-
-        const price =
-          parseFloat(card.dataset.tourPrice || 0);
-
-
-        document.getElementById(
-          "unit-price-input"
-        ).value = price.toFixed(2);
-
-
-        document.getElementById(
-          "unit-price"
-        ).value = price.toFixed(2);
-
-
-        document.getElementById(
-          "pricing-tour-name"
-        ).textContent =
-          card.dataset.tourName;
-
-
-        document.getElementById(
-          "pricing-unit-price-display"
-        ).textContent =
-          price.toFixed(2);
-
-
-        calculatePricing();
-
-      });
-
-    });
-
-
-  /*
-   * -----------------------------
-   * Travelers
-   * -----------------------------
-   */
-
-  function renderTravelerFields() {
-
-    let count =
-      parseInt(
-        travelerCountInput.value || "1",
-        10
-      );
-
-
-    if (count < 1) {
-      count = 1;
-    }
-
-    if (count > 10) {
-      count = 10;
-    }
-
-
-    travelerCountInput.value = count;
-    travelersCountInput.value = count;
-
-
-    travelerFields.innerHTML = "";
-
-
-    for (let i = 0; i < count; i++) {
-
-      const wrapper =
-        document.createElement("div");
-
-      wrapper.className =
-        "border border-gray-200 rounded-xl p-5";
-
-
-      wrapper.innerHTML = `
-
-        <div class="flex items-center justify-between mb-4">
-
-          <h3 class="font-medium text-gray-900">
-            Traveler ${i + 1}
-          </h3>
-
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              First Name
-            </label>
-
-            <input
-              type="text"
-              name="traveler_${i}_first_name"
-              required
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-            >
-
-          </div>
-
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Last Name
-            </label>
-
-            <input
-              type="text"
-              name="traveler_${i}_last_name"
-              required
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-            >
-
-          </div>
-
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Passport Number
-            </label>
-
-            <input
-              type="text"
-              name="traveler_${i}_passport"
-              required
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-            >
-
-          </div>
-
-
-          <div>
-
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Traveler Type
-            </label>
-
-            <select
-              name="traveler_${i}_type"
-              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
-            >
-
-              <option value="ADULT">
-                Adult
-              </option>
-
-              <option value="CHILD">
-                Child
-              </option>
-
-              <option value="INFANT">
-                Infant
-              </option>
-
-            </select>
-
-          </div>
-
-        </div>
-      `;
-
-
-      travelerFields.appendChild(wrapper);
-
-    }
-
-  }
-
-
-  travelerCountInput.addEventListener(
-    "input",
-    renderTravelerFields
-  );
-
-
-  renderTravelerFields();
-
-
-  /*
-   * -----------------------------
-   * Pricing
-   * -----------------------------
-   */
-
-  const unitPriceInput =
-    document.getElementById(
-      "unit-price-input"
-    );
-
-  const discountInput =
-    document.getElementById(
-      "discount-input"
-    );
-
-  const taxRateInput =
-    document.getElementById(
-      "tax-rate-input"
-    );
-
-
-  function money(value) {
-
-    return Number(value || 0)
-      .toFixed(2);
-
-  }
-
-
-  function calculatePricing() {
-
-    const travelers =
-      parseInt(
-        travelerCountInput.value || "1",
-        10
-      );
-
-
-    const unitPrice =
-      parseFloat(
-        unitPriceInput.value || "0"
-      );
-
-
-    const discount =
-      parseFloat(
-        discountInput.value || "0"
-      );
-
-
-    const taxRate =
-      parseFloat(
-        taxRateInput.value || "0"
-      );
-
-
-    const subtotal =
-      unitPrice * travelers;
-
-
-    const discountAmount =
-      Math.min(
-        Math.max(discount, 0),
-        subtotal
-      );
-
-
-    const taxable =
-      subtotal - discountAmount;
-
-
-    const tax =
-      taxable * taxRate / 100;
-
-
-    const total =
-      taxable + tax;
-
-
-    document.getElementById(
-      "unit-price"
-    ).value =
-      money(unitPrice);
-
-
-    document.getElementById(
-      "discount"
-    ).value =
-      money(discount);
-
-
-    document.getElementById(
-      "tax-rate"
-    ).value =
-      money(taxRate);
-
-
-    document.getElementById(
-      "pricing-travelers"
-    ).textContent =
-      travelers;
-
-
-    document.getElementById(
-      "pricing-unit-price-display"
-    ).textContent =
-      money(unitPrice);
-
-
-    document.getElementById(
-      "subtotal-display"
-    ).textContent =
-      money(subtotal);
-
-
-    document.getElementById(
-      "discount-display"
-    ).textContent =
-      money(discountAmount);
-
-
-    document.getElementById(
-      "taxable-display"
-    ).textContent =
-      money(taxable);
-
-
-    document.getElementById(
-      "tax-display"
-    ).textContent =
-      money(tax);
-
-
-    document.getElementById(
-      "total-display"
-    ).textContent =
-      money(total);
-
-  }
-
-
-  [
-    unitPriceInput,
-    discountInput,
-    taxRateInput
-  ].forEach(function (input) {
-
-    input.addEventListener(
-      "input",
-      calculatePricing
-    );
-
-  });
-
-
-  /*
-   * -----------------------------
-   * Review
-   * -----------------------------
-   */
-
-  function updateReview() {
-
-    const customer =
-      document.querySelector(
-        ".customer-card.border-blue-500"
-      );
-
-
-    const tour =
-      document.querySelector(
-        ".tour-card.border-blue-500"
-      );
-
-
-    if (customer) {
-
-      document.getElementById(
-        "review-customer-name"
-      ).textContent =
-        customer.dataset.customerName;
-
-
-      document.getElementById(
-        "review-customer-number"
-      ).textContent =
-        customer.dataset.customerNumber;
-
-    }
-
-
-    if (tour) {
-
-      document.getElementById(
-        "review-tour-name"
-      ).textContent =
-        tour.dataset.tourName;
-
-
-      document.getElementById(
-        "review-tour-dates"
-      ).textContent =
-        `${tour.dataset.tourStart} – ${tour.dataset.tourEnd}`;
-
-
-      document.getElementById(
-        "review-tour-destination"
-      ).textContent =
-        `${tour.dataset.tourCity || ""}${tour.dataset.tourCity && tour.dataset.tourCountry ? ", " : ""}${tour.dataset.tourCountry || ""}`;
-
-    }
-
-
-    const count =
-      parseInt(
-        travelerCountInput.value || "1",
-        10
-      );
-
-
-    document.getElementById(
-      "review-travelers-count"
-    ).textContent =
-      count;
-
-
-    const reviewTravelers =
-      document.getElementById(
-        "review-travelers-list"
-      );
-
-
-    reviewTravelers.innerHTML = "";
-
-
-    for (let i = 0; i < count; i++) {
-
-      const first =
-        document.querySelector(
-          `[name="traveler_${i}_first_name"]`
-        );
-
-
-      const last =
-        document.querySelector(
-          `[name="traveler_${i}_last_name"]`
-        );
-
-
-      if (!first || !last) {
-        continue;
-      }
-
-
-      const row =
-        document.createElement("div");
-
-      row.className =
-        "text-sm text-gray-700";
-
-
-      row.textContent =
-        `${first.value || "—"} ${last.value || ""}`;
-
-
-      reviewTravelers.appendChild(row);
-
-    }
-
-
-    calculatePricing();
-
-
-    document.getElementById(
-      "review-subtotal"
-    ).textContent =
-      document.getElementById(
-        "subtotal-display"
-      ).textContent;
-
-
-    document.getElementById(
-      "review-discount"
-    ).textContent =
-      document.getElementById(
-        "discount-display"
-      ).textContent;
-
-
-    document.getElementById(
-      "review-tax"
-    ).textContent =
-      document.getElementById(
-        "tax-display"
-      ).textContent;
-
-
-    document.getElementById(
-      "review-total"
-    ).textContent =
-      document.getElementById(
-        "total-display"
-      ).textContent;
-
-  }
-
-
-  /*
-   * -----------------------------
-   * Confirmation
-   * -----------------------------
-   */
-
-  function updateConfirmation() {
-
-    const customer =
-      document.querySelector(
-        ".customer-card.border-blue-500"
-      );
-
-
-    const tour =
-      document.querySelector(
-        ".tour-card.border-blue-500"
-      );
-
-
-    if (customer) {
-
-      document.getElementById(
-        "confirm-customer"
-      ).textContent =
-        customer.dataset.customerName;
-
-    }
-
-
-    if (tour) {
-
-      document.getElementById(
-        "confirm-tour"
-      ).textContent =
-        tour.dataset.tourName;
-
-    }
-
-
-    document.getElementById(
-      "confirm-travelers"
-    ).textContent =
-      travelerCountInput.value;
-
-
-    document.getElementById(
-      "confirm-total"
-    ).textContent =
-      document.getElementById(
-        "total-display"
-      ).textContent;
-
-  }
-
-
-  /*
-   * -----------------------------
-   * Validation
-   * -----------------------------
-   */
-
-  function validateStep(step) {
-
-    if (step === 1) {
-
-      if (!customerIdInput.value) {
-
-        alert(
-          "Please select a customer."
-        );
-
-        return false;
-
-      }
-
-    }
-
-
-    if (step === 2) {
-
-      if (!tourIdInput.value) {
-
-        alert(
-          "Please select a tour."
-        );
-
-        return false;
-
-      }
-
-    }
-
-
-    if (step === 3) {
-
-      const count =
-        parseInt(
-          travelerCountInput.value || "0",
-          10
-        );
-
-
-      if (
-        !count ||
-        count < 1 ||
-        count > 10
-      ) {
-
-        alert(
-          "Please enter a valid number of travelers."
-        );
-
-        return false;
-
-      }
-
-
-      const fields =
-        travelerFields.querySelectorAll(
-          "input[required]"
-        );
-
-
-      for (const field of fields) {
-
-        if (!field.value.trim()) {
-
-          alert(
-            "Please complete all traveler details."
-          );
-
-          field.focus();
-
-          return false;
-
+    function nextIndex() {
+        const used = guests().map(function (card) { return Number(card.getAttribute("data-index")); });
+        for (let i = 0; i < MAX_GUESTS; i += 1) {
+            if (used.indexOf(i) === -1) return i;
         }
-
-      }
-
+        return -1;
+    }
+    function bindCard(card, index) {
+        card.setAttribute("data-index", String(index));
+        card.querySelectorAll("[data-name]").forEach(function (input) {
+            input.name = "traveler_" + index + "_" + input.getAttribute("data-name");
+        });
+    }
+    function selectedLabel(select) {
+        if (!select || !select.selectedOptions.length) return "—";
+        const text = (select.selectedOptions[0].textContent || "").trim();
+        return select.value ? text : "—";
+    }
+    function filledGuests() {
+        return guests().filter(function (card) {
+            const first = card.querySelector('[data-name="first"]');
+            const last = card.querySelector('[data-name="last"]');
+            return Boolean(first && first.value.trim() && last && last.value.trim());
+        }).length;
+    }
+    function recap() {
+        const c = flow.querySelector("[data-book-customer]");
+        const t = flow.querySelector("[data-book-tour]");
+        const p = flow.querySelector("[data-book-party]");
+        if (c) c.textContent = "Customer · " + selectedLabel(customer);
+        if (t) t.textContent = "Tour · " + selectedLabel(tour);
+        if (p) p.textContent = "Travelers · " + Math.max(filledGuests(), guests().length);
+    }
+    function numberGuests() {
+        const cards = guests();
+        cards.forEach(function (card, index) {
+            const n = card.querySelector("[data-guest-n]");
+            if (n) n.textContent = String(index + 1).padStart(2, "0");
+            const remove = card.querySelector("[data-guest-remove]");
+            if (remove) remove.hidden = cards.length < 2;
+        });
+        if (addBtn) addBtn.hidden = cards.length >= MAX_GUESTS;
+        recap();
+    }
+    function addGuest() {
+        if (!template || !list || !template.content || !template.content.firstElementChild) return;
+        const index = nextIndex();
+        if (index < 0) return;
+        const node = template.content.firstElementChild.cloneNode(true);
+        bindCard(node, index);
+        list.appendChild(node);
+        numberGuests();
+        const first = node.querySelector('[data-name="first"]');
+        if (first) first.focus();
+    }
+    function setError(message) {
+        if (!errorEl) return;
+        errorEl.textContent = message || "";
+        errorEl.hidden = !message;
+        errorEl.classList.toggle("show", Boolean(message));
+    }
+    function canLeave(current) {
+        if (current === 1 && customer && !customer.value) {
+            setError("Choose a customer first.");
+            if (customer.focus) customer.focus();
+            return false;
+        }
+        if (current === 2 && tour && !tour.value) {
+            setError("Choose a tour first.");
+            if (tour.focus) tour.focus();
+            return false;
+        }
+        if (current === 3 && filledGuests() < 1) {
+            setError("Add at least one traveler with first and last name.");
+            return false;
+        }
+        setError("");
+        return true;
+    }
+    function show(n) {
+        step = Math.min(Math.max(n, 1), stages.length || 1);
+        stages.forEach(function (stage) {
+            stage.classList.toggle("is-on", Number(stage.getAttribute("data-book-stage")) === step);
+        });
+        tabs.forEach(function (tab) {
+            const id = Number(tab.getAttribute("data-book-tab"));
+            tab.classList.toggle("is-on", id === step);
+            tab.classList.toggle("is-done", id < step);
+        });
+        const last = step === stages.length;
+        if (prevBtn) prevBtn.hidden = step === 1;
+        if (nextBtn) nextBtn.hidden = last;
+        saveBtns.forEach(function (btn) { btn.hidden = !last; });
+        recap();
     }
 
-
-    if (step === 4) {
-
-      const unitPrice =
-        parseFloat(
-          unitPriceInput.value || "0"
-        );
-
-
-      if (unitPrice < 0) {
-
-        alert(
-          "Price cannot be negative."
-        );
-
-        return false;
-
-      }
-
-
-      calculatePricing();
-
+    tabs.forEach(function (tab) {
+        tab.addEventListener("click", function (event) {
+            event.preventDefault();
+            const target = Number(tab.getAttribute("data-book-tab"));
+            if (target > step && !canLeave(step)) return;
+            show(target);
+        });
+    });
+    if (nextBtn) {
+        nextBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            if (!canLeave(step)) return;
+            show(step + 1);
+        });
     }
-
-
-    return true;
-
-  }
-
-
-  /*
-   * -----------------------------
-   * Next buttons
-   * -----------------------------
-   */
-
-  document
-    .querySelectorAll("[data-next]")
-    .forEach(function (button) {
-
-      button.addEventListener(
-        "click",
-        function () {
-
-          if (!validateStep(currentStep)) {
-            return;
-          }
-
-
-          if (currentStep < 6) {
-
-            showStep(
-              currentStep + 1
-            );
-
-          }
-
+    if (prevBtn) {
+        prevBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            setError("");
+            show(step - 1);
+        });
+    }
+    if (customer) customer.addEventListener("change", recap);
+    if (tour) tour.addEventListener("change", recap);
+    flow.addEventListener("input", recap);
+    if (addBtn) {
+        addBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            addGuest();
+        });
+    }
+    if (list) {
+        list.addEventListener("click", function (event) {
+            const btn = event.target.closest("[data-guest-remove]");
+            if (!btn || !list.contains(btn)) return;
+            event.preventDefault();
+            const card = btn.closest("[data-guest]");
+            if (!card || guests().length < 2) return;
+            card.remove();
+            numberGuests();
+        });
+    }
+    flow.addEventListener("submit", function (event) {
+        if (!customer || !customer.value || !tour || !tour.value || filledGuests() < 1) {
+            event.preventDefault();
+            if (!customer.value) show(1);
+            else if (!tour.value) show(2);
+            else show(3);
+            canLeave(step);
         }
-      );
-
     });
 
-
-  /*
-   * -----------------------------
-   * Previous buttons
-   * -----------------------------
-   */
-
-  document
-    .querySelectorAll("[data-prev]")
-    .forEach(function (button) {
-
-      button.addEventListener(
-        "click",
-        function () {
-
-          if (currentStep > 1) {
-
-            showStep(
-              currentStep - 1
-            );
-
-          }
-
-        }
-      );
-
-    });
-
-
-  /*
-   * -----------------------------
-   * Initial state
-   * -----------------------------
-   */
-
-  showStep(1);
-
-});
+    flow.classList.add("is-ready");
+    const start = flow.querySelector(".errorlist") ? (stages.find(function (stage) {
+        return stage.querySelector(".errorlist");
+    }) || stages[0]) : stages[0];
+    show(start ? Number(start.getAttribute("data-book-stage")) || 1 : 1);
+    if (!guests().length) addGuest();
+    numberGuests();
+})();
 </script>
-
 {% endblock %}

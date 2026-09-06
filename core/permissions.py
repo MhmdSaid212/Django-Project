@@ -3,38 +3,39 @@ from __future__ import annotations
 from functools import wraps
 from typing import Callable
 
+from django.contrib.auth import logout
+from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.constants import UserRole
 from core.responses import error_response
 
-SESSION_USER_KEY = "tourops_user"
-
 
 def get_session_user(request: HttpRequest) -> dict | None:
-    return request.session.get(SESSION_USER_KEY)
-
-
-def set_session_user(request: HttpRequest, user: dict) -> None:
-    request.session[SESSION_USER_KEY] = {
-        "id": str(user["_id"]),
-        "email": user.get("email"),
-        "first_name": user.get("first_name"),
-        "last_name": user.get("last_name"),
-        "role": user.get("role"),
+    """Compatibility adapter: staff identity as a dict keyed by Mongo actor id."""
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    return {
+        "id": user.actor_id,
+        "pk": user.pk,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role,
     }
-    request.session.cycle_key()
 
 
 def clear_session_user(request: HttpRequest) -> None:
-    request.session.flush()
+    logout(request)
 
 
 def is_authenticated(request: HttpRequest) -> bool:
-    return get_session_user(request) is not None
+    user = getattr(request, "user", None)
+    return bool(user and user.is_authenticated)
 
 
 def safe_next_url(request: HttpRequest, candidate: str | None) -> str | None:
@@ -75,15 +76,14 @@ def role_required(*roles: str) -> Callable:
         @wraps(view)
         @login_required
         def wrapper(request: HttpRequest, *args, **kwargs):
-            user = get_session_user(request) or {}
-            if user.get("role") not in allowed:
+            if not request.user.has_role(*allowed):
                 if _wants_json(request):
                     return error_response(
                         "PERMISSION_DENIED",
                         "You do not have permission to access this resource.",
                         status=403,
                     )
-                return render(request, "errors/403.html", status=403)
+                raise PermissionDenied
             return view(request, *args, **kwargs)
 
         return wrapper

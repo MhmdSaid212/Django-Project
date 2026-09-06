@@ -1,4 +1,4 @@
-<form class="filter-bar" method="get">
+<form class="filter-bar" method="get" data-autosubmit>
     <label>Month
         <input class="field" type="month" name="month" value="{{ filters.month }}">
     </label>
@@ -19,7 +19,6 @@
     </label>
     {% endif %}
     <div class="filter-actions">
-        <button class="btn btn-ghost" type="submit">Apply</button>
         {% if filters.month or filters.from or filters.to or filters.tour %}
         <a class="btn btn-ghost" href="?">Clear</a>
         {% endif %}

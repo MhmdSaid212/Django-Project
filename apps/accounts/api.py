@@ -1,50 +1,54 @@
-from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import login, logout
+from django.contrib.auth.forms import PasswordResetForm
 from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.accounts.services import AuthService, UserService, present_user
+from apps.accounts.services import AUTH_BACKEND, AuthService, UserService, present_user
 from core.access import OWNER_ROLES
 from core.exceptions import TourOpsError
-from core.http import actor_id, guarded, json_body, method_view, resource_id
-from core.permissions import clear_session_user, get_session_user, set_session_user
+from core.http import actor_id, client_ip, guarded, json_body, method_view, resource_id
 from core.responses import success_response
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @guarded
-def login(request):
+def login_api(request):
     payload = json_body(request)
-    user = AuthService().authenticate(payload.get("email") or "", payload.get("password") or "")
-    set_session_user(request, user)
+    user = AuthService().authenticate(
+        payload.get("email") or "",
+        payload.get("password") or "",
+        ip=client_ip(request),
+    )
+    login(request, user, backend=AUTH_BACKEND)
     return success_response(present_user(user))
 
 
-@csrf_exempt
 @require_POST
-def logout(request):
-    clear_session_user(request)
+def logout_api(request):
+    logout(request)
     return success_response({"signed_out": True})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @guarded
 def password_reset(request):
     payload = json_body(request)
-    user = AuthService().reset_password_by_email(
-        payload.get("email") or "",
-        payload.get("password") or payload.get("new_password") or "",
-    )
-    return success_response(present_user(user))
+    form = PasswordResetForm({"email": payload.get("email") or ""})
+    if form.is_valid():
+        form.save(
+            request=request,
+            use_https=request.is_secure(),
+            email_template_name="accounts/password_reset_email.html",
+            subject_template_name="accounts/password_reset_subject.txt",
+        )
+    return success_response({"sent": True})
 
 
 @guarded
 def me(request):
-    session_user = get_session_user(request)
     try:
-        return success_response(UserService().get_presented(session_user["id"]))
+        return success_response(UserService().get_presented(request.user.actor_id))
     except TourOpsError:
-        return success_response(session_user)
+        return success_response(present_user(request.user))
 
 
 @guarded

@@ -1,15 +1,9 @@
 {% extends "base.html" %}
 {% load tourops %}
 {% block content %}
-<div class="callout callout-info" style="margin-bottom:1rem;display:flex;gap:.65rem;align-items:flex-start">
-    <span aria-hidden="true" style="font-weight:700">ℹ</span>
-    <span><strong>Expense</strong> = cost incurred. <strong>Supplier payment</strong> = cash sent. Tour profit uses expenses.</span>
-</div>
-
 <div class="page-head">
     <div>
         <h1>Expenses</h1>
-        <p>Costs incurred — not cash out</p>
     </div>
     <div class="actions">
         <a class="btn btn-warm" href="{% url 'expenses:create' %}">+ New Expense</a>
@@ -63,6 +57,7 @@
                 <th>Paid</th>
                 <th>Remaining</th>
                 <th>Status</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -77,10 +72,21 @@
                 <td>{{ e.paid|money }}</td>
                 <td><strong>{{ e.remaining|money }}</strong></td>
                 <td>{% include "components/status_badge.html" with status=e.status %}</td>
+                <td class="row-actions">
+                    {% url 'expenses:detail' e.id as view_url %}
+                    {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
+                    {% url 'expenses:edit' e.id as edit_url %}
+                    {% include "components/ico_btn.html" with href=edit_url title="Edit" icon="edit" %}
+                    {% if e.has_remaining %}
+                    <a class="ico-btn is-primary" href="{% url 'supplier_payments:create' %}?expense_id={{ e.id }}" title="Record payment" aria-label="Record payment">
+                        {% include "components/ico_mark.html" with icon="pay" %}
+                    </a>
+                    {% endif %}
+                </td>
             </tr>
         {% empty %}
             <tr>
-                <td colspan="9">
+                <td colspan="10">
                     {% url 'expenses:create' as expense_create_url %}
                     {% include "components/empty_state.html" with title="No expenses yet" body="Record a supplier bill or overhead cost to start tracking payables." cta="New expense" cta_url=expense_create_url %}
                 </td>

@@ -38,3 +38,7 @@ class BookingRepository(SoftDeleteRepositoryMixin):
 
     def find_customer(self, customer_id: str | ObjectId) -> dict | None:
         return self.customers.find_one(live_query({"_id": parse_object_id(customer_id, field="customer_id")}))
+
+    def update_if(self, doc_id: str | ObjectId, *, expected: dict, updates: dict):
+        query = live_query({"_id": parse_object_id(doc_id, field="booking_id"), **(expected or {})})
+        return self.collection.update_one(query, {"$set": updates})

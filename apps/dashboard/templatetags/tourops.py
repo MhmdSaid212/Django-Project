@@ -14,6 +14,8 @@ _BADGE = {
     "DRAFT": "b-mute",
     "ISSUED": "b-info",
     "PARTIALLY_PAID": "b-warn",
+    "PARTIALLY_REFUNDED": "b-info",
+    "REFUNDED": "b-info",
     "UNPAID": "b-bad",
     "IN_PROGRESS": "b-info",
     "FULLY_BOOKED": "b-warm",

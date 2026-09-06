@@ -36,17 +36,13 @@ class BankDetails:
     bank_name: Optional[str] = None
     account_name: Optional[str] = None
     iban: Optional[str] = None
+    swift_bic: Optional[str] = None
+    account_number: Optional[str] = None
 
 
 @dataclass
 class HotelInfo:
     star_rating: Optional[int] = None
-    room_count: Optional[int] = None
-    room_types: list[str] = field(default_factory=list)
-    check_in_time: Optional[str] = None
-    check_out_time: Optional[str] = None
-    amenities: list[str] = field(default_factory=list)
-    board_basis: Optional[str] = None
 
 
 @dataclass
@@ -109,6 +105,8 @@ class SupplierServiceLine:
     supplier_type: str
     description: str
     estimated_cost: Decimal = ZERO
+    supplier_service_id: Optional[ObjectId] = None
+    name: Optional[str] = None
 
 
 @dataclass

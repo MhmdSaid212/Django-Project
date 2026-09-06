@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.accounts.repositories import UserRepository
+from apps.accounts.models import User
 from apps.audit.constants import ACTION_BADGE, ACTION_LABELS, ENTITY_LABELS
 from apps.audit.repositories import AuditLogRepository
 from core.exceptions import NotFoundError, ValidationError
@@ -54,13 +54,12 @@ def present_audit(document: dict, *, actor: dict | None = None) -> dict:
 
 
 class AuditService:
-    def __init__(
-        self,
-        repository: AuditLogRepository | None = None,
-        users: UserRepository | None = None,
-    ):
+    def __init__(self, repository: AuditLogRepository | None = None):
         self.repository = repository or AuditLogRepository()
-        self.users = users or UserRepository()
+
+    def _actor(self, actor_id) -> dict | None:
+        user = User.objects.by_actor_id(actor_id)
+        return user.as_actor_dict() if user else None
 
     def log(
         self,
@@ -98,33 +97,6 @@ class AuditService:
         document["_id"] = result.inserted_id
         return document
 
-    def create(
-        self,
-        *,
-        user_id=None,
-        actor_id=None,
-        action: str,
-        entity_type: str,
-        entity_id,
-        description: str,
-        before=None,
-        after=None,
-        ip_address=None,
-    ) -> dict:
-        return self.log(
-            actor_id=actor_id or user_id,
-            action=action,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            description=description,
-            before=before,
-            after=after,
-            ip_address=ip_address,
-        )
-
-    def list_items(self, **filters) -> list[dict]:
-        return self.repository.find_all(**filters)
-
     def list_presented(self, **filters) -> list[dict]:
         rows = self.repository.find_all(**filters)
         cache: dict[str, dict | None] = {}
@@ -132,7 +104,7 @@ class AuditService:
         for row in rows:
             key = serialize_id(row.get("user_id")) or ""
             if key not in cache:
-                cache[key] = self.users.find_by_id(key) if key else None
+                cache[key] = self._actor(key) if key else None
             presented.append(present_audit(row, actor=cache[key]))
         return presented
 
@@ -140,7 +112,7 @@ class AuditService:
         document = self.repository.find_by_id(doc_id)
         if not document:
             raise NotFoundError("Audit log not found.")
-        actor = self.users.find_by_id(document.get("user_id")) if document.get("user_id") else None
+        actor = self._actor(document.get("user_id")) if document.get("user_id") else None
         return present_audit(document, actor=actor)
 
     def for_entity(self, entity_type: str, entity_id, *, limit: int = 50) -> list[dict]:
@@ -150,7 +122,7 @@ class AuditService:
         for row in rows:
             key = serialize_id(row.get("user_id")) or ""
             if key not in cache:
-                cache[key] = self.users.find_by_id(key) if key else None
+                cache[key] = self._actor(key) if key else None
             presented.append(present_audit(row, actor=cache[key]))
         return presented
 

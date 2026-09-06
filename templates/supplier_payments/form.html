@@ -3,46 +3,64 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Accounts payable</p>
         <h1>{{ page_heading }}</h1>
-        <p>Pay against an expense bill. Amount cannot exceed remaining balance.</p>
     </div>
 </div>
 
-{% if bill %}
-<section class="panel" style="margin-bottom:.85rem">
-    <p class="tiny">Selected bill</p>
-    <h2 style="margin:.2rem 0">{{ bill.supplier }}</h2>
-    <p class="muted">Expense <a href="{% url 'expenses:detail' bill.id %}">{{ bill.number }}</a></p>
-    <div class="metrics-4" style="margin-top:.8rem">
-        <div class="metric"><span class="tiny">Total</span><b>{{ bill.amount|money }}</b></div>
-        <div class="metric"><span class="tiny">Already paid</span><b>{{ bill.paid|money }}</b></div>
-        <div class="metric"><span class="tiny">Remaining</span><b>{{ bill.remaining|money }}</b></div>
-        <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ bill.due }}</b></div>
-    </div>
-</section>
-{% endif %}
-
 {% if form %}
-<form method="post" class="panel form-grid" style="max-width:640px">
+<form method="post" class="ops-form">
     {% csrf_token %}
     {{ form.non_field_errors }}
-    {% if not bill %}
-    <label>Expense{{ form.expense_id }}{{ form.expense_id.errors }}</label>
-    {% else %}
-    {{ form.expense_id }}{{ form.expense_id.errors }}
-    {% endif %}
-    <label>Payment amount{{ form.amount }}{{ form.amount.errors }}</label>
-    {% if bill %}
-    <p class="err-inline" data-sp-error>Amount cannot exceed the remaining supplier balance of {{ bill.remaining|money }}.</p>
-    <p>Remaining after payment: <strong data-sp-after>{{ bill.remaining|money }}</strong></p>
-    {% endif %}
-    <label>Method{{ form.payment_method }}{{ form.payment_method.errors }}</label>
-    <label>Payment date{{ form.payment_date }}{{ form.payment_date.errors }}</label>
-    <label>Reference{{ form.reference_number }}{{ form.reference_number.errors }}</label>
-    <label>Notes{{ form.notes }}{{ form.notes.errors }}</label>
-    {{ form.currency.as_hidden }}
-    <div class="actions">
+
+    <section class="form-card form-card-accent">
+        <header class="form-card-h">
+            <span class="form-step">1</span>
+            <div>
+                <h2>Which bill</h2>
+            </div>
+        </header>
+        {% if bill %}
+        <div class="identity-chip">
+            <strong>{{ bill.supplier }}</strong>
+            <span>Expense <a href="{% url 'expenses:detail' bill.id %}">{{ bill.number }}</a> · due {{ bill.due }}</span>
+        </div>
+        <div class="metrics-4">
+            <div class="metric"><span class="tiny">Total</span><b>{{ bill.amount|money }}</b></div>
+            <div class="metric"><span class="tiny">Already paid</span><b>{{ bill.paid|money }}</b></div>
+            <div class="metric"><span class="tiny">Remaining</span><b>{{ bill.remaining|money }}</b></div>
+            <div class="metric"><span class="tiny">Due</span><b style="font-size:1rem">{{ bill.due }}</b></div>
+        </div>
+        {{ form.expense_id }}{{ form.expense_id.errors }}
+        {% else %}
+        {% include "components/form_field.html" with field=form.expense_id caption="Expense" %}
+        {% endif %}
+    </section>
+
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">2</span>
+            <div>
+                <h2>How you pay</h2>
+            </div>
+        </header>
+        {% include "components/form_field.html" with field=form.amount caption="Payment amount" %}
+        {% if bill %}
+        <p class="err-inline" data-sp-error>Amount cannot exceed the remaining supplier balance of {{ bill.remaining|money }}.</p>
+        <p class="muted">Remaining after payment: <strong data-sp-after>{{ bill.remaining|money }}</strong></p>
+        {% endif %}
+        {% include "components/form_field.html" with field=form.payment_method caption="Method" %}
+        {% if preferred_label %}
+        <p class="muted">Preferred method: {{ preferred_label }}</p>
+        {% endif %}
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.payment_date caption="Payment date" %}
+            {% include "components/form_field.html" with field=form.reference_number caption="Transaction / reference number" %}
+        </div>
+        {% include "components/form_field.html" with field=form.notes caption="Internal notes" %}
+        {{ form.currency.as_hidden }}
+    </section>
+
+    <div class="ops-form-foot">
         <button class="btn btn-warm" type="submit">Record payment</button>
         <a class="btn btn-ghost" href="{% url 'supplier_payments:list' %}">Cancel</a>
     </div>

@@ -13,15 +13,18 @@ from apps.attachments.constants import (
     ALLOWED_CONTENT_TYPES,
     CATEGORY_LABELS,
     ENTITY_LABELS,
+    IMAGE_CONTENT_TYPES,
     MAX_UPLOAD_BYTES,
+    sniff_content_type,
 )
 from apps.attachments.repositories import AttachmentRepository
 from apps.audit.constants import AuditAction
 from apps.audit.services import safe_audit
 from apps.notifications.constants import NotificationType
-from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
+from apps.notifications.services import notify_for_type
+from core.access import attachment_entities_for, can_use_attachment_entity
 from core.constants import AttachmentCategory, AttachmentEntityType
-from core.exceptions import DatabaseUnavailableError, NotFoundError, ValidationError
+from core.exceptions import DatabaseUnavailableError, NotFoundError, PermissionDeniedError, ValidationError
 from core.soft_delete import stamp_new
 from core.utils import parse_object_id, serialize_id, utcnow
 
@@ -58,6 +61,7 @@ def present_attachment(document: dict) -> dict:
         "created_display": document.get("created_at").strftime("%d %b %Y %H:%M")
         if hasattr(document.get("created_at"), "strftime")
         else "—",
+        "is_image": (document.get("content_type") or "").lower() in IMAGE_CONTENT_TYPES,
     }
 
 
@@ -68,20 +72,35 @@ class AttachmentService:
     def list_presented(self, **filters) -> list[dict]:
         return [present_attachment(row) for row in self.repository.list_items(**filters)]
 
+    def list_presented_for_role(self, role, **filters) -> list[dict]:
+        allowed = attachment_entities_for(role)
+        entity_type = filters.get("entity_type")
+        if entity_type:
+            if entity_type not in allowed:
+                return []
+            return self.list_presented(**filters)
+        return self.list_presented(**{**filters, "entity_types": list(allowed)})
+
+    def assert_role_can_use(self, role, entity_type: str) -> None:
+        if not can_use_attachment_entity(role, entity_type):
+            raise PermissionDeniedError("You do not have permission to use files on this record.")
+
     def list_for_entity(self, entity_type: str, entity_id) -> list[dict]:
         return [present_attachment(row) for row in self.repository.list_for_entity(entity_type, entity_id)]
 
-    def get(self, doc_id: str) -> dict:
+    def get(self, doc_id: str, *, actor_role=None) -> dict:
         try:
             document = self.repository.find_by_id(doc_id)
         except ValidationError as extra:
             raise NotFoundError("Attachment not found.") from extra
         if not document:
             raise NotFoundError("Attachment not found.")
+        if actor_role is not None:
+            self.assert_role_can_use(actor_role, document.get("entity_type") or "")
         return document
 
-    def get_presented(self, doc_id: str) -> dict:
-        return present_attachment(self.get(doc_id))
+    def get_presented(self, doc_id: str, *, actor_role=None) -> dict:
+        return present_attachment(self.get(doc_id, actor_role=actor_role))
 
     def absolute_path(self, storage_key: str) -> Path:
         root = Path(settings.MEDIA_ROOT)
@@ -90,17 +109,40 @@ class AttachmentService:
             raise ValidationError("Invalid storage key.")
         return path
 
-    def file_response(self, doc_id: str) -> FileResponse:
-        document = self.get(doc_id)
+    def file_response(self, doc_id: str, *, inline: bool = False, actor_role=None) -> FileResponse:
+        document = self.get(doc_id, actor_role=actor_role)
         path = self.absolute_path(document.get("storage_key") or "")
         if not path.exists() or not path.is_file():
             raise NotFoundError("File is missing from storage.")
-        return FileResponse(
+        response = FileResponse(
             path.open("rb"),
-            as_attachment=True,
+            as_attachment=not inline,
             filename=document.get("file_name") or "attachment",
             content_type=document.get("content_type") or "application/octet-stream",
         )
+        response["X-Content-Type-Options"] = "nosniff"
+        if inline and (document.get("content_type") or "") not in IMAGE_CONTENT_TYPES:
+            response["Content-Disposition"] = f'attachment; filename="{document.get("file_name") or "attachment"}"'
+        return response
+
+    def gallery_for_tours(self, tour_ids) -> dict[str, list[dict]]:
+        grouped: dict[str, list[dict]] = {}
+        if not tour_ids:
+            return grouped
+        wanted = {str(item) for item in tour_ids if item}
+        for row in self.list_presented(
+            entity_type=AttachmentEntityType.TOURS.value,
+            category=AttachmentCategory.GALLERY.value,
+        ):
+            if not row.get("is_image"):
+                continue
+            entity_id = row.get("entity_id")
+            if entity_id not in wanted:
+                continue
+            grouped.setdefault(entity_id, []).append(row)
+        for photos in grouped.values():
+            photos.reverse()
+        return grouped
 
     def create(
         self,
@@ -111,9 +153,12 @@ class AttachmentService:
         category: str,
         upload,
         notes: str | None = None,
+        actor_role=None,
     ) -> dict:
         entity_type = (entity_type or "").strip()
         category = (category or "").strip().upper()
+        if actor_role is not None:
+            self.assert_role_can_use(actor_role, entity_type)
         if entity_type not in {item.value for item in AttachmentEntityType}:
             raise ValidationError("Invalid entity type.")
         if category not in {item.value for item in AttachmentCategory}:
@@ -132,6 +177,24 @@ class AttachmentService:
             raise ValidationError("Uploaded file is empty.")
         if size > MAX_UPLOAD_BYTES:
             raise ValidationError("File is too large. Maximum size is 5 MB.")
+        if content_type not in ALLOWED_CONTENT_TYPES:
+            raise ValidationError("Unsupported file type.")
+
+        header = b""
+        if hasattr(upload, "read"):
+            header = upload.read(16) or b""
+            if hasattr(upload, "seek"):
+                try:
+                    upload.seek(0)
+                except Exception:
+                    pass
+        detected = sniff_content_type(header)
+        if detected:
+            content_type = detected
+        elif content_type == "text/plain" and b"\x00" not in header:
+            content_type = "text/plain"
+        else:
+            raise ValidationError("File contents do not match a supported type.")
         if content_type not in ALLOWED_CONTENT_TYPES:
             raise ValidationError("Unsupported file type.")
 
@@ -171,9 +234,8 @@ class AttachmentService:
             description=f"Uploaded {presented['file_name']} to {presented['entity_label'].lower()} {presented['entity_id']}.",
             after={"file_name": presented["file_name"], "entity_type": entity_type, "category": category},
         )
-        safe_notify_roles(
-            FINANCE_NOTIFY_ROLES,
-            type=NotificationType.ATTACHMENT.value,
+        notify_for_type(
+            NotificationType.ATTACHMENT.value,
             title="Document uploaded",
             message=f"{presented['file_name']} was attached to {presented['entity_label'].lower()} {presented['entity_id']}.",
             related_entity_type=entity_type,
@@ -182,32 +244,8 @@ class AttachmentService:
         )
         return saved
 
-    def list_for_customer(self, customer_id: str) -> list[dict]:
-        return self.list_for_entity(AttachmentEntityType.CUSTOMERS.value, customer_id)
-
-    def upload_for_customer(
-        self,
-        customer_id: str,
-        uploaded_file,
-        *,
-        category: str,
-        uploaded_by: str,
-        notes: str | None = None,
-    ) -> dict:
-        return self.create(
-            actor_id=uploaded_by,
-            entity_type=AttachmentEntityType.CUSTOMERS.value,
-            entity_id=customer_id,
-            category=(category or AttachmentCategory.OTHER.value).upper(),
-            upload=uploaded_file,
-            notes=notes,
-        )
-
-    def delete(self, attachment_id: str, deleted_by: str):
-        return self.soft_delete(attachment_id, actor_id=deleted_by)
-
-    def soft_delete(self, doc_id, *, actor_id) -> None:
-        document = self.get(doc_id)
+    def soft_delete(self, doc_id, *, actor_id, actor_role=None) -> None:
+        document = self.get(doc_id, actor_role=actor_role)
         try:
             result = self.repository.soft_delete(document["_id"], actor_id)
         except PyMongoError as extra:

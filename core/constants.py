@@ -20,6 +20,7 @@ class Collections:
     TAXES = "taxes"
     ATTACHMENTS = "attachments"
     SUPPLIER_RESERVATIONS = "supplier_reservations"
+    SUPPLIER_SERVICES = "supplier_services"
 
     COUNTERS = "counters"
 
@@ -49,6 +50,21 @@ class SupplierType(StrEnum):
     RESTAURANT = "RESTAURANT"
     INSURANCE = "INSURANCE"
     OTHER = "OTHER"
+
+
+class SupplierServiceKind(StrEnum):
+    ACCOMMODATION = "ACCOMMODATION"
+    TRANSFER = "TRANSFER"
+    TRANSPORTATION = "TRANSPORTATION"
+    GUIDE = "GUIDE"
+    ACTIVITY = "ACTIVITY"
+    MEAL = "MEAL"
+    OTHER = "OTHER"
+
+
+class CostBasis(StrEnum):
+    PER_PERSON = "PER_PERSON"
+    PER_GROUP = "PER_GROUP"
 
 
 class SupplierReservationStatus(StrEnum):
@@ -99,6 +115,8 @@ class InvoiceStatus(StrEnum):
     ISSUED = "ISSUED"
     PARTIALLY_PAID = "PARTIALLY_PAID"
     PAID = "PAID"
+    PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED"
+    REFUNDED = "REFUNDED"
     CANCELLED = "CANCELLED"
 
 
@@ -176,6 +194,7 @@ class AttachmentCategory(StrEnum):
     CONTRACT = "CONTRACT"
     RECEIPT = "RECEIPT"
     BOOKING_DOCUMENT = "BOOKING_DOCUMENT"
+    GALLERY = "GALLERY"
     OTHER = "OTHER"
 
 
@@ -202,6 +221,7 @@ NUMBER_PREFIXES = {
     Collections.EXPENSES: "EXP",
     Collections.SUPPLIER_PAYMENTS: "SP",
     Collections.SUPPLIER_RESERVATIONS: "SR",
+    Collections.SUPPLIER_SERVICES: "SVC",
 }
 
 NUMBER_START = 1001  

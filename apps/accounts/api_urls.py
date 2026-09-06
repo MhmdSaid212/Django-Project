@@ -5,8 +5,8 @@ from apps.accounts import api
 app_name = "accounts_api"
 
 urlpatterns = [
-    path("auth/login/", api.login, name="login"),
-    path("auth/logout/", api.logout, name="logout"),
+    path("auth/login/", api.login_api, name="login"),
+    path("auth/logout/", api.logout_api, name="logout"),
     path("auth/me/", api.me_view, name="me"),
     path("auth/password/reset/", api.password_reset, name="password_reset"),
     path("users/", api.users_collection, name="users"),

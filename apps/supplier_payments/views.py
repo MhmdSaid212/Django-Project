@@ -6,6 +6,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 from apps.expenses.services import ExpenseService
 from apps.supplier_payments.forms import SupplierPaymentForm
 from apps.supplier_payments.services import SupplierPaymentService
+from apps.suppliers.constants import PREFERRED_METHOD_LABELS, PREFERRED_METHODS
+from apps.suppliers.services import SupplierService
 from core.access import FINANCE_ROLES
 from core.exceptions import DatabaseUnavailableError, NotFoundError, TourOpsError
 from core.permissions import get_session_user, login_required, role_required
@@ -36,6 +38,20 @@ def _bill(expense_id):
         return ExpenseService().get_presented(expense_id)
     except (NotFoundError, TourOpsError):
         return None
+
+
+def _supplier_preference(bill, supplier_id):
+    sid = supplier_id or (bill.get("supplier_id") if bill else None)
+    if not sid:
+        return None, ""
+    try:
+        supplier = SupplierService().get_presented(sid, include_extras=False)
+    except (NotFoundError, TourOpsError, DatabaseUnavailableError):
+        return None, ""
+    method = supplier.get("preferred_payment_method") or None
+    if method not in PREFERRED_METHODS:
+        return None, ""
+    return method, PREFERRED_METHOD_LABELS.get(method, "")
 
 
 @login_required
@@ -89,15 +105,17 @@ def supplier_payment_create(request):
             {
                 "form": None,
                 "bill": bill,
+                "preferred_label": "",
                 "page_title": "Record supplier payment",
                 "page_heading": "Record supplier payment",
             },
         )
 
     remaining = bill["remaining"] if bill else None
+    preferred, preferred_label = _supplier_preference(bill, request.GET.get("supplier_id"))
     initial = {
         "payment_date": utcnow().date(),
-        "payment_method": "BANK_TRANSFER",
+        "payment_method": preferred or "BANK_TRANSFER",
     }
     if bill:
         initial["expense_id"] = bill["id"]
@@ -126,6 +144,7 @@ def supplier_payment_create(request):
         {
             "form": form,
             "bill": bill,
+            "preferred_label": preferred_label,
             "page_title": "Record supplier payment",
             "page_heading": "Record supplier payment",
         },

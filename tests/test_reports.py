@@ -112,12 +112,11 @@ def test_revenue_falls_back_to_bookings_without_invoices(fake_mongo):
     ExpenseService().create(
         actor_id=OWNER_ID,
         expense_scope=ExpenseScope.TOUR.value,
-        category=ExpenseCategory.HOTEL.value,
+        category=ExpenseCategory.MARKETING.value,
         amount="3000.00",
         description="Hotel",
         expense_date="2026-08-20",
         tour_id=tour["_id"],
-        supplier_id=None,
     )
     report = ReportService().revenue()
     assert report["revenue"] == Decimal("18000.00")

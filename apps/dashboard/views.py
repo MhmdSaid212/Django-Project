@@ -35,8 +35,6 @@ def agent(request):
             "requested": 0,
             "confirmed": 0,
             "upcoming": 0,
-            "shortages": [],
-            "shortage_count": 0,
             "release_watch": [],
             "awaiting": [],
         }

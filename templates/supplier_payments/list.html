@@ -4,7 +4,6 @@
 <div class="page-head">
     <div>
         <h1>Supplier Payments</h1>
-        <p>Cash out against expenses — does not change profit</p>
     </div>
     <div class="actions">
         <a class="btn btn-warm" href="{% url 'supplier_payments:create' %}">+ Record payment</a>
@@ -13,7 +12,6 @@
 
 {% if bill %}
 <section class="panel" style="margin-bottom:.85rem">
-    <p class="tiny">Selected bill</p>
     <h2 style="margin:.2rem 0">{{ bill.supplier }}</h2>
     <p class="muted">Expense <a href="{% url 'expenses:detail' bill.id %}">{{ bill.number }}</a></p>
     <div class="metrics-4" style="margin-top:.8rem">
@@ -43,6 +41,7 @@
                 <th>Method</th>
                 <th>Amount</th>
                 <th>Reference</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -55,10 +54,14 @@
                 <td><span class="chip is-on" style="cursor:default">{{ sp.method }}</span></td>
                 <td>{{ sp.amount|money }}</td>
                 <td class="mono">{{ sp.ref|default:"—" }}</td>
+                <td class="row-actions">
+                    {% url 'supplier_payments:detail' sp.id as view_url %}
+                    {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
+                </td>
             </tr>
         {% empty %}
             <tr>
-                <td colspan="7">
+                <td colspan="8">
                     {% url 'supplier_payments:create' as pay_create_url %}
                     {% include "components/empty_state.html" with title="No supplier payments yet" body="Record a payment against an open expense bill." cta="Record payment" cta_url=pay_create_url %}
                 </td>

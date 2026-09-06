@@ -1,75 +1,33 @@
-"""
-HTML views for invoices.  OWNER: Dev 3 — Customer Finance
-Server-side rendered: each view calls InvoiceService and hands the template
-a plain dict shaped for display. No JSON/JS round-trip.
-
-TEMP MOCK MODE
---------------
-USE_MOCK_DATA below swaps InvoiceService for hardcoded dicts, and auth
-decorators are commented out, so these pages work with ZERO database
-connection and ZERO login. This is for local visual review only.
-
-To restore the real, database-backed, login-protected behavior:
-  1. Set USE_MOCK_DATA = False
-  2. Uncomment the three "# @login_required" / "# @role_required(...)" lines
-That's it -- every other line of this file is the real implementation either way.
-"""
 from datetime import datetime, timezone
 
-from django.shortcuts import render
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.invoices.repositories import InvoiceRepository
+from apps.bookings.services import BookingService
 from apps.invoices.services import InvoiceService, present_invoice
-from core.constants import InvoiceStatus, UserRole
+from apps.payments.forms import DeskPaymentForm
+from apps.payments.services import PaymentService
+from core.constants import BookingStatus, InvoiceStatus, UserRole
+from core.exceptions import NotFoundError, TourOpsError
+from core.money import ZERO, to_decimal
 from core.permissions import login_required, role_required
+from core.utils import serialize_id
 
-# --- TEMP: flip to False (and uncomment the decorators below) once MongoDB
-# is connected and you're ready to test against real data. ---
-USE_MOCK_DATA = False
-
-# Status filter tabs shown on the list page (value, label).
 STATUS_TABS = [
     ("", "All Statuses"),
-    (InvoiceStatus.DRAFT.value, "Draft"),
     (InvoiceStatus.ISSUED.value, "Issued"),
     (InvoiceStatus.PARTIALLY_PAID.value, "Partially Paid"),
     (InvoiceStatus.PAID.value, "Paid"),
+    (InvoiceStatus.PARTIALLY_REFUNDED.value, "Partially Refunded"),
+    (InvoiceStatus.REFUNDED.value, "Refunded"),
     (InvoiceStatus.CANCELLED.value, "Cancelled"),
 ]
 
-# --- TEMP mock data (same shape present_invoice()/_get_raw() would return) ---
-_MOCK_ROWS = [
-    {"id": "1", "number": "INV-2088", "customer": "Sarah Ahmad", "booking": "BK-1042",
-     "issue": "May 18, 2025", "due": "Jun 01, 2025", "total": 2090, "paid": 500,
-     "remaining": 1590, "status": "PARTIALLY_PAID", "overdue": False},
-    {"id": "2", "number": "INV-2081", "customer": "Michael Thompson", "booking": "BK-1035",
-     "issue": "Apr 28, 2025", "due": "May 12, 2025", "total": 4500, "paid": 4500,
-     "remaining": 0, "status": "PAID", "overdue": False},
-    {"id": "3", "number": "INV-2085", "customer": "Daniel Carter", "booking": "BK-1039",
-     "issue": "May 10, 2025", "due": "May 20, 2025", "total": 1100, "paid": 0,
-     "remaining": 1100, "status": "ISSUED", "overdue": True},
-]
+COLLECTABLE = {InvoiceStatus.ISSUED.value, InvoiceStatus.PARTIALLY_PAID.value}
 
-_MOCK_RECORDS = {
-    "1": {
-        "id": "1", "number": "INV-2088", "status": "PARTIALLY_PAID",
-        "customer": "Sarah Ahmad", "customer_email": "sarah.ahmad@example.com",
-        "booking": "BK-1042", "issue": "May 18, 2025", "due": "Jun 01, 2025",
-        "items": [{"description": "Istanbul Tour -- 2 travelers", "quantity": 2,
-                    "unit_price": 1000, "total": 2000}],
-        "subtotal": 2000, "discount_amount": 100, "tax_rate": "9.5", "tax_amount": 190,
-        "total": 2090, "paid": 500, "remaining": 1590, "overdue": False,
-    },
-    "2": {
-        "id": "2", "number": "INV-2081", "status": "PAID",
-        "customer": "Michael Thompson", "customer_email": "michael.t@example.com",
-        "booking": "BK-1035", "issue": "Apr 28, 2025", "due": "May 12, 2025",
-        "items": [{"description": "Dubai Desert Safari -- 4 travelers", "quantity": 4,
-                    "unit_price": 1125, "total": 4500}],
-        "subtotal": 4500, "discount_amount": 0, "tax_rate": "0", "tax_amount": 0,
-        "total": 4500, "paid": 4500, "remaining": 0, "overdue": False,
-    },
-}
 
 def _fmt_date(value):
     if not value:
@@ -80,8 +38,7 @@ def _fmt_date(value):
 
 
 def _is_overdue(inv: dict) -> bool:
-    """Overdue is DERIVED, not stored: issued/partly-paid and past the due date."""
-    if inv.get("status") not in (InvoiceStatus.ISSUED.value, InvoiceStatus.PARTIALLY_PAID.value):
+    if inv.get("status") not in COLLECTABLE:
         return False
     due = inv.get("due_date")
     if not isinstance(due, datetime):
@@ -92,190 +49,268 @@ def _is_overdue(inv: dict) -> bool:
 
 
 def _row(inv: dict) -> dict:
-    """Shape one presented invoice for the list table."""
+    remaining = to_decimal(inv.get("remaining_amount") or 0)
+    paid = to_decimal(inv.get("paid_amount") or 0)
+    refunded = to_decimal(inv.get("refunded_amount") or 0)
+    status = inv.get("status")
+    live = status != InvoiceStatus.CANCELLED.value
     return {
         "id": inv["id"],
         "number": inv["invoice_number"],
         "customer": inv.get("customer_name") or "--",
+        "customer_id": inv.get("customer_id"),
         "booking": inv.get("booking_number") or "--",
+        "booking_id": inv.get("booking_id"),
         "issue": _fmt_date(inv.get("issue_date")),
         "due": _fmt_date(inv.get("due_date")),
         "total": inv.get("total_amount"),
         "paid": inv.get("paid_amount"),
         "remaining": inv.get("remaining_amount"),
-        "status": inv.get("status"),
+        "status": status,
         "overdue": _is_overdue(inv),
+        "can_pay": status in COLLECTABLE and remaining > ZERO,
+        "can_cancel": live and (paid - refunded) <= ZERO,
     }
 
 
-# TEMP: auth disabled for local preview -- restore before merging
-# @login_required
-# @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+def _require_invoice(invoice_id: str) -> dict:
+    try:
+        return InvoiceService()._get_raw(invoice_id)
+    except (NotFoundError, TourOpsError) as extra:
+        raise Http404("Invoice not found.") from extra
+
+
+def _detail_record(raw: dict) -> dict:
+    inv = present_invoice(raw)
+    items = [
+        {
+            "description": line.get("description", ""),
+            "quantity": line.get("quantity", 1),
+            "unit_price": line.get("unit_price", 0),
+            "total": line.get("total", 0),
+        }
+        for line in raw.get("line_items", [])
+    ]
+    discount = raw.get("discount", {}) or {}
+    tax = raw.get("tax", {}) or {}
+    remaining = to_decimal(inv.get("remaining_amount") or 0)
+    paid = to_decimal(inv.get("paid_amount") or 0)
+    refunded = to_decimal(inv.get("refunded_amount") or 0)
+    status = inv["status"]
+    live = status != InvoiceStatus.CANCELLED.value
+    return {
+        "id": inv["id"],
+        "number": inv["invoice_number"],
+        "status": status,
+        "customer": inv.get("customer_name") or "--",
+        "customer_id": inv.get("customer_id"),
+        "customer_email": inv.get("customer_email") or "",
+        "booking": inv.get("booking_number") or "--",
+        "booking_id": inv.get("booking_id"),
+        "issue": _fmt_date(raw.get("issue_date")),
+        "due": _fmt_date(raw.get("due_date")),
+        "items": items,
+        "subtotal": inv.get("subtotal"),
+        "discount_amount": discount.get("amount", 0),
+        "tax_rate": tax.get("rate", 0),
+        "tax_amount": tax.get("amount", 0),
+        "total": inv.get("total_amount"),
+        "paid": inv.get("paid_amount"),
+        "remaining": inv.get("remaining_amount"),
+        "overdue": _is_overdue(raw),
+        "can_pay": status in COLLECTABLE and remaining > ZERO,
+        "can_cancel": live and (paid - refunded) <= ZERO,
+        "can_reissue": (live and (paid - refunded) <= ZERO) or status == InvoiceStatus.CANCELLED.value,
+    }
+
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
 def invoice_list(request):
     status = request.GET.get("status") or None
-    search = (request.GET.get("q") or "").strip().lower()
-
-    if USE_MOCK_DATA:
-        all_rows = list(_MOCK_ROWS)
-        rows = all_rows
-        if status:
-            rows = [r for r in rows if r["status"] == status]
-    else:
-        service = InvoiceService()
-        invoices = service.list_items(status=status)
-        rows = [_row(i) for i in invoices]
-        all_rows = [_row(i) for i in service.list_items()]
-
-    if search:
-        rows = [
-            r for r in rows
-            if search in str(r["number"]).lower()
-            or search in str(r["customer"]).lower()
-            or search in str(r["booking"]).lower()
-        ]
+    service = InvoiceService()
+    invoices = service.list_items()
+    all_rows = [_row(item) for item in invoices]
+    rows = [row for row in all_rows if (not status) or row["status"] == status]
 
     counts = {value: 0 for value, _ in STATUS_TABS}
     counts[""] = len(all_rows)
-    for r in all_rows:
-        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    for row in all_rows:
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
 
-    context = {
-        "page_title": "Invoices",
-        "page_heading": "Invoices",
-        "rows": rows,
-        "status_tabs": [
-            {"value": v, "label": l, "count": counts.get(v, 0), "active": (status or "") == v}
-            for v, l in STATUS_TABS
-        ],
-        "search": request.GET.get("q", ""),
-        "total_count": len(all_rows),
-    }
-    return render(request, "invoices/list.html", context)
-
-
-# TEMP: auth disabled for local preview -- restore before merging
-# @login_required
-# @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
-def invoice_detail(request, id):
-    if USE_MOCK_DATA:
-        record = dict(_MOCK_RECORDS.get(id, _MOCK_RECORDS["1"]))
-    else:
-        service = InvoiceService()
-        raw = service._get_raw(id)          # raises NotFoundError -> handled by core error views
-        inv = present_invoice(raw)
-        items = [{
-            "description": li.get("description", ""),
-            "quantity": li.get("quantity", 1),
-            "unit_price": li.get("unit_price", 0),
-            "total": li.get("total", 0),
-        } for li in raw.get("line_items", [])]
-        discount = raw.get("discount", {}) or {}
-        tax = raw.get("tax", {}) or {}
-        record = {
-            "id": inv["id"],
-            "number": inv["invoice_number"],
-            "status": inv["status"],
-            "customer": inv.get("customer_name") or "--",
-            "customer_email": inv.get("customer_email") or "",
-            "booking": inv.get("booking_number") or "--",
-            "issue": _fmt_date(raw.get("issue_date")),
-            "due": _fmt_date(raw.get("due_date")),
-            "items": items,
-            "subtotal": inv.get("subtotal"),
-            "discount_amount": discount.get("amount", 0),
-            "tax_rate": tax.get("rate", 0),
-            "tax_amount": tax.get("amount", 0),
-            "total": inv.get("total_amount"),
-            "paid": inv.get("paid_amount"),
-            "remaining": inv.get("remaining_amount"),
-            "overdue": _is_overdue(raw),
-        }
-
-    context = {
-        "page_title": record["number"],
-        "page_heading": record["number"],
-        "crumbs": [
-            {"label": "Invoices", "url": "/invoices/"},
-            {"label": record["number"], "url": ""},
-        ],
-        "record": record,
-    }
-    return render(request, "invoices/detail.html", context)
+    return render(
+        request,
+        "invoices/list.html",
+        {
+            "page_title": "Invoices",
+            "page_heading": "Invoices",
+            "rows": rows,
+            "status_tabs": [
+                {"value": value, "label": label, "count": counts.get(value, 0), "active": (status or "") == value}
+                for value, label in STATUS_TABS
+            ],
+            "search": request.GET.get("q", ""),
+            "total_count": len(all_rows),
+        },
+    )
 
 
-# TEMP: auth disabled for local preview -- restore before merging
-# @login_required
-# @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
-def invoice_print(request, id):
-    """Print view reuses the detail data, stripped-down template."""
-    if USE_MOCK_DATA:
-        record = dict(_MOCK_RECORDS.get(id, _MOCK_RECORDS["1"]))
-    else:
-        service = InvoiceService()
-        raw = service._get_raw(id)
-        inv = present_invoice(raw)
-        record = {**inv, "number": inv["invoice_number"]}
-
-    context = {
-        "page_title": "Print " + record["number"],
-        "page_heading": record["number"],
-        "record": record,
-    }
-    return render(request, "invoices/print.html", context)
-
-# --- TEMP mock: confirmed bookings awaiting an invoice (no DB) ---
-_MOCK_BOOKINGS = [
-    {"id": "b1", "number": "BK-1042", "customer": "Sarah Ahmad", "avatar": "#f59e0b",
-     "tour": "Istanbul Tour", "travelers": 2, "amount": 2090},
-    {"id": "b2", "number": "BK-1043", "customer": "Raj Kumar", "avatar": "#6366f1",
-     "tour": "Dubai Safari", "travelers": 4, "amount": 4500},
-    {"id": "b3", "number": "BK-1044", "customer": "Emily Harris", "avatar": "#0f766e",
-     "tour": "Cairo Pyramids", "travelers": 2, "amount": 1980},
-]
-
-
-# TEMP: auth disabled for local preview -- restore before merging
-# @login_required
-# @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
-def invoice_create(request):
-    if USE_MOCK_DATA:
-        bookings = _MOCK_BOOKINGS
-    else:
-        # Real mode: query CONFIRMED bookings that don't yet have a live invoice.
-        # (Dev 1 owns bookings; when connected, replace with the real query.)
-        bookings = []
-    context = {
-        "page_title": "Create Invoice",
-        "page_heading": "Create Invoice",
-        "bookings": bookings,
-    }
-    return render(request, "invoices/create.html", context)
-
-
-# TEMP: auth disabled for local preview -- restore before merging
 @login_required
 @role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
-def invoice_reissue(request, id):
-    """Guided flow: refund payments -> cancel this invoice -> generate a new one."""
-    if USE_MOCK_DATA:
-        record = dict(_MOCK_RECORDS.get(id, _MOCK_RECORDS["1"]))
-    else:
-        record = present_invoice(InvoiceService()._get_raw(id))
-        record["number"] = record["invoice_number"]
+def invoice_detail(request, id):
+    raw = _require_invoice(id)
+    record = _detail_record(raw)
+    remaining = to_decimal(record.get("remaining") or 0)
+    payments = PaymentService().for_invoice(id)
+    return render(
+        request,
+        "invoices/detail.html",
+        {
+            "page_title": record["number"],
+            "page_heading": record["number"],
+            "crumbs": [
+                {"label": "Invoices", "url": reverse("invoices:list")},
+                {"label": record["number"], "url": ""},
+            ],
+            "record": record,
+            "payments": payments,
+            "pay_form": DeskPaymentForm(remaining=remaining) if record["can_pay"] else None,
+        },
+    )
 
-    # Mock payment + tier calc for the refund step
-    paid = record.get("paid", 0) or 0
-    tier_pct = 70
-    refund = round(paid * tier_pct / 100, 2)
-    retained = round(paid - refund, 2)
-    context = {
-        "page_title": "Refund & Reissue " + record["number"],
-        "page_heading": record["number"],
-        "record": record,
-        "has_payment": paid > 0,
-        "paid": paid,
-        "tier_label": "15–29 days · 70%",
-        "refund": refund,
-        "retained": retained,
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+def invoice_print(request, id):
+    raw = _require_invoice(id)
+    inv = present_invoice(raw)
+    record = {**_detail_record(raw), **inv, "number": inv["invoice_number"]}
+    return render(
+        request,
+        "invoices/print.html",
+        {
+            "page_title": "Print " + record["number"],
+            "page_heading": record["number"],
+            "record": record,
+        },
+    )
+
+
+def _invoicable_bookings() -> list[dict]:
+    invoiced = {
+        serialize_id(invoice.get("booking_id"))
+        for invoice in InvoiceService().list_items()
+        if invoice.get("status") != InvoiceStatus.CANCELLED.value
     }
-    return render(request, "invoices/reissue.html", context)
+    rows = []
+    invoicable = list(BookingService().list_presented(status=BookingStatus.CONFIRMED.value))
+    invoicable.extend(BookingService().list_presented(status=BookingStatus.COMPLETED.value))
+    for booking in invoicable:
+        if booking["id"] in invoiced:
+            continue
+        rows.append(
+            {
+                "id": booking["id"],
+                "number": booking.get("booking_number") or booking.get("number"),
+                "customer": booking.get("customer"),
+                "tour": booking.get("tour"),
+                "travelers": booking.get("travelers_count"),
+                "amount": booking.get("total"),
+                "avatar": "#2563EB",
+            }
+        )
+    return rows
+
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+def invoice_create(request):
+    return render(
+        request,
+        "invoices/create.html",
+        {
+            "page_title": "Create Invoice",
+            "page_heading": "Create Invoice",
+            "bookings": _invoicable_bookings(),
+        },
+    )
+
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+@require_POST
+def invoice_from_booking(request, booking_id):
+    try:
+        invoice = InvoiceService().create_for_booking(booking_id, created_by=request.user.actor_id)
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
+        return redirect("invoices:create")
+    messages.success(request, f"Issued {invoice.get('invoice_number')}.")
+    return redirect("invoices:detail", id=invoice["id"])
+
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+@require_POST
+def invoice_pay(request, id):
+    record = _detail_record(_require_invoice(id))
+    if not record["can_pay"]:
+        messages.error(request, "There is nothing left to collect on this invoice.")
+        return redirect("invoices:detail", id=id)
+    form = DeskPaymentForm(request.POST, remaining=to_decimal(record.get("remaining") or 0))
+    if not form.is_valid():
+        messages.error(request, "Check the payment amount and method, then try again.")
+        return redirect("invoices:detail", id=id)
+    try:
+        payment = PaymentService().record_for_invoice(
+            id,
+            amount=form.cleaned_data["amount"],
+            method=form.cleaned_data["method"],
+            reference_number=form.cleaned_data["reference_number"] or None,
+            recorded_by=request.user.actor_id,
+        )
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
+        return redirect("invoices:detail", id=id)
+    messages.success(request, f"Recorded {payment.get('payment_number')}. Receipt issued.")
+    return redirect("invoices:detail", id=id)
+
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+@require_POST
+def invoice_cancel(request, id):
+    try:
+        InvoiceService().cancel(id, actor_id=request.user.actor_id)
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
+        return redirect("invoices:detail", id=id)
+    messages.success(request, "Invoice cancelled.")
+    return redirect("invoices:detail", id=id)
+
+
+@login_required
+@role_required(UserRole.ACCOUNTANT, UserRole.OWNER_ADMIN)
+@require_http_methods(["GET", "POST"])
+def invoice_reissue(request, id):
+    record = _detail_record(_require_invoice(id))
+    if request.method == "POST":
+        if not record["can_reissue"]:
+            messages.error(request, "Refund any collected money before cancelling and reissuing this invoice.")
+            return redirect("invoices:detail", id=id)
+        try:
+            invoice = InvoiceService().reissue(id, actor_id=request.user.actor_id)
+        except TourOpsError as extra:
+            messages.error(request, extra.message)
+            return redirect("invoices:detail", id=id)
+        messages.success(request, f"Issued {invoice.get('invoice_number')} in place of {record['number']}.")
+        return redirect("invoices:detail", id=invoice["id"])
+    return render(
+        request,
+        "invoices/reissue.html",
+        {
+            "page_title": "Reissue " + record["number"],
+            "page_heading": record["number"],
+            "record": record,
+        },
+    )

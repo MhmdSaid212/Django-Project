@@ -1,35 +1,37 @@
 from django.contrib import messages
+from django.contrib.auth import login, logout
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetDoneView
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.accounts.forms import (
     ChangePasswordForm,
     ChangeRoleForm,
     LoginForm,
-    PasswordResetRequestForm,
     ResetPasswordForm,
     StaffUserForm,
+    SystemSettingsForm,
+    style_auth_form,
 )
-from apps.accounts.services import AuthService, UserService, present_user
+from apps.accounts.services import AUTH_BACKEND, AuthService, UserService, present_user
+from apps.accounts.settings_service import SettingsService, default_settings, initial_from_settings
 from core.access import dashboard_for_role
 from core.constants import UserRole, UserStatus
 from core.exceptions import DatabaseUnavailableError, TourOpsError
+from core.http import client_ip
 from core.permissions import (
-    clear_session_user,
-    get_session_user,
     login_required,
     role_required,
     safe_next_url,
-    set_session_user,
 )
-from core.wireframes import wireframe
 
 
 @require_http_methods(["GET", "POST"])
 def login_view(request):
-    if get_session_user(request):
-        return redirect(dashboard_for_role(get_session_user(request)["role"]))
+    if request.user.is_authenticated:
+        return redirect(dashboard_for_role(request.user.role))
 
     form = LoginForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -37,16 +39,15 @@ def login_view(request):
             user = AuthService().authenticate(
                 form.cleaned_data["email"],
                 form.cleaned_data["password"],
+                ip=client_ip(request),
             )
-        except DatabaseUnavailableError:
-            messages.error(request, "Cannot reach MongoDB. Check MONGODB_URI and that MongoDB is running.")
         except TourOpsError as exc:
             messages.error(request, exc.message)
         else:
-            set_session_user(request, user)
-            messages.success(request, f"Welcome back, {user.get('first_name') or user.get('email')}.")
+            login(request, user, backend=AUTH_BACKEND)
+            messages.success(request, f"Welcome back, {user.first_name or user.email}.")
             next_url = safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
-            return redirect(next_url or reverse(dashboard_for_role(user["role"])))
+            return redirect(next_url or reverse(dashboard_for_role(user.role)))
 
     return render(
         request,
@@ -58,38 +59,63 @@ def login_view(request):
 @require_http_methods(["GET", "POST"])
 def logout_view(request):
     if request.method == "GET":
-        if not get_session_user(request):
+        if not request.user.is_authenticated:
             return redirect("accounts:login")
         return render(request, "accounts/logout.html", {"page_title": "Sign out"})
-    clear_session_user(request)
+    logout(request)
     messages.success(request, "You have been signed out.")
     return redirect("accounts:login")
 
 
 @require_http_methods(["GET", "POST"])
 def password_reset_view(request):
-    if get_session_user(request):
+    if request.user.is_authenticated:
         return redirect("accounts:password")
 
-    form = PasswordResetRequestForm(request.POST or None)
+    form = PasswordResetForm(request.POST or None)
+    style_auth_form(form)
     if request.method == "POST" and form.is_valid():
-        try:
-            AuthService().reset_password_by_email(
-                form.cleaned_data["email"],
-                form.cleaned_data["new_password"],
-            )
-        except DatabaseUnavailableError:
-            messages.error(request, "Cannot reach MongoDB. Check MONGODB_URI and that MongoDB is running.")
-        except TourOpsError as exc:
-            messages.error(request, exc.message)
-        else:
-            messages.success(request, "Password updated. You can sign in with your new password.")
-            return redirect("accounts:login")
+        form.save(
+            request=request,
+            use_https=request.is_secure(),
+            email_template_name="accounts/password_reset_email.html",
+            subject_template_name="accounts/password_reset_subject.txt",
+        )
+        messages.success(
+            request,
+            "If that email is registered, we sent password reset instructions.",
+        )
+        return redirect("accounts:password_reset_done")
 
     return render(
         request,
         "accounts/password_reset.html",
         {"form": form, "page_title": "Reset password"},
+    )
+
+
+class StaffPasswordResetDoneView(PasswordResetDoneView):
+    template_name = "accounts/password_reset_done.html"
+    extra_context = {"page_title": "Check your email"}
+
+
+class StaffPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = "accounts/password_reset_confirm.html"
+    success_url = reverse_lazy("accounts:password_reset_complete")
+    extra_context = {"page_title": "Choose a new password"}
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        style_auth_form(form)
+        return form
+
+
+@require_http_methods(["GET"])
+def password_reset_complete(request):
+    return render(
+        request,
+        "accounts/password_reset_complete.html",
+        {"page_title": "Password updated"},
     )
 
 
@@ -100,7 +126,7 @@ def change_password(request):
     if request.method == "POST" and form.is_valid():
         try:
             AuthService().change_password(
-                get_session_user(request)["id"],
+                request.user.actor_id,
                 form.cleaned_data["current_password"],
                 form.cleaned_data["new_password"],
             )
@@ -119,11 +145,7 @@ def change_password(request):
 @login_required
 @role_required(UserRole.OWNER_ADMIN)
 def users_list(request):
-    try:
-        users = UserService().list_users()
-    except DatabaseUnavailableError:
-        messages.error(request, "Cannot reach MongoDB. Staff directory is unavailable.")
-        users = []
+    users = UserService().list_users()
     return render(
         request,
         "accounts/users.html",
@@ -145,13 +167,13 @@ def user_create(request):
                 password=form.cleaned_data["password"],
                 role=form.cleaned_data["role"],
                 phone=form.cleaned_data["phone"],
-                actor_id=get_session_user(request)["id"],
+                actor_id=request.user.actor_id,
             )
         except TourOpsError as exc:
             messages.error(request, exc.message)
         else:
             messages.success(request, f"Created {present_user(user)['name']}.")
-            return redirect("accounts:user_detail", id=str(user["_id"]))
+            return redirect("accounts:user_detail", id=user["id"])
     return render(
         request,
         "accounts/user_form.html",
@@ -166,17 +188,13 @@ def user_detail(request, id):
     service = UserService()
     try:
         record = service.get_presented(id)
-    except DatabaseUnavailableError:
-        messages.error(request, "Cannot reach MongoDB.")
-        return redirect("accounts:users")
     except TourOpsError:
         messages.error(request, "User not found.")
         return redirect("accounts:users")
 
     role_form = ChangeRoleForm(initial={"role": record["role"]})
     password_form = ResetPasswordForm()
-    current_id = get_session_user(request)["id"]
-    is_self = record["id"] == current_id
+    is_self = record["id"] == request.user.actor_id
 
     return render(
         request,
@@ -199,7 +217,7 @@ def user_detail(request, id):
 def user_set_status(request, id):
     next_status = request.POST.get("status")
     try:
-        UserService().set_status(id, next_status, actor_id=get_session_user(request)["id"])
+        UserService().set_status(id, next_status, actor_id=request.user.actor_id)
     except TourOpsError as exc:
         messages.error(request, exc.message)
     else:
@@ -217,9 +235,9 @@ def user_change_role(request, id):
         messages.error(request, "Choose a valid role.")
         return redirect("accounts:user_detail", id=id)
     try:
-        UserService().change_role(id, form.cleaned_data["role"], actor_id=get_session_user(request)["id"])
-    except TourOpsError as exc:
-        messages.error(request, exc.message)
+        UserService().change_role(id, form.cleaned_data["role"], actor_id=request.user.actor_id)
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
     else:
         messages.success(request, "Role updated.")
     return redirect("accounts:user_detail", id=id)
@@ -237,10 +255,10 @@ def user_reset_password(request, id):
         UserService().reset_password(
             id,
             form.cleaned_data["new_password"],
-            actor_id=get_session_user(request)["id"],
+            actor_id=request.user.actor_id,
         )
-    except TourOpsError as exc:
-        messages.error(request, exc.message)
+    except TourOpsError as extra:
+        messages.error(request, extra.message)
     else:
         messages.success(request, "Password reset.")
     return redirect("accounts:user_detail", id=id)
@@ -248,5 +266,48 @@ def user_reset_password(request, id):
 
 @login_required
 @role_required(UserRole.OWNER_ADMIN)
+@require_http_methods(["GET", "POST"])
 def settings_page(request):
-    return wireframe(request, "accounts/settings.html", "Settings", heading="System settings")
+    service = SettingsService()
+    try:
+        current = service.get()
+    except DatabaseUnavailableError:
+        messages.error(request, "Cannot reach MongoDB. Settings are unavailable.")
+        current = default_settings()
+    form = SystemSettingsForm(request.POST or None, initial=initial_from_settings(current))
+    if request.method == "POST" and form.is_valid():
+        data = form.cleaned_data
+        try:
+            service.update(
+                actor_id=request.user.actor_id,
+                agency_name=data["agency_name"],
+                legal_name=data.get("legal_name"),
+                agency_email=data.get("agency_email"),
+                agency_phone=data.get("agency_phone"),
+                agency_address=data.get("agency_address"),
+                currency=data["currency"],
+                tax_name=data["tax_name"],
+                tax_rate=data["tax_rate"],
+                tax_enabled=data.get("tax_enabled"),
+                invoice_due_days=data["invoice_due_days"],
+                number_start=data["number_start"],
+                prefixes=data.get("prefixes"),
+            )
+        except DatabaseUnavailableError:
+            messages.error(request, "Cannot reach MongoDB. Settings were not saved.")
+        except TourOpsError as extra:
+            messages.error(request, extra.message)
+        else:
+            messages.success(request, "Settings saved. New documents will use these values.")
+            return redirect("accounts:settings")
+    elif request.method == "POST":
+        messages.error(request, "Check the settings and try again.")
+    return render(
+        request,
+        "accounts/settings.html",
+        {
+            "form": form,
+            "page_title": "Settings",
+            "page_heading": "System settings",
+        },
+    )

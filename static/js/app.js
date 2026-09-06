@@ -1,4 +1,18 @@
 (function () {
+    function csrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute("content") : "";
+    }
+    window.touropsFetch = function (url, options) {
+        const opts = options || {};
+        const headers = Object.assign({}, opts.headers || {});
+        const method = (opts.method || "GET").toUpperCase();
+        if (method !== "GET" && method !== "HEAD") {
+            headers["X-CSRFToken"] = csrfToken();
+        }
+        return fetch(url, Object.assign({}, opts, { headers, credentials: "same-origin" }));
+    };
+
     const sidebar = document.getElementById("sidebar");
     const toggle = document.querySelector("[data-sidebar-toggle]");
     if (toggle && sidebar) {
@@ -238,80 +252,142 @@
         });
     });
 
-    const reservationForm = document.querySelector("[data-reservation-form]");
-    if (reservationForm) {
-        let occupancy = {};
-        let types = {};
-        try {
-            occupancy = JSON.parse(reservationForm.getAttribute("data-occupancy") || "{}");
-            types = JSON.parse(reservationForm.getAttribute("data-supplier-types") || "{}");
-        } catch (err) {
-            occupancy = {};
-            types = {};
-        }
-        const hotelFields = reservationForm.querySelector("[data-hotel-fields]");
-        const otherFields = reservationForm.querySelector("[data-other-fields]");
-        const supplierSelect = reservationForm.querySelector('[name="supplier_id"]');
-        const mode = reservationForm.getAttribute("data-hotel-mode") || "auto";
-
-        function isHotel() {
-            if (mode === "hotel") return true;
-            if (mode === "other") return false;
-            const id = supplierSelect ? supplierSelect.value : "";
-            return (types[id] || "") === "HOTEL";
-        }
-
-        function toggleSections() {
-            const hotel = isHotel();
-            const selected = supplierSelect && supplierSelect.value;
-            const showHotel = mode === "hotel" || (mode === "auto" && (!selected || hotel));
-            const showOther = mode === "other" || (mode === "auto" && selected && !hotel);
-            if (hotelFields) hotelFields.hidden = !showHotel;
-            if (otherFields) otherFields.hidden = !showOther;
-        }
-
-        function recalc() {
-            let rooms = 0;
-            let beds = 0;
-            reservationForm.querySelectorAll("[data-alloc-body] tr").forEach(function (row) {
-                const type = row.querySelector("[data-alloc-type]");
-                const qtyEl = row.querySelector("[data-alloc-qty]");
-                const occEl = row.querySelector("[data-alloc-occ]");
-                const bedEl = row.querySelector("[data-alloc-beds]");
-                const qty = Number((qtyEl && qtyEl.value) || 0);
-                let occ = Number((occEl && occEl.value) || 0);
-                if (type && type.value && !occ) {
-                    occ = Number(occupancy[type.value] || 1);
-                    if (occEl && !occEl.value) occEl.placeholder = String(occ);
-                }
-                const lineBeds = type && type.value && qty ? qty * (occ || 1) : 0;
-                if (bedEl) bedEl.textContent = lineBeds ? String(lineBeds) : "—";
-                if (type && type.value && qty) {
-                    rooms += qty;
-                    beds += lineBeds;
-                }
+    document.querySelectorAll("[data-live-filters]").forEach(function (live) {
+        const q = live.querySelector("[data-live-q]");
+        const fields = Array.prototype.slice.call(live.querySelectorAll("[data-live-field], [data-live-status]"));
+        const host = live.closest("main") || document;
+        const rows = Array.prototype.slice.call(host.querySelectorAll("[data-live-row]"));
+        const empty = host.querySelector("[data-live-empty]");
+        function applyLiveFilter() {
+            const needle = ((q && q.value) || "").trim().toLowerCase();
+            const checks = fields.map(function (field) {
+                return {
+                    key: field.getAttribute("data-live-field") || "status",
+                    value: (field.value || "").trim().toUpperCase(),
+                };
             });
-            const roomTotal = reservationForm.querySelector("[data-alloc-rooms]");
-            const bedTotal = reservationForm.querySelector("[data-alloc-total-beds]");
-            if (roomTotal) roomTotal.innerHTML = "<strong>" + rooms + "</strong>";
-            if (bedTotal) bedTotal.innerHTML = "<strong>" + beds + "</strong>";
+            let visible = 0;
+            rows.forEach(function (row) {
+                const hay = (row.getAttribute("data-search") || "").toLowerCase();
+                let show = !needle || hay.indexOf(needle) !== -1;
+                checks.forEach(function (check) {
+                    if (!check.value || !show) return;
+                    const rowVal = (row.getAttribute("data-" + check.key) || "").toUpperCase();
+                    if (rowVal !== check.value) show = false;
+                });
+                row.hidden = !show;
+                if (show) visible += 1;
+            });
+            if (empty) empty.hidden = !rows.length || visible !== 0;
         }
-
-        reservationForm.addEventListener("change", function (event) {
-            const type = event.target.closest("[data-alloc-type]");
-            if (type) {
-                const row = type.closest("tr");
-                const occEl = row && row.querySelector("[data-alloc-occ]");
-                if (occEl && !occEl.value && occupancy[type.value]) {
-                    occEl.value = occupancy[type.value];
-                }
-            }
-            toggleSections();
-            recalc();
+        if (q) q.addEventListener("input", applyLiveFilter);
+        fields.forEach(function (field) {
+            field.addEventListener("change", applyLiveFilter);
+            field.addEventListener("input", applyLiveFilter);
         });
-        reservationForm.addEventListener("input", recalc);
-        if (supplierSelect) supplierSelect.addEventListener("change", toggleSections);
-        toggleSections();
-        recalc();
-    }
+        applyLiveFilter();
+    });
+
+    document.querySelectorAll("form[data-autosubmit]").forEach(function (form) {
+        form.querySelectorAll("select, input[type='date'], input[type='month']").forEach(function (el) {
+            el.addEventListener("change", function () {
+                form.requestSubmit();
+            });
+        });
+        form.querySelectorAll("input[type='search'], input[name='q'], input[name='entity_id']").forEach(function (el) {
+            let timer;
+            el.addEventListener("input", function () {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    form.requestSubmit();
+                }, 280);
+            });
+        });
+    });
+
+    (function confirmDialog() {
+        const layer = function () { return document.getElementById("app-confirm"); };
+        let pending = null;
+        function flavor(message, form) {
+            const text = (message || "").toLowerCase();
+            const title = (form && form.getAttribute("data-confirm-title")) || "";
+            const ok = (form && form.getAttribute("data-confirm-ok")) || "";
+            if (title && ok) return { title: title, ok: ok };
+            if (text.indexOf("void") !== -1) return { title: "Take this off the ledger?", ok: "Void it" };
+            if (text.indexOf("delete") !== -1) return { title: "This can’t be undone", ok: "Delete it" };
+            if (text.indexOf("cancel") !== -1) return { title: "Walk this back?", ok: "Cancel it" };
+            if (text.indexOf("remove") !== -1) return { title: "Clear this file?", ok: "Remove it" };
+            return { title: title || "Just checking", ok: ok || "Yes, continue" };
+        }
+        function closeConfirm() {
+            const host = layer();
+            if (host) host.hidden = true;
+            pending = null;
+        }
+        function openConfirm(form) {
+            const host = layer();
+            if (!host) {
+                if (window.confirm(form.getAttribute("data-confirm") || "Continue?")) {
+                    HTMLFormElement.prototype.submit.call(form);
+                }
+                return;
+            }
+            pending = form;
+            const copy = flavor(form.getAttribute("data-confirm") || "", form);
+            const title = host.querySelector("#confirm-title");
+            const body = host.querySelector("#confirm-body");
+            const ok = host.querySelector("#confirm-ok");
+            if (title) title.textContent = copy.title;
+            if (body) body.textContent = form.getAttribute("data-confirm") || "";
+            if (ok) ok.textContent = copy.ok;
+            host.hidden = false;
+            if (ok) ok.focus();
+        }
+        document.addEventListener("submit", function (event) {
+            const form = event.target.closest("form[data-confirm]");
+            if (!form || form.getAttribute("data-confirm-ready") === "1") return;
+            const message = form.getAttribute("data-confirm");
+            if (!message) return;
+            event.preventDefault();
+            openConfirm(form);
+        }, true);
+        document.addEventListener("click", function (event) {
+            if (event.target.closest("[data-confirm-dismiss]")) {
+                closeConfirm();
+                return;
+            }
+            if (event.target.closest("#confirm-ok") && pending) {
+                const form = pending;
+                closeConfirm();
+                form.setAttribute("data-confirm-ready", "1");
+                HTMLFormElement.prototype.submit.call(form);
+            }
+        });
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeConfirm();
+        });
+    })();
+
+    (function lightbox() {
+        const host = document.getElementById("app-lightbox");
+        if (!host) return;
+        const frame = host.querySelector("img");
+        function closeBox() { host.hidden = true; }
+        document.addEventListener("click", function (event) {
+            const shot = event.target.closest("[data-gallery-src]");
+            if (shot) {
+                event.preventDefault();
+                if (frame) {
+                    frame.src = shot.getAttribute("data-gallery-src");
+                    frame.alt = shot.getAttribute("data-gallery-alt") || "";
+                }
+                host.hidden = false;
+                return;
+            }
+            if (event.target.closest("[data-lightbox-close]")) closeBox();
+        });
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeBox();
+        });
+    })();
 })();

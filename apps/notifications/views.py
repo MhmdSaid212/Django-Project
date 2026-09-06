@@ -17,6 +17,12 @@ def _target_url(item: dict) -> str:
         return reverse("expenses:detail", args=[entity_id])
     if entity_type == "supplier_payments" and entity_id:
         return reverse("supplier_payments:detail", args=[entity_id])
+    if entity_type == "bookings" and entity_id:
+        return reverse("bookings:detail", args=[entity_id])
+    if entity_type == "tours" and entity_id:
+        return reverse("tours:detail", args=[entity_id])
+    if entity_type == "supplier_reservations" and entity_id:
+        return reverse("supplier_reservations:detail", args=[entity_id])
     if entity_type == "invoices":
         return reverse("invoices:list")
     if entity_type == "payments":
@@ -33,6 +39,8 @@ def _target_url(item: dict) -> str:
         return reverse("supplier_payments:list")
     if kind == "expense":
         return reverse("expenses:list")
+    if kind == "booking":
+        return reverse("bookings:list")
     if kind == "tour":
         return reverse("tours:list")
     return reverse("notifications:list")

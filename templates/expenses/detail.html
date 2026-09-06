@@ -19,8 +19,17 @@
         </p>
     </div>
     <div class="actions">
-        <a class="btn btn-ghost" href="{% url 'expenses:list' %}">← Back to expenses</a>
-        <a class="btn btn-ghost" href="{% url 'expenses:edit' record.id %}">Edit</a>
+        {% url 'expenses:edit' record.id as edit_url %}
+        {% include "components/ico_btn.html" with href=edit_url title="Edit" icon="edit" %}
+        {% if record.has_remaining %}
+        <a class="ico-btn is-primary" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}" title="Record payment" aria-label="Record payment">
+            {% include "components/ico_mark.html" with icon="pay" %}
+        </a>
+        {% endif %}
+        {% if not record.has_payments %}
+        {% url 'expenses:delete' record.id as delete_url %}
+        {% include "components/ico_btn.html" with action=delete_url title="Delete" icon="delete" danger=1 confirm="This expense leaves the books. Linked supplier payments should already be clear." confirm_title="Strike this expense?" confirm_ok="Delete expense" %}
+        {% endif %}
     </div>
 </div>
 
@@ -60,17 +69,6 @@
             <dt>Status</dt><dd>{% include "components/status_badge.html" with status=record.status %}</dd>
         </dl>
         <p class="callout callout-info" style="margin-top:1rem">payment_status is calculated — not a dropdown.</p>
-        {% if record.has_remaining %}
-        <p style="margin-top:1rem">
-            <a class="btn btn-ok" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">Record supplier payment</a>
-        </p>
-        {% endif %}
-        {% if not record.has_payments %}
-        <form method="post" action="{% url 'expenses:delete' record.id %}" onsubmit="return confirm('Delete {{ record.number }}?');" style="margin-top:.75rem">
-            {% csrf_token %}
-            <button class="btn btn-ghost" type="submit">Soft delete</button>
-        </form>
-        {% endif %}
     </aside>
 </div>
 
@@ -78,7 +76,9 @@
     <div class="panel-h" style="padding:1rem 1.1rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
         <h2>Payments</h2>
         {% if record.has_remaining %}
-        <a class="btn btn-sm btn-warm" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}">+ Add payment</a>
+        <a class="ico-btn is-primary" href="{% url 'supplier_payments:create' %}?expense_id={{ record.id }}" title="Record payment" aria-label="Record payment">
+            {% include "components/ico_mark.html" with icon="pay" %}
+        </a>
         {% endif %}
     </div>
     <table class="data">

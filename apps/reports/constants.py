@@ -25,6 +25,8 @@ REVENUE_INVOICE_STATUSES = {
     InvoiceStatus.ISSUED.value,
     InvoiceStatus.PARTIALLY_PAID.value,
     InvoiceStatus.PAID.value,
+    InvoiceStatus.PARTIALLY_REFUNDED.value,
+    InvoiceStatus.REFUNDED.value,
 }
 
 OPEN_INVOICE_STATUSES = {

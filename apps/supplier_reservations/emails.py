@@ -12,7 +12,6 @@ from core.exceptions import ValidationError
 EMAIL_TYPES = (
     ("request", "Reservation request"),
     ("followup", "Confirmation follow-up"),
-    ("rooming", "Rooming list"),
     ("change", "Change request"),
     ("cancellation", "Cancellation"),
 )
@@ -27,18 +26,12 @@ def _dear(name: str) -> str:
     return f"Dear {label},"
 
 
-def _allocation_lines(reservation: dict) -> str:
-    if reservation.get("is_hotel"):
-        lines = []
-        for line in reservation.get("room_allocations") or []:
-            lines.append(
-                f"{line['quantity']} {line['type_label']} rooms\n"
-                f"Occupancy: {line['occupancy']} guest(s) per room\n"
-                f"Sleeping capacity: {line['beds']} guests"
-            )
-        return "\n\n".join(lines) or "Allocation to be confirmed."
-    quantity = reservation.get("quantity") or 1
-    return f"{quantity} × {reservation.get('service_label') or 'service'}"
+def _arrangement_lines(reservation: dict) -> str:
+    quantity = reservation.get("quantity")
+    label = reservation.get("service_label") or "service"
+    if quantity:
+        return f"{quantity} × {label}"
+    return label
 
 
 def _signoff() -> str:
@@ -54,7 +47,6 @@ class SupplierEmailService:
         builders = {
             "request": self._request,
             "followup": self._followup,
-            "rooming": self._rooming,
             "change": self._change,
             "cancellation": self._cancellation,
         }
@@ -81,9 +73,6 @@ class SupplierEmailService:
 
     def build_confirmation_followup(self, reservation_id, **kwargs) -> dict:
         return self.build(reservation_id, "followup", **kwargs)
-
-    def build_rooming_list_email(self, reservation_id, **kwargs) -> dict:
-        return self.build(reservation_id, "rooming", **kwargs)
 
     def build_change_request(self, reservation_id, **kwargs) -> dict:
         return self.build(reservation_id, "change", **kwargs)
@@ -133,7 +122,7 @@ class SupplierEmailService:
                 "",
                 "Requested arrangement:",
                 "",
-                _allocation_lines(reservation),
+                _arrangement_lines(reservation),
                 "",
                 "Please confirm availability for the above arrangement and provide your reservation confirmation/reference number.",
                 "",
@@ -155,48 +144,10 @@ class SupplierEmailService:
                 "",
                 f"Reservation:\n{reservation['number']}",
                 "",
-                "Requested allocation:",
-                _allocation_lines(reservation),
+                "Requested arrangement:",
+                _arrangement_lines(reservation),
                 "",
                 "Please confirm the reservation and provide your confirmation/reference number.",
-                "",
-                _signoff(),
-            ]
-        )
-        return {"subject": subject, "body": body}
-
-    def _rooming(self, reservation: dict) -> dict:
-        listing = SupplierReservationService().rooming_list(
-            reservation["tour_id"],
-            reservation_id=reservation["id"],
-        )
-        rooms = listing.get("rooms") or []
-        assigned = sum(len(room.get("guests") or []) for room in rooms)
-        lines = []
-        for room in rooms:
-            guests = " / ".join(person.get("name") or "Guest" for person in room.get("guests") or [])
-            lines.append(f"Room {room.get('room_number')}  {room.get('type_label')}\n{guests}")
-        rooming_block = "\n\n".join(lines) if lines else "Room assignments are still being completed."
-        subject = f"Rooming List — {reservation['tour']} — {reservation['start_label']}"
-        body = "\n".join(
-            [
-                _dear(reservation["supplier"]),
-                "",
-                "Please find the rooming list for our upcoming group:",
-                "",
-                f"Tour:\n{reservation['tour']}",
-                "",
-                f"Arrival:\n{reservation['start_label']}",
-                "",
-                f"Departure:\n{reservation['end_label']}",
-                "",
-                f"Total travelers assigned:\n{assigned}",
-                "",
-                f"Rooms assigned:\n{len(rooms)}",
-                "",
-                "Rooming list:",
-                "",
-                rooming_block,
                 "",
                 _signoff(),
             ]
@@ -213,8 +164,8 @@ class SupplierEmailService:
                 "",
                 f"Dates: {reservation['dates']}",
                 "",
-                "Current allocation:",
-                _allocation_lines(reservation),
+                "Current arrangement:",
+                _arrangement_lines(reservation),
                 "",
                 "Please confirm the revised arrangement and advise if the confirmation number remains the same.",
                 "",

@@ -4,13 +4,7 @@
 <div class="page-head" style="margin-bottom:1rem">
     <div>
         <h1>Create Invoice</h1>
-        <p>Select a confirmed booking to generate its invoice.</p>
     </div>
-</div>
-
-<div class="info-note">
-    Invoices are generated from confirmed bookings — pricing, discount and tax come from the booking.
-    Only confirmed bookings without a live invoice are shown.
 </div>
 
 <div class="card-table">
@@ -25,7 +19,7 @@
         <tbody>
             {% for b in bookings %}
             <tr>
-                <td><a class="bk-id" href="#">{{ b.number }}</a></td>
+                <td><a class="bk-id" href="{% url 'bookings:detail' b.id %}">{{ b.number }}</a></td>
                 <td>
                     <span class="rowc">
                         <span class="av" style="background:{{ b.avatar }}">{{ b.customer|slice:":1"|upper }}</span>
@@ -36,7 +30,14 @@
                 <td>{{ b.travelers }}</td>
                 <td>{{ b.amount|money }}</td>
                 <td><span class="pill paid">CONFIRMED</span></td>
-                <td><a class="btn-teal" href="#" style="padding:.45rem .8rem;font-size:.82rem">Generate Invoice</a></td>
+                <td class="row-actions">
+                    <form method="post" action="{% url 'invoices:from_booking' b.id %}" class="ico-form">
+                        {% csrf_token %}
+                        <button class="ico-btn is-primary" type="submit" title="Generate invoice" aria-label="Generate invoice">
+                            {% include "components/ico_mark.html" with icon="bill" %}
+                        </button>
+                    </form>
+                </td>
             </tr>
             {% empty %}
             <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">No confirmed bookings awaiting an invoice.</td></tr>

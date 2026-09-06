@@ -21,11 +21,20 @@ from apps.expenses.validators import (
 )
 from apps.notifications.constants import NotificationType
 from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
-from core.constants import Collections, DEFAULT_CURRENCY, ExpenseScope
-from core.exceptions import DatabaseUnavailableError, NotFoundError, ValidationError
+from core.constants import Collections, DEFAULT_CURRENCY, ExpenseCategory, ExpenseScope, TourStatus
+from core.exceptions import BusinessRuleViolation, DatabaseUnavailableError, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal128, to_money
 from core.numbering import next_number
 from core.utils import parse_object_id, serialize_id, utcnow
+
+
+SUPPLIER_REQUIRED_CATEGORIES = {
+    ExpenseCategory.HOTEL.value,
+    ExpenseCategory.TRANSPORTATION.value,
+    ExpenseCategory.TOUR_GUIDE.value,
+    ExpenseCategory.FLIGHT.value,
+    ExpenseCategory.ACTIVITY.value,
+}
 
 
 def _iso(value) -> str | None:
@@ -204,8 +213,15 @@ class ExpenseService:
         else:
             if not tour_oid:
                 raise ValidationError("A tour is required for tour-scoped expenses.")
-            if not self.repository.find_tour(tour_oid):
+            tour = self.repository.find_tour(tour_oid)
+            if not tour:
                 raise ValidationError("Tour not found.")
+            if tour.get("status") == TourStatus.CANCELLED.value:
+                raise BusinessRuleViolation("Cannot post expenses against a cancelled tour.")
+        if category in SUPPLIER_REQUIRED_CATEGORIES and not supplier_oid:
+            raise ValidationError("A supplier is required for this expense category.")
+        if due and when and _as_date(due) < _as_date(when):
+            raise ValidationError("Due date cannot be before the expense date.")
 
         now = utcnow()
         document = {
@@ -299,11 +315,16 @@ class ExpenseService:
             else:
                 if not tour_oid:
                     raise ValidationError("A tour is required for tour-scoped expenses.")
-                if not self.repository.find_tour(tour_oid):
+                tour = self.repository.find_tour(tour_oid)
+                if not tour:
                     raise ValidationError("Tour not found.")
+                if tour.get("status") == TourStatus.CANCELLED.value:
+                    raise BusinessRuleViolation("Cannot post expenses against a cancelled tour.")
                 updates["tour_id"] = tour_oid
 
         if "amount" in changes and changes["amount"] is not None:
+            if paid > ZERO:
+                raise ValidationError("Cannot change the amount of an expense that already has supplier payments.")
             amount = parse_positive_money(changes["amount"], field="amount")
             remaining = remaining_for(amount, paid)
             updates["amount"] = to_decimal128(amount)
@@ -315,6 +336,14 @@ class ExpenseService:
 
         if not updates:
             return document
+        expense_date = updates.get("expense_date", document.get("expense_date"))
+        due_date = updates["due_date"] if "due_date" in updates else document.get("due_date")
+        if due_date and expense_date and _as_date(due_date) < _as_date(expense_date):
+            raise ValidationError("Due date cannot be before the expense date.")
+        category = updates.get("category", document.get("category"))
+        supplier_id = updates["supplier_id"] if "supplier_id" in updates else document.get("supplier_id")
+        if category in SUPPLIER_REQUIRED_CATEGORIES and not supplier_id:
+            raise ValidationError("A supplier is required for this expense category.")
         updates["updated_at"] = utcnow()
         try:
             self.repository.update(document["_id"], updates)

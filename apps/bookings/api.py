@@ -52,6 +52,12 @@ def confirm_booking(request, **kwargs):
 
 
 @guarded
+def complete_booking(request, **kwargs):
+    booking = BookingService().complete(resource_id(kwargs), actor_id=actor_id(request))
+    return success_response(_presented(booking))
+
+
+@guarded
 def cancel_booking(request, **kwargs):
     booking = BookingService().cancel(resource_id(kwargs), actor_id=actor_id(request))
     return success_response(_presented(booking))

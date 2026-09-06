@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django import forms
 
-from apps.supplier_payments.constants import FIELD_CLASS, METHOD_CHOICES
+from apps.supplier_payments.constants import FIELD_CLASS, TRANSACTION_METHOD_CHOICES
 from core.constants import DEFAULT_CURRENCY
 
 
@@ -23,13 +23,13 @@ class SupplierPaymentForm(forms.Form):
         max_digits=12,
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
-    payment_method = forms.ChoiceField(choices=METHOD_CHOICES, label="Method")
+    payment_method = forms.ChoiceField(choices=TRANSACTION_METHOD_CHOICES, label="Method")
     payment_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         input_formats=["%Y-%m-%d"],
         label="Payment date",
     )
-    reference_number = forms.CharField(required=False, max_length=80, label="Reference")
+    reference_number = forms.CharField(required=False, max_length=80, label="Transaction / reference number")
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     currency = forms.CharField(max_length=3, required=False, initial=DEFAULT_CURRENCY)
 
@@ -42,4 +42,7 @@ class SupplierPaymentForm(forms.Form):
             self.fields["amount"].widget.attrs["data-sp-amount"] = "true"
             self.fields["amount"].widget.attrs["data-max"] = str(remaining)
             self.fields["amount"].widget.attrs["max"] = str(remaining)
+        self.fields["reference_number"].widget.attrs.setdefault(
+            "placeholder", "Processor or bank transaction reference"
+        )
         _styled(self.fields)

@@ -8,24 +8,32 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">External message</p>
         <h1>Email supplier</h1>
-        <p>The supplier does not use TourOps. Preview, copy, or send this message from the agency after you have reviewed it.</p>
     </div>
     <div class="actions">
         <a class="btn btn-ghost" href="{% url 'supplier_reservations:detail' record_id %}">Back</a>
     </div>
 </div>
 
-<form method="post" class="email-sheet panel form-grid">
+<form method="post" class="ops-form email-sheet">
     {% csrf_token %}
-    <p class="tiny">To</p>
-    <p><strong>{{ email.to }}</strong></p>
-    <label>Email type{{ form.kind }}</label>
-    <label>Subject{{ form.subject }}{{ form.subject.errors }}</label>
-    <label>Message{{ form.body }}{{ form.body.errors }}</label>
-    <label>Additional note (optional){{ form.extra_note }}</label>
-    <div class="actions">
+    {{ form.non_field_errors }}
+
+    <section class="form-card form-card-accent">
+        <header class="form-card-h">
+            <span class="form-step">1</span>
+            <div>
+                <h2>Message</h2>
+                <p class="muted">To {{ email.to }}</p>
+            </div>
+        </header>
+        {% include "components/form_field.html" with field=form.kind caption="Email type" %}
+        {% include "components/form_field.html" with field=form.subject %}
+        {% include "components/form_field.html" with field=form.body caption="Message" %}
+        {% include "components/form_field.html" with field=form.extra_note caption="Additional note" %}
+    </section>
+
+    <div class="ops-form-foot">
         <button class="btn btn-ghost" name="preview" value="1" type="submit">Preview / regenerate</button>
         <button class="btn btn-ghost" type="button" data-copy-email>Copy</button>
         <button class="btn btn-ghost" name="copy" value="1" type="submit">Mark as generated</button>
@@ -35,7 +43,6 @@
 </form>
 
 <section class="panel email-sheet" style="margin-top:1rem">
-    <p class="tiny">Preview</p>
     <h2 style="margin:.3rem 0 .8rem">{{ email.subject }}</h2>
     <pre class="email-body" data-email-copy>To: {{ email.to }}
 Subject: {{ email.subject }}

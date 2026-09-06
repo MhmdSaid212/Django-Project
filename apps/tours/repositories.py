@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from bson import ObjectId
+from pymongo import ReturnDocument
 from pymongo.collection import Collection
 
 from apps.expenses.constants import MONEY_FIELDS as EXPENSE_MONEY
@@ -87,6 +88,28 @@ class TourRepository(SoftDeleteRepositoryMixin):
             if document.get("booking_status") != BookingStatus.CANCELLED.value:
                 return True
         return False
+
+    def try_increment_booked_seats(self, tour_id: str | ObjectId, seats: int, *, max_booked: int) -> dict | None:
+        """Atomically consume seats if booked_seats is still within capacity."""
+        return self.collection.find_one_and_update(
+            live_query({
+                "_id": parse_object_id(tour_id, field="tour_id"),
+                "booked_seats": {"$lte": max_booked},
+            }),
+            {"$inc": {"booked_seats": seats}},
+            return_document=ReturnDocument.AFTER,
+        )
+
+    def try_decrement_booked_seats(self, tour_id: str | ObjectId, seats: int) -> dict | None:
+        """Atomically restore seats without going below zero."""
+        return self.collection.find_one_and_update(
+            live_query({
+                "_id": parse_object_id(tour_id, field="tour_id"),
+                "booked_seats": {"$gte": seats},
+            }),
+            {"$inc": {"booked_seats": -seats}},
+            return_document=ReturnDocument.AFTER,
+        )
 
     def hold_seats(self, tour_id: str | ObjectId, seats: int) -> bool:
         oid = parse_object_id(tour_id, field="tour_id")

@@ -1,4 +1,3 @@
-import json
 from datetime import date
 from urllib.parse import quote
 
@@ -7,13 +6,12 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.supplier_reservations.constants import DEFAULT_OCCUPANCY, ROOM_TYPE_CHOICES, SERVICE_TYPE_LABELS
+from apps.supplier_reservations.constants import SERVICE_TYPE_LABELS
 from apps.supplier_reservations.emails import EMAIL_TYPES, SupplierEmailService
 from apps.supplier_reservations.forms import (
     ConfirmReservationForm,
     SupplierEmailForm,
     SupplierReservationForm,
-    allocations_from_post,
 )
 from apps.supplier_reservations.services import SupplierReservationService
 from apps.tours.services import TourService
@@ -38,23 +36,6 @@ def _choices():
     return tours, suppliers, types
 
 
-def _form_extra(types=None, *, is_hotel=None):
-    if is_hotel is True:
-        hotel_mode = "hotel"
-    elif is_hotel is False:
-        hotel_mode = "other"
-    else:
-        hotel_mode = "auto"
-    return {
-        "room_types": ROOM_TYPE_CHOICES,
-        "occupancy": DEFAULT_OCCUPANCY,
-        "occupancy_json": json.dumps(DEFAULT_OCCUPANCY),
-        "supplier_types_json": json.dumps(types or {}),
-        "is_hotel_form": is_hotel,
-        "hotel_mode": hotel_mode,
-    }
-
-
 def _tour_dates(tour_id):
     if not tour_id:
         return {}
@@ -76,17 +57,6 @@ def _tour_dates(tour_id):
     return initial
 
 
-def _alloc_context(existing=None):
-    rows = list(existing or [])
-    while len(rows) < 5:
-        rows.append({"room_type": "", "quantity": "", "occupancy": ""})
-    return {
-        "room_types": ROOM_TYPE_CHOICES,
-        "occupancy": DEFAULT_OCCUPANCY,
-        "alloc_rows": rows[:8],
-    }
-
-
 @login_required
 @role_required(*OPERATIONS_ROLES)
 def reservation_list(request):
@@ -99,16 +69,14 @@ def reservation_list(request):
     service_type = (request.GET.get("type") or "").strip().upper()
     try:
         desk = service.ops_desk()
-        reservations = service.list_presented(**{key: value for key, value in filters.items() if value})
-        if service_type:
-            reservations = [row for row in reservations if row.get("service_type") == service_type]
+        reservations = service.list_presented()
         tours, suppliers, _types = _choices()
     except DatabaseUnavailableError:
         messages.error(request, "Cannot reach MongoDB. Supplier reservations are unavailable.")
-        desk, reservations, tours, suppliers = {"requested": 0, "confirmed": 0, "upcoming": 0, "shortage_count": 0, "release_watch": [], "awaiting": [], "shortages": []}, [], [], []
+        desk, reservations, tours, suppliers = {"requested": 0, "confirmed": 0, "upcoming": 0, "release_watch": [], "awaiting": []}, [], [], []
     except TourOpsError as extra:
         messages.error(request, extra.message)
-        desk, reservations, tours, suppliers = {"requested": 0, "confirmed": 0, "upcoming": 0, "shortage_count": 0, "release_watch": [], "awaiting": [], "shortages": []}, [], [], []
+        desk, reservations, tours, suppliers = {"requested": 0, "confirmed": 0, "upcoming": 0, "release_watch": [], "awaiting": []}, [], [], []
     return render(
         request,
         "supplier_reservations/list.html",
@@ -135,7 +103,7 @@ def reservation_list(request):
 @require_http_methods(["GET", "POST"])
 def reservation_create(request):
     try:
-        tours, suppliers, types = _choices()
+        tours, suppliers, _types = _choices()
     except DatabaseUnavailableError:
         return _unavailable(request)
     tour_id = (request.POST.get("tour_id") or request.GET.get("tour_id") or "").strip()
@@ -155,7 +123,6 @@ def reservation_create(request):
     )
     if request.method == "POST" and form.is_valid():
         payload = dict(form.cleaned_data)
-        payload["room_allocations"] = allocations_from_post(request.POST)
         try:
             reservation = SupplierReservationService().create(
                 actor_id=get_session_user(request)["id"],
@@ -178,8 +145,6 @@ def reservation_create(request):
             "submit_label": "Save reservation",
             "locked_tour_label": dict(tours).get(tour_id, ""),
             "locked_supplier_label": dict(suppliers).get(supplier_id, ""),
-            **_alloc_context(),
-            **_form_extra(types, is_hotel=(types.get(supplier_id) == "HOTEL") if supplier_id else None),
         },
     )
 
@@ -191,7 +156,7 @@ def reservation_edit(request, id):
     service = SupplierReservationService()
     try:
         record = service.get_presented(id)
-        tours, suppliers, types = _choices()
+        tours, suppliers, _types = _choices()
     except DatabaseUnavailableError:
         return _unavailable(request)
     except TourOpsError:
@@ -220,7 +185,6 @@ def reservation_edit(request, id):
         payload = dict(form.cleaned_data)
         payload.pop("tour_id", None)
         payload.pop("supplier_id", None)
-        payload["room_allocations"] = allocations_from_post(request.POST)
         try:
             service.update(id, actor_id=get_session_user(request)["id"], **payload)
         except DatabaseUnavailableError:
@@ -241,8 +205,6 @@ def reservation_edit(request, id):
             "record": record,
             "locked_tour_label": record.get("tour"),
             "locked_supplier_label": record.get("supplier"),
-            **_alloc_context(record.get("room_allocations")),
-            **_form_extra(types, is_hotel=record.get("is_hotel")),
         },
     )
 
@@ -404,103 +366,3 @@ def reservation_email(request, id):
         },
     )
 
-
-@login_required
-@role_required(*OPERATIONS_ROLES)
-def rooming_index(request):
-    service = SupplierReservationService()
-    try:
-        rows = service.list_presented()
-    except DatabaseUnavailableError:
-        return _unavailable(request)
-    except TourOpsError as extra:
-        messages.error(request, extra.message)
-        rows = []
-    tours = {}
-    for row in rows:
-        if not row.get("is_hotel") or row.get("is_cancelled") or not row.get("tour_id"):
-            continue
-        bucket = tours.setdefault(
-            row["tour_id"],
-            {
-                "id": row["tour_id"],
-                "name": row["tour"],
-                "code": row.get("tour_code") or "",
-                "dates": row.get("dates") or "",
-                "hotels": [],
-            },
-        )
-        bucket["hotels"].append(row)
-    listings = []
-    for tour_id, bucket in tours.items():
-        try:
-            bucket["snapshot"] = service.accommodation_snapshot(tour_id)
-        except TourOpsError:
-            bucket["snapshot"] = {}
-        listings.append(bucket)
-    listings.sort(key=lambda row: row.get("name") or "")
-    return render(
-        request,
-        "supplier_reservations/rooming_index.html",
-        {
-            "page_title": "Rooming lists",
-            "page_heading": "Rooming lists",
-            "listings": listings,
-        },
-    )
-
-
-@login_required
-@role_required(*OPERATIONS_ROLES)
-def rooming_list(request, tour_id):
-    reservation_id = (request.GET.get("reservation_id") or "").strip() or None
-    try:
-        listing = SupplierReservationService().rooming_list(tour_id, reservation_id=reservation_id)
-    except DatabaseUnavailableError:
-        return _unavailable(request)
-    except TourOpsError:
-        messages.error(request, "Tour not found.")
-        return redirect("tours:list")
-    hotels = [(row["id"], row["supplier"]) for row in listing["snapshot"]["hotels"]]
-    return render(
-        request,
-        "supplier_reservations/rooming.html",
-        {
-            "page_title": "Rooming list",
-            "page_heading": "Rooming list",
-            "listing": listing,
-            "hotels": hotels,
-            "room_types": ROOM_TYPE_CHOICES,
-        },
-    )
-
-
-@login_required
-@role_required(*OPERATIONS_ROLES)
-@require_POST
-def rooming_assign(request, tour_id):
-    assignments = []
-    count = int(request.POST.get("count") or 0)
-    for index in range(count):
-        assignments.append(
-            {
-                "booking_id": request.POST.get(f"row_{index}_booking_id"),
-                "traveler_index": request.POST.get(f"row_{index}_index"),
-                "hotel_reservation_id": request.POST.get(f"row_{index}_hotel") or None,
-                "room_type": request.POST.get(f"row_{index}_type") or None,
-                "room_number": request.POST.get(f"row_{index}_room") or None,
-            }
-        )
-    try:
-        SupplierReservationService().assign_rooms(
-            tour_id,
-            assignments,
-            actor_id=get_session_user(request)["id"],
-        )
-    except DatabaseUnavailableError:
-        return _unavailable(request)
-    except TourOpsError as extra:
-        messages.error(request, extra.message)
-        return redirect("supplier_reservations:rooming", tour_id=tour_id)
-    messages.success(request, "Room assignments saved.")
-    return redirect("supplier_reservations:rooming", tour_id=tour_id)

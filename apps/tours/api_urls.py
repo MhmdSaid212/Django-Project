@@ -18,7 +18,6 @@ urlpatterns = [
         name="reservations",
     ),
     path("<str:id>/accommodation/", method_view(*OPERATIONS_ROLES, GET=reservations_api.tour_accommodation), name="accommodation"),
-    path("<str:id>/rooming/", method_view(*OPERATIONS_ROLES, GET=reservations_api.tour_rooming), name="rooming"),
     path("<str:id>/expenses/", method_view(*FINANCE_ROLES, GET=expenses_for_tour), name="expenses"),
     path("<str:id>/profitability/", method_view(*FINANCE_ROLES, GET=tour_profitability), name="profitability"),
     path("<str:id>/", method_view(*OPERATIONS_ROLES, GET=api.get_tour, PATCH=api.patch_tour), name="detail"),

@@ -1,7 +1,6 @@
 <section class="panel">
     <div class="panel-h">
         <h2>Attachments</h2>
-        <p class="tiny">PDF or image · 5 MB max</p>
     </div>
     {% if attachments %}
     <div class="table-wrap">
@@ -18,11 +17,13 @@
                     </td>
                     <td>{{ item.category_label }}</td>
                     <td>{{ item.created_display }}</td>
-                    <td>
-                        <form method="post" action="{% url 'attachments:delete' item.id %}" onsubmit="return confirm('Remove {{ item.file_name }}?');">
+                    <td class="row-actions">
+                        <form method="post" action="{% url 'attachments:delete' item.id %}" class="ico-form" data-confirm="Remove {{ item.file_name }} from this record?" data-confirm-title="Clear this file?" data-confirm-ok="Remove it">
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.path }}">
-                            <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+                            <button class="ico-btn is-danger" type="submit" title="Remove" aria-label="Remove">
+                                {% include "components/ico_mark.html" with icon="delete" %}
+                            </button>
                         </form>
                     </td>
                 </tr>

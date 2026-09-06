@@ -7,22 +7,39 @@
 
 <div class="sheet">
     <div class="sheet-top">
-        <div class="sheet-brand">Tour<span class="teal">Ops</span></div>
-        <div class="sheet-contact">123 Travel Way, Suite 100, Dubai UAE<br>+971 4 123 4567<br>hello@tourops.com</div>
+        <div class="sheet-brand">{{ brand.name }}</div>
+        <div class="sheet-contact">
+            {% if brand.address %}{{ brand.address|linebreaksbr }}{% endif %}
+            {% if brand.phone %}{% if brand.address %}<br>{% endif %}{{ brand.phone }}{% endif %}
+            {% if brand.email %}{% if brand.address or brand.phone %}<br>{% endif %}{{ brand.email }}{% endif %}
+        </div>
     </div>
     <div class="sheet-body">
         <div class="inv-word">INVOICE</div>
         <div class="meta-grid">
             <dl class="kv">
                 <dt>Invoice Number</dt><dd>{{ record.number }}</dd>
-                <dt>Booking Reference</dt><dd style="color:#2563eb">{{ record.booking }}</dd>
+                <dt>Booking Reference</dt>
+                <dd>
+                    {% if record.booking_id %}
+                    <a href="{% url 'bookings:detail' record.booking_id %}">{{ record.booking }}</a>
+                    {% else %}
+                    {{ record.booking }}
+                    {% endif %}
+                </dd>
                 <dt>Issue Date</dt><dd>{{ record.issue }}</dd>
                 <dt>Due Date</dt><dd>{{ record.due }}</dd>
                 <dt>Status</dt><dd><span class="pill {{ record.status|lower }}">{{ record.status }}</span></dd>
             </dl>
             <div class="billto">
                 <div class="lab">Bill To</div>
-                <div class="name">{{ record.customer }}</div>
+                <div class="name">
+                    {% if record.customer_id %}
+                    <a href="{% url 'customers:detail' record.customer_id %}">{{ record.customer }}</a>
+                    {% else %}
+                    {{ record.customer }}
+                    {% endif %}
+                </div>
                 {% if record.customer_email %}<div class="sub">{{ record.customer_email }}</div>{% endif %}
             </div>
         </div>
@@ -56,73 +73,61 @@
         <div class="sheet-foot">
             <div class="foot-actions">
                 <span class="foot-lab">Actions</span>
-                <a class="btn-teal" href="#" data-open-drawer="pay-drawer">Record Payment</a>
-                <a class="btn-out" href="{% url 'invoices:print' record.id %}">Download</a>
-                {% if record.status == 'DRAFT' or record.can_cancel %}
-                <button class="btn-out cancel-btn" type="button" data-invoice-id="{{ record.id }}">Cancel</button>
-                {% elif record.status != 'CANCELLED' %}
-                <a class="btn-mini warn" href="{% url 'invoices:reissue' record.id %}" title="{{ record.cancel_reason }}">↺ Refund &amp; Reissue</a>
+                <a class="btn-out" href="{% url 'invoices:print' record.id %}">Print</a>
+                {% if record.can_cancel %}
+                <form method="post" action="{% url 'invoices:cancel' record.id %}" data-confirm="This invoice is closed for good. Payments already on it stay on the ledger." data-confirm-title="Void this paper trail?" data-confirm-ok="Cancel invoice" style="display:inline">
+                    {% csrf_token %}
+                    <button class="btn-out cancel-btn" type="submit">Cancel invoice</button>
+                </form>
+                {% endif %}
+                {% if record.can_reissue %}
+                <a class="btn-out" href="{% url 'invoices:reissue' record.id %}">Reissue</a>
                 {% endif %}
             </div>
-            <div class="thanks">♥ Thank you for choosing TourOps.<br><span>We appreciate your business!</span></div>
+            <div class="thanks">Thank you for choosing TourOps.<br><span>We appreciate your business.</span></div>
         </div>
     </div>
 </div>
-<!--
-    Cancel-invoice handler (Refund & Reissue's simpler sibling).
 
-    Why this exists:
-    The Cancel button only renders when the server already told us
-    (`can_cancel`) that this invoice has zero payments against it, so
-    cancelling is legal per the BRD rule ("a paid invoice must be refunded,
-    never cancelled directly"). But the button still needs to actually DO
-    something — Django doesn't wire click events on its own, and a page
-    reload via a normal <form> would lose the SPA-like drawer/list feel of
-    this screen. So this script calls the real cancel endpoint via fetch()
-    instead of a full page POST.
+{% if record.can_pay %}
+<section class="panel" style="max-width:560px;margin-top:1.2rem">
+    <h2>Record payment</h2>
+    <form method="post" action="{% url 'invoices:pay' record.id %}">
+        {% csrf_token %}
+        {% include "components/form_field.html" with field=pay_form.amount %}
+        {% include "components/form_field.html" with field=pay_form.method %}
+        {% include "components/form_field.html" with field=pay_form.reference_number %}
+        <p class="muted">After this payment: <strong data-pay-after>{{ record.remaining|money }}</strong></p>
+        <p class="err-inline" data-pay-error>Amount cannot exceed the remaining balance.</p>
+        <button class="btn btn-warm" type="submit">Save payment</button>
+    </form>
+</section>
+{% endif %}
 
-    What each piece is for:
-    - getCookie('csrftoken')  Django blocks any POST/PATCH/DELETE without a
-      CSRF token attached. We're not submitting an HTML <form> (which would
-      auto-include the {% csrf_token %} tag), so we have to read the token
-      Django already dropped in the browser's cookies and attach it by hand
-      via the X-CSRFToken header.
-    - PATCH .../api/invoices/<id>/ with {"action":"cancel"}  this reuses the
-      EXACT endpoint and service method (InvoiceService.cancel()) that
-      already enforces the paid_amount == 0 rule server-side. The frontend
-      flag just decides whether to show the button; this call is what
-      actually performs (and re-validates) the cancellation.
-    - confirm(...)  cancelling can't be undone from the UI, so we ask once
-      before firing the request, rather than cancelling on a stray click.
-    - res.ok check  even though the button only appears when cancellation
-      should be allowed, we still handle a server-side rejection (e.g. a
-      payment landed on the invoice in the seconds between page load and
-      click) by showing the real error message instead of assuming success.
--->
-<script>
-function getCookie(name){
-    var v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return v ? v.pop() : '';
-}
-document.querySelectorAll('.cancel-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-        if(!confirm('Cancel this invoice? This cannot be undone.')) return;
-        var id = btn.dataset.invoiceId;
-        fetch('/api/invoices/' + id + '/', {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken'),
-            },
-            body: JSON.stringify({action: 'cancel'}),
-        })
-        .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
-        .then(function(res){
-            if(res.ok){ location.href = "{% url 'invoices:list' %}"; }
-            else { alert((res.data.error && res.data.error.message) || 'Could not cancel invoice.'); }
-        })
-        .catch(function(){ alert('Network error — could not reach the server.'); });
-    });
-});
-</script>
+{% if payments %}
+<section class="panel" style="padding:0;margin-top:1rem">
+    <div class="panel-h" style="padding:1rem 1rem 0"><h2>Payments</h2></div>
+    <table class="data">
+        <thead><tr><th>Payment</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for p in payments %}
+            <tr>
+                <td class="mono"><a href="{% url 'payments:detail' p.id %}">{{ p.payment_number }}</a></td>
+                <td><strong>{{ p.amount|money }}</strong></td>
+                <td>{{ p.payment_method }}</td>
+                <td class="mono">{{ p.reference_number|default:"—" }}</td>
+                <td>{% include "components/status_badge.html" with status=p.status %}</td>
+                <td class="row-actions">
+                    {% if p.status == 'COMPLETED' %}
+                    <a class="ico-btn is-primary" href="{% url 'refunds:create' %}?payment_id={{ p.id }}" title="{% if nav.is_owner %}Issue refund{% else %}Request refund{% endif %}" aria-label="{% if nav.is_owner %}Issue refund{% else %}Request refund{% endif %}">
+                        {% include "components/ico_mark.html" with icon="refund" %}
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
 {% endblock %}

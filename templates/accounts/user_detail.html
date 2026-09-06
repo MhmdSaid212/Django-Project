@@ -11,18 +11,11 @@
     <div class="actions">
         {% include "components/status_badge.html" with status=record.status %}
         {% if not is_self %}
+            {% url 'accounts:user_status' record.id as status_url %}
             {% if record.status == 'ACTIVE' %}
-            <form method="post" action="{% url 'accounts:user_status' record.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="status" value="INACTIVE">
-                <button class="btn btn-ghost" type="submit">Deactivate</button>
-            </form>
+            {% include "components/ico_btn.html" with action=status_url title="Deactivate" icon="off" hidden_name="status" hidden_value="INACTIVE" %}
             {% else %}
-            <form method="post" action="{% url 'accounts:user_status' record.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="status" value="ACTIVE">
-                <button class="btn btn-ok" type="submit">Activate</button>
-            </form>
+            {% include "components/ico_btn.html" with action=status_url title="Activate" icon="on" hidden_name="status" hidden_value="ACTIVE" %}
             {% endif %}
         {% endif %}
     </div>
@@ -30,7 +23,6 @@
 <div class="two-col">
     <section class="panel">
         <h2>Permissions</h2>
-        <p class="muted" style="margin-top:.4rem">Role-based. Owner sees everything; agents operate bookings; accountants own money.</p>
         <ul>
             {% if record.role == 'OWNER_ADMIN' %}
             <li>All operations, finance, users, settings, audit</li>
@@ -41,24 +33,27 @@
             {% endif %}
         </ul>
         {% if not is_self %}
-        <form method="post" action="{% url 'accounts:user_role' record.id %}" class="form-grid" style="margin-top:1rem;max-width:320px">
+        <form method="post" action="{% url 'accounts:user_role' record.id %}" style="margin-top:1rem">
             {% csrf_token %}
-            <label>Change role{{ role_form.role }}</label>
-            <button class="btn btn-warm" type="submit">Save role</button>
+            {% include "components/form_field.html" with field=role_form.role caption="Change role" %}
+            <div class="ops-form-foot" style="position:static;margin-top:.85rem;padding:0;border:0;background:transparent;box-shadow:none">
+                <button class="btn btn-warm" type="submit">Save role</button>
+            </div>
         </form>
         {% endif %}
     </section>
     <section class="panel">
         <h2>Password</h2>
         {% if is_self %}
-        <p class="muted" style="margin-top:.4rem">Use the change password page for your own account.</p>
         <p style="margin-top:.8rem"><a class="btn btn-ghost" href="{% url 'accounts:password' %}">Change my password</a></p>
         {% else %}
-        <form method="post" action="{% url 'accounts:user_password' record.id %}" class="form-grid" style="margin-top:.8rem;max-width:360px">
+        <form method="post" action="{% url 'accounts:user_password' record.id %}" style="margin-top:.8rem">
             {% csrf_token %}
-            <label>New password{{ password_form.new_password }}</label>
-            <label>Confirm password{{ password_form.confirm_password }}</label>
-            <button class="btn btn-warm" type="submit">Reset password</button>
+            {% include "components/form_field.html" with field=password_form.new_password caption="New password" %}
+            {% include "components/form_field.html" with field=password_form.confirm_password caption="Confirm password" %}
+            <div class="ops-form-foot" style="position:static;margin-top:.85rem;padding:0;border:0;background:transparent;box-shadow:none">
+                <button class="btn btn-warm" type="submit">Reset password</button>
+            </div>
         </form>
         {% endif %}
     </section>

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.accounts.repositories import UserRepository
+from apps.accounts.models import User
 from apps.notifications.constants import TYPE_BADGE, TYPE_LABELS, NotificationType
 from apps.notifications.repositories import NotificationRepository
 from core.constants import UserRole
@@ -56,13 +56,8 @@ def present_notification(document: dict) -> dict:
 
 
 class NotificationService:
-    def __init__(
-        self,
-        repository: NotificationRepository | None = None,
-        users: UserRepository | None = None,
-    ):
+    def __init__(self, repository: NotificationRepository | None = None):
         self.repository = repository or NotificationRepository()
-        self.users = users or UserRepository()
 
     def create(
         self,
@@ -140,13 +135,11 @@ class NotificationService:
         allowed = {getattr(role, "value", role) for role in roles}
         exclude = str(exclude_user_id) if exclude_user_id is not None else None
         count = 0
-        for user in self.users.list_active():
-            if user.get("role") not in allowed:
-                continue
-            if exclude and str(user["_id"]) == exclude:
+        for user in User.objects.active_with_roles(allowed):
+            if exclude and user.actor_id == exclude:
                 continue
             self.create(
-                user_id=user["_id"],
+                user_id=user.actor_id,
                 type=type,
                 title=title,
                 message=message,
@@ -166,3 +159,36 @@ def safe_notify_roles(roles, **kwargs) -> None:
 
 FINANCE_NOTIFY_ROLES = (UserRole.ACCOUNTANT.value, UserRole.OWNER_ADMIN.value)
 OWNER_NOTIFY_ROLES = (UserRole.OWNER_ADMIN.value,)
+AGENT_NOTIFY_ROLES = (UserRole.TRAVEL_AGENT.value,)
+OPS_NOTIFY_ROLES = (UserRole.TRAVEL_AGENT.value, UserRole.OWNER_ADMIN.value)
+
+TYPE_NOTIFY_ROLES = {
+    NotificationType.PAYMENT.value: FINANCE_NOTIFY_ROLES,
+    NotificationType.REFUND.value: FINANCE_NOTIFY_ROLES,
+    NotificationType.EXPENSE.value: FINANCE_NOTIFY_ROLES,
+    NotificationType.SUPPLIER.value: FINANCE_NOTIFY_ROLES,
+    NotificationType.BOOKING.value: OPS_NOTIFY_ROLES,
+    NotificationType.TOUR.value: OPS_NOTIFY_ROLES,
+    NotificationType.SYSTEM.value: OWNER_NOTIFY_ROLES,
+    NotificationType.ATTACHMENT.value: OPS_NOTIFY_ROLES,
+}
+
+FINANCE_ATTACHMENT_ENTITIES = {
+    "expenses",
+    "invoices",
+    "payments",
+    "refunds",
+    "supplier_payments",
+}
+
+
+def roles_for_type(kind: str, *, entity_type: str | None = None) -> tuple[str, ...]:
+    kind = (kind or "").strip().lower()
+    if kind == NotificationType.ATTACHMENT.value and entity_type in FINANCE_ATTACHMENT_ENTITIES:
+        return FINANCE_NOTIFY_ROLES
+    return TYPE_NOTIFY_ROLES.get(kind, OWNER_NOTIFY_ROLES)
+
+
+def notify_for_type(kind: str, **kwargs) -> None:
+    roles = roles_for_type(kind, entity_type=kwargs.get("related_entity_type"))
+    safe_notify_roles(roles, type=kind, **kwargs)

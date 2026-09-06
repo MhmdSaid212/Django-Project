@@ -2,34 +2,50 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Expenses</p>
         <h1>{{ page_heading }}</h1>
-        <p>Supplier bills and overhead. Tour-scoped costs must be linked to a tour.</p>
-        {% if from_reservation %}
-        <div class="callout callout-info" style="margin-top:.8rem;max-width:640px">
-            A confirmed reservation does not create this bill. Enter the amount, dates and supplier invoice reference from the invoice you received.
-        </div>
-        {% endif %}
     </div>
 </div>
-<form method="post" class="panel form-grid" style="max-width:640px">
+<form method="post" class="ops-form">
     {% csrf_token %}
     {{ form.non_field_errors }}
-    <label>Scope{{ form.expense_scope }}{{ form.expense_scope.errors }}</label>
-    <label>Category{{ form.category }}{{ form.category.errors }}</label>
-    <label>Supplier{{ form.supplier_id }}{{ form.supplier_id.errors }}</label>
-    <label>Related tour{{ form.tour_id }}{{ form.tour_id.errors }}</label>
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Amount{{ form.amount }}{{ form.amount.errors }}</label>
-        <label>Currency{{ form.currency }}{{ form.currency.errors }}</label>
-    </div>
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Expense date{{ form.expense_date }}{{ form.expense_date.errors }}</label>
-        <label>Due date{{ form.due_date }}{{ form.due_date.errors }}</label>
-    </div>
-    <label>Description{{ form.description }}{{ form.description.errors }}</label>
-    <label>Receipt / invoice file{{ form.receipt_file }}{{ form.receipt_file.errors }}</label>
-    <div class="actions">
+
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">1</span>
+            <div>
+                <h2>What this bill is for</h2>
+            </div>
+        </header>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.expense_scope caption="Scope" %}
+            {% include "components/form_field.html" with field=form.category %}
+        </div>
+        {% include "components/form_field.html" with field=form.supplier_id caption="Supplier" %}
+        <div data-tour-row>
+            {% include "components/form_field.html" with field=form.tour_id caption="Related tour" %}
+        </div>
+        {% include "components/form_field.html" with field=form.description %}
+    </section>
+
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">2</span>
+            <div>
+                <h2>Amount and dates</h2>
+            </div>
+        </header>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.amount %}
+            {% include "components/form_field.html" with field=form.currency %}
+        </div>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.expense_date caption="Expense date" %}
+            {% include "components/form_field.html" with field=form.due_date caption="Due date" %}
+        </div>
+        {% include "components/form_field.html" with field=form.receipt_file caption="Receipt / invoice file" %}
+    </section>
+
+    <div class="ops-form-foot">
         <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save expense" }}</button>
         {% if record %}
         <a class="btn btn-ghost" href="{% url 'expenses:detail' record.id %}">Cancel</a>
@@ -45,7 +61,7 @@
     const scope = document.querySelector('[name="expense_scope"]');
     const tour = document.querySelector('[name="tour_id"]');
     if (!scope || !tour) return;
-    const row = tour.closest("label");
+    const row = tour.closest("[data-tour-row]") || tour.closest(".form-field");
     function sync() {
         const isTour = scope.value === "TOUR";
         tour.disabled = !isTour;

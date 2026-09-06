@@ -5,10 +5,12 @@ Queries exclude soft-deleted rows by default. Never call delete_one().
 from __future__ import annotations
 
 from bson import ObjectId
+from pymongo import ReturnDocument
 from pymongo.collection import Collection
 
 from core.constants import Collections, InvoiceStatus
 from core.database import get_collection
+from core.money import to_decimal128, to_money
 from core.soft_delete import LIVE_FILTER, SoftDeleteRepositoryMixin, live_query
 from core.utils import parse_object_id
 
@@ -33,6 +35,23 @@ class InvoiceRepository(SoftDeleteRepositoryMixin):
         if not include_cancelled:
             query["status"] = {"$ne": InvoiceStatus.CANCELLED.value}
         return self.collection.find_one(query)
+
+    def try_consume_remaining(self, invoice_id, amount) -> dict | None:
+        money = to_money(amount)
+        if money <= 0:
+            return None
+        encoded = to_decimal128(money)
+        return self.collection.find_one_and_update(
+            live_query(
+                {
+                    "_id": parse_object_id(invoice_id, field="invoice_id"),
+                    "status": {"$nin": [InvoiceStatus.CANCELLED.value, InvoiceStatus.REFUNDED.value]},
+                    "remaining_amount": {"$gte": encoded},
+                }
+            ),
+            {"$inc": {"remaining_amount": to_decimal128(-money), "paid_amount": encoded}},
+            return_document=ReturnDocument.AFTER,
+        )
 
     def set_rollups(self, invoice_id, *, paid, refunded, remaining, status) -> None:
         """Overwrite the stored payment rollups + status after a payment/refund posts."""

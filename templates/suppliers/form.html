@@ -2,114 +2,128 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Suppliers</p>
         <h1>{{ page_heading }}</h1>
-        <p>Company profile plus type-specific details. Extra panels appear when you choose a type.</p>
     </div>
 </div>
-<form method="post" class="panel form-grid" style="max-width:720px">
+<form method="post" class="ops-form">
     {% csrf_token %}
     {{ form.non_field_errors }}
-    <label>Company name{{ form.name }}{{ form.name.errors }}</label>
-    <label>Type{{ form.supplier_type }}{{ form.supplier_type.errors }}</label>
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Contact{{ form.contact_person }}{{ form.contact_person.errors }}</label>
-        <label>Phone{{ form.phone }}{{ form.phone.errors }}</label>
-    </div>
-    <label>Email{{ form.email }}{{ form.email.errors }}</label>
-    <div class="two-col" style="grid-template-columns:1fr 1fr 1fr">
-        <label>Country{{ form.country }}{{ form.country.errors }}</label>
-        <label>City{{ form.city }}{{ form.city.errors }}</label>
-        <label>Street{{ form.street }}{{ form.street.errors }}</label>
-    </div>
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>Tax number{{ form.tax_number }}{{ form.tax_number.errors }}</label>
-        <label>Payment terms{{ form.payment_terms }}{{ form.payment_terms.errors }}</label>
-    </div>
-    <div class="two-col" style="grid-template-columns:1fr 1fr 1fr">
-        <label>Bank{{ form.bank_name }}{{ form.bank_name.errors }}</label>
-        <label>Account name{{ form.account_name }}{{ form.account_name.errors }}</label>
-        <label>IBAN{{ form.iban }}{{ form.iban.errors }}</label>
-    </div>
-    {% if form.status %}
-    <label>Status{{ form.status }}{{ form.status.errors }}</label>
-    {% endif %}
 
-    <div data-supplier-type="HOTEL">
-        <p class="tiny" style="grid-column:1/-1">Hotel details</p>
-        <div class="two-col" style="grid-template-columns:1fr 1fr 1fr">
-            <label>Stars{{ form.star_rating }}{{ form.star_rating.errors }}</label>
-            <label>Rooms{{ form.room_count }}{{ form.room_count.errors }}</label>
-            <label>Board{{ form.board_basis }}{{ form.board_basis.errors }}</label>
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">1</span>
+            <div>
+                <h2>Who they are</h2>
+            </div>
+        </header>
+        {% include "components/form_field.html" with field=form.name caption="Company name" %}
+        <fieldset class="type-picker-wrap">
+            <legend class="form-label">Supplier type <span class="req" title="Required">*</span></legend>
+            {{ form.supplier_type.errors }}
+            <div class="type-picker" role="radiogroup" aria-label="Supplier type">
+                {% for radio in form.supplier_type %}
+                <label class="type-card">
+                    {{ radio.tag }}
+                    <strong>{{ radio.choice_label }}</strong>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <div class="type-extra" data-supplier-type="HOTEL" hidden>
+            <h3>Hotel</h3>
+            {% include "components/form_field.html" with field=form.star_rating caption="Star rating" %}
         </div>
-        <div class="two-col" style="grid-template-columns:1fr 1fr">
-            <label>Check-in{{ form.check_in_time }}{{ form.check_in_time.errors }}</label>
-            <label>Check-out{{ form.check_out_time }}{{ form.check_out_time.errors }}</label>
+        <div class="type-extra" data-supplier-type="TRANSPORTATION" hidden>
+            <h3>Transportation</h3>
+            {% include "components/form_field.html" with field=form.vehicle_type %}
+            <div class="form-row">
+                {% include "components/form_field.html" with field=form.fleet_size %}
+                {% include "components/form_field.html" with field=form.seats_per_vehicle %}
+            </div>
+            <div class="form-row">
+                {% include "components/form_field.html" with field=form.license_number %}
+                {% include "components/form_field.html" with field=form.coverage_areas %}
+            </div>
         </div>
-        <label>Room types{{ form.room_types }}{{ form.room_types.errors }}</label>
-        <label>Amenities{{ form.amenities }}{{ form.amenities.errors }}</label>
-    </div>
-
-    <div data-supplier-type="TRANSPORTATION">
-        <p class="tiny" style="grid-column:1/-1">Fleet</p>
-        <label>Vehicle type{{ form.vehicle_type }}{{ form.vehicle_type.errors }}</label>
-        <div class="two-col" style="grid-template-columns:1fr 1fr">
-            <label>Fleet size{{ form.fleet_size }}{{ form.fleet_size.errors }}</label>
-            <label>Seats / vehicle{{ form.seats_per_vehicle }}{{ form.seats_per_vehicle.errors }}</label>
+        <div class="type-extra" data-supplier-type="TOUR_GUIDE" hidden>
+            <h3>Guide</h3>
+            {% include "components/form_field.html" with field=form.languages %}
+            <div class="form-row">
+                {% include "components/form_field.html" with field=form.years_experience caption="Years of experience" %}
+                {% include "components/form_field.html" with field=form.guide_license_number %}
+            </div>
+            {% include "components/form_field.html" with field=form.specialties %}
         </div>
-        <label>License number{{ form.license_number }}{{ form.license_number.errors }}</label>
-        <label>Coverage areas{{ form.coverage_areas }}{{ form.coverage_areas.errors }}</label>
-    </div>
+        {% if form.status %}
+        {% include "components/form_field.html" with field=form.status %}
+        {% endif %}
+    </section>
 
-    <div data-supplier-type="TOUR_GUIDE">
-        <p class="tiny" style="grid-column:1/-1">Guide profile</p>
-        <label>Languages{{ form.languages }}{{ form.languages.errors }}</label>
-        <div class="two-col" style="grid-template-columns:1fr 1fr">
-            <label>Years{{ form.years_experience }}{{ form.years_experience.errors }}</label>
-            <label>License number{{ form.guide_license_number }}{{ form.guide_license_number.errors }}</label>
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">2</span>
+            <div>
+                <h2>How you reach them</h2>
+            </div>
+        </header>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.contact_person caption="Contact person" %}
+            {% include "components/form_field.html" with field=form.phone %}
         </div>
-        <label>Specialties{{ form.specialties }}{{ form.specialties.errors }}</label>
-    </div>
-
-    <div data-supplier-type="AIRLINE">
-        <p class="tiny" style="grid-column:1/-1">Airline</p>
-        <div class="two-col" style="grid-template-columns:1fr 1fr">
-            <label>IATA code{{ form.iata_code }}{{ form.iata_code.errors }}</label>
-            <label>Alliance{{ form.alliance }}{{ form.alliance.errors }}</label>
+        {% include "components/form_field.html" with field=form.email %}
+        <div class="form-row form-row-3">
+            {% include "components/form_field.html" with field=form.city %}
+            {% include "components/form_field.html" with field=form.country %}
+            {% include "components/form_field.html" with field=form.street %}
         </div>
-    </div>
+    </section>
 
-    <div data-supplier-type="ACTIVITY_PROVIDER">
-        <p class="tiny" style="grid-column:1/-1">Activity</p>
-        <label>Activity kinds{{ form.activity_kinds }}{{ form.activity_kinds.errors }}</label>
-        <div class="two-col" style="grid-template-columns:1fr 1fr">
-            <label>Typical duration (hours){{ form.typical_duration_hours }}{{ form.typical_duration_hours.errors }}</label>
-            <label>Location{{ form.location }}{{ form.location.errors }}</label>
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">3</span>
+            <div>
+                <h2>How you pay them</h2>
+            </div>
+        </header>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.tax_number %}
+            {% include "components/form_field.html" with field=form.payment_terms caption="Payment terms" %}
         </div>
-    </div>
-
-    <div data-supplier-type="RESTAURANT">
-        <p class="tiny" style="grid-column:1/-1">Restaurant</p>
-        <label>Cuisine{{ form.cuisine }}{{ form.cuisine.errors }}</label>
-        <div class="two-col" style="grid-template-columns:1fr 1fr">
-            <label>Seating capacity{{ form.seating_capacity }}{{ form.seating_capacity.errors }}</label>
-            <label>Meal types{{ form.meal_types }}{{ form.meal_types.errors }}</label>
+        <fieldset class="type-picker-wrap">
+            <legend class="form-label">Preferred payment method</legend>
+            {{ form.preferred_payment_method.errors }}
+            <div class="type-picker method-picker" role="radiogroup" aria-label="Preferred payment method">
+                {% for radio in form.preferred_payment_method %}
+                <label class="type-card">
+                    {{ radio.tag }}
+                    <strong>{{ radio.choice_label }}</strong>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+        <div class="type-extra" data-payment-method="BANK_TRANSFER" hidden>
+            <h3>Bank account</h3>
+            <div class="form-row">
+                {% include "components/form_field.html" with field=form.bank_name %}
+                {% include "components/form_field.html" with field=form.account_name %}
+            </div>
+            {% include "components/form_field.html" with field=form.iban %}
+            <div class="form-row">
+                {% include "components/form_field.html" with field=form.swift_bic %}
+                {% include "components/form_field.html" with field=form.account_number caption="Account number" %}
+            </div>
         </div>
-    </div>
+        <div class="type-extra" data-payment-method="CARD" hidden>
+            <h3>Card</h3>
+        </div>
+    </section>
 
-    <div data-supplier-type="INSURANCE">
-        <p class="tiny" style="grid-column:1/-1">Insurance</p>
-        <label>Policy types{{ form.policy_types }}{{ form.policy_types.errors }}</label>
-        <label>Coverage notes{{ form.coverage_notes }}{{ form.coverage_notes.errors }}</label>
-    </div>
+    <section class="form-card">
+        {% include "components/form_field.html" with field=form.notes caption="Internal notes" %}
+    </section>
 
-    <div data-supplier-type="OTHER">
-        <p class="tiny" style="grid-column:1/-1">Other</p>
-        <label>Details{{ form.details }}{{ form.details.errors }}</label>
-    </div>
-
-    <label>Notes{{ form.notes }}{{ form.notes.errors }}</label>
-    <div class="actions">
+    <div class="ops-form-foot">
         <button class="btn btn-warm" type="submit">{{ submit_label|default:"Save supplier" }}</button>
         {% if record %}
         <a class="btn btn-ghost" href="{% url 'suppliers:detail' record.id %}">Cancel</a>
@@ -122,20 +136,48 @@
 {% block extra_js %}
 <script>
 (function () {
-    const type = document.querySelector('[name="supplier_type"]');
-    if (!type) return;
+    const radios = document.querySelectorAll('[name="supplier_type"]');
     const panels = document.querySelectorAll("[data-supplier-type]");
+    if (!radios.length) return;
+    function selectedType() {
+        const on = document.querySelector('[name="supplier_type"]:checked');
+        return on ? on.value : "";
+    }
     function sync() {
+        const type = selectedType();
         panels.forEach(function (panel) {
-            const on = panel.getAttribute("data-supplier-type") === type.value;
+            const on = Boolean(type) && panel.getAttribute("data-supplier-type") === type;
             panel.hidden = !on;
             panel.querySelectorAll("input, select, textarea").forEach(function (el) {
                 el.disabled = !on;
             });
         });
     }
-    type.addEventListener("change", sync);
+    radios.forEach(function (radio) {
+        radio.addEventListener("change", sync);
+    });
     sync();
+
+    const methodRadios = document.querySelectorAll('[name="preferred_payment_method"]');
+    const methodPanels = document.querySelectorAll("[data-payment-method]");
+    function selectedMethod() {
+        const on = document.querySelector('[name="preferred_payment_method"]:checked');
+        return on ? on.value : "";
+    }
+    function syncMethod() {
+        const method = selectedMethod();
+        methodPanels.forEach(function (panel) {
+            const on = Boolean(method) && panel.getAttribute("data-payment-method") === method;
+            panel.hidden = !on;
+            panel.querySelectorAll("input, select, textarea").forEach(function (el) {
+                el.disabled = !on;
+            });
+        });
+    }
+    methodRadios.forEach(function (radio) {
+        radio.addEventListener("change", syncMethod);
+    });
+    syncMethod();
 })();
 </script>
 {% endblock %}

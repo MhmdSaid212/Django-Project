@@ -4,13 +4,18 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
+from django import forms
 
+from apps.attachments.constants import IMAGE_CONTENT_TYPES, MAX_GALLERY_FILES
+from apps.attachments.services import AttachmentService
 from apps.packages.services import PackageService
 from apps.supplier_reservations.constants import SERVICE_TYPE_LABELS
 from apps.supplier_reservations.services import SupplierReservationService
+from apps.suppliers.offerings import SupplierOfferingService
 from apps.tours.forms import TourForm, initial_from_package, initial_from_tour
 from apps.tours.services import TourService
 from core.access import OPERATIONS_ROLES
+from core.constants import AttachmentCategory, AttachmentEntityType
 from core.exceptions import DatabaseUnavailableError, NotFoundError, TourOpsError
 from core.permissions import get_session_user, login_required, role_required
 
@@ -20,7 +25,7 @@ def _unavailable(request, next_name="tours:list"):
     return redirect(next_name)
 
 
-def _form_payload(form: TourForm) -> dict:
+def _form_payload(form: TourForm, post=None) -> dict:
     data = form.cleaned_data
     payload = {
         "name": data.get("name"),
@@ -38,6 +43,8 @@ def _form_payload(form: TourForm) -> dict:
     }
     if data.get("status"):
         payload["status"] = data["status"]
+    if post and post.get("override_services") == "1":
+        payload["service_ids"] = post.getlist("service_ids")
     return {key: value for key, value in payload.items() if value not in (None, "")}
 
 
@@ -66,6 +73,59 @@ def _reservation_groups(rows):
     return groups
 
 
+def _catalog_context(selected_ids=None):
+    selected = {str(item) for item in (selected_ids or []) if item}
+    catalog = SupplierOfferingService().list_catalog()
+    for row in catalog:
+        row["selected"] = row["id"] in selected
+    return catalog
+
+
+def _attach_galleries(tours: list[dict]) -> list[dict]:
+    grouped = AttachmentService().gallery_for_tours([row.get("id") for row in tours])
+    for tour in tours:
+        photos = grouped.get(tour.get("id"), [])
+        tour["gallery"] = photos
+        tour["cover"] = photos[0] if photos else None
+    return tours
+
+
+def _save_gallery(request, tour_id) -> int:
+    uploads = list(request.FILES.getlist("gallery") or [])
+    if not uploads:
+        return 0
+    existing = AttachmentService().gallery_for_tours([str(tour_id)]).get(str(tour_id), [])
+    room = max(MAX_GALLERY_FILES - len(existing), 0)
+    if room <= 0:
+        messages.error(request, f"This tour already has {MAX_GALLERY_FILES} gallery photos.")
+        return 0
+    extra = uploads[room:]
+    uploads = uploads[:room]
+    if extra:
+        messages.error(request, f"Only {MAX_GALLERY_FILES} gallery photos are kept. Extra files were skipped.")
+    saved = 0
+    actor_id = get_session_user(request)["id"]
+    for upload in uploads:
+        content_type = (getattr(upload, "content_type", "") or "").lower()
+        if content_type not in IMAGE_CONTENT_TYPES:
+            messages.error(request, f"{getattr(upload, 'name', 'File')} is not a JPG, PNG, WebP, or GIF.")
+            continue
+        try:
+            AttachmentService().create(
+                actor_id=actor_id,
+                actor_role=get_session_user(request)["role"],
+                entity_type=AttachmentEntityType.TOURS.value,
+                entity_id=tour_id,
+                category=AttachmentCategory.GALLERY.value,
+                upload=upload,
+            )
+        except TourOpsError as extra_err:
+            messages.error(request, extra_err.message)
+        else:
+            saved += 1
+    return saved
+
+
 @login_required
 @role_required(*OPERATIONS_ROLES)
 def tour_list(request):
@@ -77,6 +137,11 @@ def tour_list(request):
     except TourOpsError as extra:
         messages.error(request, extra.message)
         tours = []
+    else:
+        try:
+            _attach_galleries(tours)
+        except TourOpsError:
+            pass
     return render(
         request,
         "tours/list.html",
@@ -96,23 +161,44 @@ def tour_create(request):
         choices = _package_choices()
     except DatabaseUnavailableError:
         return _unavailable(request)
+    if not choices:
+        return render(
+            request,
+            "tours/form.html",
+            {
+                "form": None,
+                "page_title": "New tour",
+                "page_heading": "New departure",
+                "needs_package": True,
+            },
+        )
     initial = {}
-    package_id = (request.GET.get("package_id") or "").strip()
-    if request.method == "GET" and package_id:
+    selected_package = None
+    package_id = (request.POST.get("package_id") or request.GET.get("package_id") or "").strip()
+    if package_id:
         try:
-            initial = initial_from_package(PackageService().get_presented(package_id, include_extras=False))
+            selected_package = PackageService().get_presented(package_id, include_extras=True)
+            if request.method == "GET":
+                initial = initial_from_package(selected_package)
+            if selected_package["id"] not in {item[0] for item in choices}:
+                choices = [(selected_package["id"], f"{selected_package['name']} (inactive)")] + list(choices)
         except (NotFoundError, TourOpsError):
             messages.error(request, "Package not found.")
+            selected_package = None
     form = TourForm(request.POST or None, initial=initial or None, package_choices=choices)
     if request.method == "POST" and form.is_valid():
         try:
-            tour = TourService().create(actor_id=get_session_user(request)["id"], **_form_payload(form))
+            tour = TourService().create(actor_id=get_session_user(request)["id"], **_form_payload(form, request.POST))
         except DatabaseUnavailableError:
             return _unavailable(request)
         except TourOpsError as extra:
             messages.error(request, extra.message)
         else:
-            messages.success(request, f"Created {tour['tour_code']}.")
+            added = _save_gallery(request, tour["_id"])
+            if added:
+                messages.success(request, f"Created {tour['tour_code']} with {added} gallery photo{'s' if added != 1 else ''}.")
+            else:
+                messages.success(request, f"Created {tour['tour_code']}.")
             return redirect("tours:detail", id=str(tour["_id"]))
     return render(
         request,
@@ -122,6 +208,13 @@ def tour_create(request):
             "page_title": "New tour",
             "page_heading": "New departure",
             "submit_label": "Save tour",
+            "selected_package": selected_package,
+            "catalog": _catalog_context(
+                request.POST.getlist("service_ids")
+                if request.method == "POST" and request.POST.get("override_services") == "1"
+                else [line.get("supplier_service_id") for line in (selected_package or {}).get("services") or []]
+            ),
+            "override_services": request.POST.get("override_services") == "1" if request.method == "POST" else False,
         },
     )
 
@@ -130,7 +223,7 @@ def tour_create(request):
 @role_required(*OPERATIONS_ROLES)
 def tour_detail(request, id):
     tab = (request.GET.get("tab") or "overview").strip().lower()
-    allowed = {"overview", "bookings", "travelers", "services", "reservations", "rooming", "expenses", "profit", "activity"}
+    allowed = {"overview", "gallery", "bookings", "travelers", "services", "reservations", "expenses", "profit", "activity"}
     if tab not in allowed:
         tab = "overview"
     try:
@@ -140,13 +233,14 @@ def tour_detail(request, id):
             record.get("reservations") or [],
         )
         record["reservation_groups"] = _reservation_groups(record.get("reservations") or [])
+        gallery = AttachmentService().gallery_for_tours([record["id"]]).get(record["id"], [])
+        record["gallery"] = gallery
+        record["cover"] = gallery[0] if gallery else None
     except DatabaseUnavailableError:
         return _unavailable(request)
     except TourOpsError:
         messages.error(request, "Tour not found.")
         return redirect("tours:list")
-    if tab == "rooming":
-        return redirect("supplier_reservations:rooming", tour_id=id)
     return render(
         request,
         "tours/detail.html",
@@ -165,17 +259,11 @@ def tour_detail(request, id):
 
 @login_required
 @role_required(*OPERATIONS_ROLES)
-def tour_rooming(request, id):
-    return redirect("supplier_reservations:rooming", tour_id=id)
-
-
-@login_required
-@role_required(*OPERATIONS_ROLES)
 @require_http_methods(["GET", "POST"])
 def tour_edit(request, id):
     service = TourService()
     try:
-        record = service.get_presented(id, include_extras=False)
+        record = service.get_presented(id, include_extras=True)
         choices = _package_choices()
     except DatabaseUnavailableError:
         return _unavailable(request)
@@ -185,18 +273,25 @@ def tour_edit(request, id):
     form = TourForm(
         request.POST or None,
         initial=initial_from_tour(record),
-        package_choices=choices,
+        package_choices=choices + [(record.get("package_id") or "", record.get("package") or "Package")],
         include_status=True,
     )
+    form.fields["package_id"].widget = forms.HiddenInput()
     if request.method == "POST" and form.is_valid():
+        payload = _form_payload(form, request.POST)
+        payload.pop("package_id", None)
         try:
-            service.update(id, actor_id=get_session_user(request)["id"], **_form_payload(form))
+            service.update(id, actor_id=get_session_user(request)["id"], **payload)
         except DatabaseUnavailableError:
             return _unavailable(request)
         except TourOpsError as extra:
             messages.error(request, extra.message)
         else:
-            messages.success(request, f"Updated {record['code']}.")
+            added = _save_gallery(request, id)
+            if added:
+                messages.success(request, f"Updated {record['code']} and added {added} gallery photo{'s' if added != 1 else ''}.")
+            else:
+                messages.success(request, f"Updated {record['code']}.")
             return redirect("tours:detail", id=id)
     return render(
         request,
@@ -207,6 +302,14 @@ def tour_edit(request, id):
             "page_heading": f"Edit {record['name']}",
             "submit_label": "Save changes",
             "record": record,
+            "package_locked": True,
+            "catalog": _catalog_context(
+                request.POST.getlist("service_ids")
+                if request.method == "POST" and request.POST.get("override_services") == "1"
+                else [line.get("supplier_service_id") for line in (record.get("services") or [])]
+            ),
+            "override_services": request.POST.get("override_services") == "1" if request.method == "POST" else False,
+            "gallery": AttachmentService().gallery_for_tours([id]).get(id, []),
         },
     )
 

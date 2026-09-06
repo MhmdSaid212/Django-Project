@@ -3,9 +3,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Reports</p>
         <h1>Cash flow</h1>
-        <p>Customer payments in versus supplier payments and completed refunds out.</p>
     </div>
     <a class="btn btn-ghost" href="{% url 'reports:list' %}{{ query }}">All reports</a>
 </div>
@@ -15,12 +13,11 @@
     <div class="money-in">
         <span class="tiny">In</span>
         <div style="font-size:1.6rem;font-weight:750">{{ report.money_in|money }}</div>
-        <p class="muted">Customer payments</p>
     </div>
     <div class="money-out">
         <span class="tiny">Out</span>
         <div style="font-size:1.6rem;font-weight:750">{{ report.money_out|money }}</div>
-        <p class="muted">Supplier payments{% if report.refunds %} + refunds {{ report.refunds|money }}{% endif %}</p>
+        {% if report.refunds %}<p class="muted">+ refunds {{ report.refunds|money }}</p>{% endif %}
     </div>
 </div>
 <p style="margin-top:1rem;font-size:1.2rem;font-weight:750">Net {{ report.net|money }}</p>

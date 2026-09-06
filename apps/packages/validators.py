@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from core.constants import DEFAULT_CURRENCY, PackageStatus
-from core.exceptions import ValidationError
+from core.exceptions import TourOpsError, ValidationError
 from core.money import ZERO, to_decimal128, to_money
 from core.utils import parse_object_id
 
@@ -173,35 +173,6 @@ def clean_destination(*, city, country) -> dict:
     return {"country": country_text, "city": city_text}
 
 
-def clean_service_lines(raw, *, lookup_supplier) -> list[dict]:
-    if raw in (None, ""):
-        return []
-    if not isinstance(raw, list):
-        raise ValidationError("Services must be a list.")
-    lines = []
-    for index, item in enumerate(raw, start=1):
-        if not isinstance(item, dict):
-            raise ValidationError(f"Service {index} is invalid.")
-        supplier_id = parse_optional_object_id(item.get("supplier_id"), field="supplier_id")
-        if not supplier_id:
-            raise ValidationError(f"Service {index} needs a supplier.")
-        supplier = lookup_supplier(supplier_id)
-        if not supplier:
-            raise ValidationError(f"Service {index}: supplier not found.")
-        description = (item.get("description") or "").strip()
-        if not description:
-            raise ValidationError(f"Service {index} needs a description.")
-        lines.append(
-            {
-                "supplier_id": supplier_id,
-                "supplier_type": supplier.get("supplier_type") or (item.get("supplier_type") or "").strip().upper(),
-                "description": description,
-                "estimated_cost": to_decimal128(parse_optional_money(item.get("estimated_cost"))),
-            }
-        )
-    return lines
-
-
 def copy_service_lines(lines) -> list[dict]:
     copied = []
     for item in lines or []:
@@ -209,10 +180,85 @@ def copy_service_lines(lines) -> list[dict]:
             continue
         copied.append(
             {
+                "supplier_service_id": item.get("supplier_service_id"),
                 "supplier_id": item.get("supplier_id"),
+                "supplier_name": item.get("supplier_name") or item.get("supplier") or "",
                 "supplier_type": item.get("supplier_type"),
-                "description": item.get("description") or "",
+                "name": item.get("name") or item.get("description") or "",
+                "description": item.get("description") or item.get("name") or "",
                 "estimated_cost": item.get("estimated_cost"),
+                "cost_basis": item.get("cost_basis"),
+                "service_kind": item.get("service_kind"),
             }
         )
     return copied
+
+
+def clean_service_lines(
+    raw,
+    *,
+    lookup_supplier,
+    lookup_offering=None,
+    require_active: bool = True,
+    existing_lines=None,
+) -> list[dict]:
+    if raw in (None, ""):
+        return []
+    if not isinstance(raw, list):
+        raise ValidationError("Services must be a list.")
+    existing_by_id = {}
+    for line in existing_lines or []:
+        if not isinstance(line, dict):
+            continue
+        key = str(line.get("supplier_service_id") or "")
+        if key:
+            existing_by_id[key] = line
+    lines = []
+    seen = set()
+    for index, item in enumerate(raw, start=1):
+        if not isinstance(item, dict):
+            raise ValidationError(f"Service {index} is invalid.")
+        offering_id = parse_optional_object_id(item.get("supplier_service_id"), field="supplier_service_id")
+        if offering_id:
+            if lookup_offering is None:
+                raise ValidationError("Supplier services catalog is unavailable.")
+            key = str(offering_id)
+            if key in existing_by_id:
+                if key in seen:
+                    raise ValidationError("The same supplier service cannot be added twice.")
+                seen.add(key)
+                lines.append(copy_service_lines([existing_by_id[key]])[0])
+                continue
+            try:
+                snapshot = lookup_offering(offering_id, require_active=require_active)
+            except TourOpsError as extra:
+                raise ValidationError(f"Service {index}: {extra.message}") from extra
+            key = str(snapshot.get("supplier_service_id") or offering_id)
+            if key in seen:
+                raise ValidationError("The same supplier service cannot be added twice.")
+            seen.add(key)
+            lines.append(snapshot)
+            continue
+        supplier_id = parse_optional_object_id(item.get("supplier_id"), field="supplier_id")
+        if not supplier_id:
+            raise ValidationError(f"Service {index} needs a supplier service.")
+        supplier = lookup_supplier(supplier_id)
+        if not supplier:
+            raise ValidationError(f"Service {index}: supplier not found.")
+        description = (item.get("description") or item.get("name") or "").strip()
+        if not description:
+            raise ValidationError(f"Service {index} needs a description.")
+        lines.append(
+            {
+                "supplier_service_id": None,
+                "supplier_id": supplier_id,
+                "supplier_name": supplier.get("name") or "",
+                "supplier_type": supplier.get("supplier_type") or (item.get("supplier_type") or "").strip().upper(),
+                "name": description,
+                "description": description,
+                "estimated_cost": to_decimal128(parse_optional_money(item.get("estimated_cost"))),
+                "cost_basis": item.get("cost_basis"),
+                "service_kind": (item.get("service_kind") or "").strip().upper() or None,
+            }
+        )
+    return lines

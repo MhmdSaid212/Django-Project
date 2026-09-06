@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from bson import ObjectId
+from pymongo import ReturnDocument
 from pymongo.collection import Collection
 
 from apps.expenses.constants import MONEY_FIELDS
 from core.constants import Collections
 from core.database import get_collection
-from core.money import money_dict
+from core.money import money_dict, to_decimal128, to_money
 from core.soft_delete import LIVE_FILTER, SoftDeleteRepositoryMixin, live_query
 from core.utils import parse_object_id
 
@@ -59,3 +60,19 @@ class ExpenseRepository(SoftDeleteRepositoryMixin):
         query = live_query({"expense_id": parse_object_id(expense_id, field="expense_id")})
         docs = list(self.supplier_payments.find(query).sort("payment_date", -1))
         return [money_dict(doc, "amount") for doc in docs]
+
+    def try_consume_remaining(self, expense_id, amount) -> dict | None:
+        money = to_money(amount)
+        if money <= 0:
+            return None
+        encoded = to_decimal128(money)
+        return self.collection.find_one_and_update(
+            live_query(
+                {
+                    "_id": parse_object_id(expense_id, field="expense_id"),
+                    "remaining_amount": {"$gte": encoded},
+                }
+            ),
+            {"$inc": {"remaining_amount": to_decimal128(-money), "paid_amount": encoded}},
+            return_document=ReturnDocument.AFTER,
+        )

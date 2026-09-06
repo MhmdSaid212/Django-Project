@@ -1,19 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
 from bson import ObjectId
 
 from core.constants import SupplierReservationStatus, SupplierType
-
-
-@dataclass
-class RoomAllocation:
-    room_type: str
-    quantity: int
-    occupancy: int = 1
 
 
 @dataclass
@@ -30,7 +23,6 @@ class SupplierReservationDocument:
     status: str = SupplierReservationStatus.REQUESTED.value
     confirmation_number: Optional[str] = None
     release_date: Optional[datetime] = None
-    room_allocations: list[RoomAllocation] = field(default_factory=list)
     quantity: Optional[int] = None
     notes: Optional[str] = None
     is_deleted: bool = False

@@ -8,11 +8,13 @@
 <div class="invoice-sheet">
     <div class="inv-top">
         <div>
-            <div class="inv-brand">TourOps Travel</div>
-            <p class="muted">Hamra Street, Beirut<br>hello@tourops.example</p>
+            <div class="inv-brand">{{ brand.name }}</div>
+            <p class="muted">
+                {% if brand.address %}{{ brand.address|linebreaksbr }}{% endif %}
+                {% if brand.email %}{% if brand.address %}<br>{% endif %}{{ brand.email }}{% endif %}
+            </p>
         </div>
         <div style="text-align:right">
-            <p class="tiny">Receipt</p>
             <h1>{{ record.number }}</h1>
         </div>
     </div>
@@ -25,6 +27,5 @@
         <dt>Amount</dt><dd><strong>{{ record.amount|money }}</strong></dd>
         <dt>Issued by</dt><dd>{{ record.by }}</dd>
     </dl>
-    <p class="muted" style="margin-top:2rem;font-size:.8rem">This receipt confirms a completed payment. Refunds are recorded separately and never delete the original payment.</p>
 </div>
 {% endblock %}

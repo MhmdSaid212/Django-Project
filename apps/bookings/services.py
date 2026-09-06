@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from apps.audit.constants import AuditAction
+from apps.audit.services import safe_audit
 from apps.bookings.constants import STATUS_LABELS
 from apps.bookings.repositories import BookingRepository
-from apps.customers.repositories import CustomerRepository
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import notify_for_type
 from apps.packages.validators import format_dates, parse_optional_object_id, parse_when
-from apps.tours.repositories import TourRepository
 from apps.tours.services import TourService
-from core.constants import BookingStatus, Collections, DEFAULT_CURRENCY, DiscountType, PaymentStatus
-from core.exceptions import BusinessRuleViolation, DatabaseUnavailableError, NotFoundError, ValidationError
-from core.money import ZERO, to_decimal128, to_money
+from core.constants import BookingStatus, Collections, DEFAULT_CURRENCY, DiscountType, PaymentStatus, TourStatus
+from core.exceptions import BusinessRuleViolation, DatabaseUnavailableError, NotFoundError, TourOpsError, ValidationError
+from core.money import ZERO, to_decimal, to_decimal128, to_money
 from core.numbering import next_number
 from core.utils import full_name, parse_object_id, serialize_id, utcnow
 
@@ -118,7 +120,6 @@ def clean_travelers(raw) -> list[dict]:
                 "room_type": (item.get("room_type") or "").strip().upper() or None,
                 "room_number": (item.get("room_number") or "").strip() or None,
                 "hotel_reservation_id": hotel_id,
-                "type": (item.get("type") or "").strip().upper() or None,
             }
         )
     if not people:
@@ -131,13 +132,9 @@ class BookingService:
         self,
         repository: BookingRepository | None = None,
         tours: TourService | None = None,
-        tour_repository: TourRepository | None = None,
-        customer_repository: CustomerRepository | None = None,
     ):
         self.repository = repository or BookingRepository()
         self.tours = tours or TourService()
-        self.tour_repository = tour_repository or TourRepository()
-        self.customer_repository = customer_repository or CustomerRepository()
 
     def list_items(self, *, tour_id=None, customer_id=None, status: str | None = None) -> list[dict]:
         extra = {}
@@ -164,45 +161,15 @@ class BookingService:
     def get_presented(self, booking_id) -> dict:
         return self._present(self.get(booking_id))
 
-    def create(self, data=None, user=None, *, actor_id=None, customer_id=None, tour_id=None, travelers=None, notes: str | None = None) -> dict:
-        if isinstance(data, dict):
-            actor_id = actor_id or (user or {}).get("id")
-            return self._create_record(
-                actor_id=actor_id,
-                customer_id=data.get("customer_id"),
-                tour_id=data.get("tour_id"),
-                travelers=data.get("travelers"),
-                notes=data.get("notes"),
-                pricing=data.get("pricing"),
-                travelers_count=data.get("travelers_count"),
-            )
-        return self._create_record(
-            actor_id=actor_id,
-            customer_id=customer_id,
-            tour_id=tour_id,
-            travelers=travelers,
-            notes=notes,
-        )
-
-    def _create_record(
-        self,
-        *,
-        actor_id,
-        customer_id,
-        tour_id,
-        travelers,
-        notes: str | None = None,
-        pricing=None,
-        travelers_count=None,
-    ) -> dict:
+    def create(self, *, actor_id, customer_id, tour_id, travelers, notes: str | None = None) -> dict:
         customer = self.repository.find_customer(customer_id)
         if not customer:
             raise ValidationError("Customer not found.")
         tour = self.tours.get(tour_id)
+        if tour.get("status") in {TourStatus.CANCELLED.value, TourStatus.COMPLETED.value, TourStatus.DRAFT.value}:
+            raise BusinessRuleViolation("This tour is not open for new bookings.")
+        self.tours.assert_ready_for_customer_bookings(tour["_id"])
         people = clean_travelers(travelers)
-        count = int(travelers_count or len(people) or 0)
-        if travelers_count is not None and count != len(people):
-            raise ValidationError("Travelers count does not match the number of travelers.")
         now = utcnow()
         document = {
             "booking_number": next_number(Collections.BOOKINGS),
@@ -211,11 +178,12 @@ class BookingService:
             "travelers_count": len(people),
             "travelers": people,
             "booking_date": now,
-            "pricing": self._pricing_document(tour, len(people), pricing),
+            "pricing": _pricing_from(tour, len(people)),
+            "currency": tour.get("currency") or DEFAULT_CURRENCY,
             "booking_status": BookingStatus.PENDING.value,
             "payment_status": PaymentStatus.UNPAID.value,
             "notes": (notes or "").strip() or None,
-            "created_by": parse_object_id(actor_id, field="created_by") if actor_id else None,
+            "created_by": parse_object_id(actor_id, field="created_by"),
             "created_at": now,
             "updated_at": now,
         }
@@ -226,79 +194,175 @@ class BookingService:
         except PyMongoError as extra:
             raise DatabaseUnavailableError("Could not save the booking.") from extra
         document["_id"] = result.inserted_id
+        notify_for_type(
+            NotificationType.BOOKING.value,
+            title=f"Booking {document.get('booking_number')}",
+            message="A new booking is waiting to be confirmed.",
+            related_entity_type="bookings",
+            related_entity_id=document["_id"],
+            exclude_user_id=actor_id,
+        )
         return self.get(document["_id"])
 
-    def _pricing_document(self, tour: dict, traveler_count: int, pricing=None) -> dict:
-        if not isinstance(pricing, dict):
-            return _pricing_from(tour, traveler_count)
-        unit = to_money(pricing.get("unit_price", tour.get("selling_price_per_person")))
-        subtotal = to_money(pricing.get("subtotal", unit * traveler_count))
-        discount_amount = to_money(pricing.get("discount_amount", ZERO))
-        discount_value = to_money(pricing.get("discount_value", discount_amount))
-        taxable_amount = to_money(pricing.get("taxable_amount", subtotal - discount_amount))
-        tax_amount = to_money(pricing.get("tax_amount", ZERO))
-        total_amount = to_money(pricing.get("total_amount", taxable_amount + tax_amount))
-        return {
-            "unit_price": to_decimal128(unit),
-            "subtotal": to_decimal128(subtotal),
-            "discount_type": pricing.get("discount_type") or DiscountType.NONE.value,
-            "discount_value": to_decimal128(discount_value),
-            "discount_amount": to_decimal128(discount_amount),
-            "discount_reason": pricing.get("discount_reason"),
-            "discount_applied_by": pricing.get("discount_applied_by"),
-            "taxable_amount": to_decimal128(taxable_amount),
-            "tax_id": pricing.get("tax_id"),
-            "tax_rate": to_decimal128(pricing.get("tax_rate", ZERO)),
-            "tax_amount": to_decimal128(tax_amount),
-            "total_amount": to_decimal128(total_amount),
-        }
-
-    def confirm(self, booking_id, user=None, *, actor_id=None) -> dict:
+    def confirm(self, booking_id, *, actor_id) -> dict:
         document = self.get(booking_id)
         status = document.get("booking_status")
         if status == BookingStatus.CONFIRMED.value:
+            self._ensure_invoice(document["_id"], actor_id=actor_id)
             return document
         if status == BookingStatus.CANCELLED.value:
             raise BusinessRuleViolation("A cancelled booking cannot be confirmed.")
         if status == BookingStatus.COMPLETED.value:
-            raise BusinessRuleViolation("A completed booking is already confirmed.")
-        tour = self.tours.get(document["tour_id"])
+            raise BusinessRuleViolation("A completed booking cannot be confirmed again.")
+        if status != BookingStatus.PENDING.value:
+            raise BusinessRuleViolation("Only a pending booking can be confirmed.")
+        self.tours.assert_ready_for_customer_bookings(document["tour_id"])
         count = int(document.get("travelers_count") or len(document.get("travelers") or []))
-        booked = int(tour.get("booked_seats") or 0)
-        capacity = int(tour.get("capacity") or 0)
-        if booked + count > capacity:
-            raise BusinessRuleViolation(
-                f"Not enough tour seats. {booked} of {capacity} are already booked; this booking needs {count}."
-            )
-        self.tours.adjust_booked_seats(tour["_id"], count)
+        self.tours.try_reserve_seats(document["tour_id"], count)
+        now = utcnow()
         try:
-            self.repository.update(
+            result = self.repository.update_if(
                 document["_id"],
-                {"booking_status": BookingStatus.CONFIRMED.value, "updated_at": utcnow()},
+                expected={"booking_status": BookingStatus.PENDING.value},
+                updates={"booking_status": BookingStatus.CONFIRMED.value, "updated_at": now},
             )
         except PyMongoError as extra:
-            self.tours.adjust_booked_seats(tour["_id"], -count)
+            self.tours.release_reserved_seats(document["tour_id"], count)
             raise DatabaseUnavailableError("Could not confirm the booking.") from extra
-        return self.get(document["_id"])
+        if result.matched_count != 1:
+            self.tours.release_reserved_seats(document["tour_id"], count)
+            current = self.get(document["_id"])
+            if current.get("booking_status") == BookingStatus.CONFIRMED.value:
+                return current
+            raise BusinessRuleViolation("This booking could not be confirmed.")
+        saved = self.get(document["_id"])
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.UPDATED.value,
+            entity_type="bookings",
+            entity_id=saved["_id"],
+            description=f"Confirmed booking {saved.get('booking_number')}.",
+            after={"booking_status": BookingStatus.CONFIRMED.value},
+        )
+        notify_for_type(
+            NotificationType.BOOKING.value,
+            title=f"Booking {saved.get('booking_number')}",
+            message="Seats are confirmed. Time to brief the client.",
+            related_entity_type="bookings",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
+        try:
+            self._ensure_invoice(saved["_id"], actor_id=actor_id)
+        except TourOpsError:
+            self.repository.update_if(
+                saved["_id"],
+                expected={"booking_status": BookingStatus.CONFIRMED.value},
+                updates={"booking_status": BookingStatus.PENDING.value, "updated_at": utcnow()},
+            )
+            self.tours.release_reserved_seats(document["tour_id"], count)
+            raise
+        return saved
 
-    def cancel(self, booking_id, user=None, *, actor_id=None) -> dict:
+    def cancel(self, booking_id, *, actor_id) -> dict:
         document = self.get(booking_id)
         status = document.get("booking_status")
         if status == BookingStatus.CANCELLED.value:
             return document
-        if status == BookingStatus.COMPLETED.value:
-            raise BusinessRuleViolation("A completed booking cannot be cancelled here.")
-        if status == BookingStatus.CONFIRMED.value:
-            count = int(document.get("travelers_count") or len(document.get("travelers") or []))
-            self.tours.adjust_booked_seats(document["tour_id"], -count)
+        if status not in {
+            BookingStatus.PENDING.value,
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.COMPLETED.value,
+        }:
+            raise BusinessRuleViolation("This booking cannot be cancelled.")
+        self._close_finance_for_cancel(document, actor_id=actor_id)
+        now = utcnow()
         try:
-            self.repository.update(
+            result = self.repository.update_if(
                 document["_id"],
-                {"booking_status": BookingStatus.CANCELLED.value, "updated_at": utcnow()},
+                expected={"booking_status": status},
+                updates={"booking_status": BookingStatus.CANCELLED.value, "updated_at": now},
             )
         except PyMongoError as extra:
             raise DatabaseUnavailableError("Could not cancel the booking.") from extra
-        return self.get(document["_id"])
+        if result.matched_count != 1:
+            current = self.get(document["_id"])
+            if current.get("booking_status") == BookingStatus.CANCELLED.value:
+                return current
+            raise BusinessRuleViolation("This booking could not be cancelled.")
+        if status in {BookingStatus.CONFIRMED.value, BookingStatus.COMPLETED.value}:
+            count = int(document.get("travelers_count") or len(document.get("travelers") or []))
+            self.tours.release_reserved_seats(document["tour_id"], count)
+        saved = self.get(document["_id"])
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.CANCELLED.value,
+            entity_type="bookings",
+            entity_id=saved["_id"],
+            description=f"Cancelled booking {saved.get('booking_number')}.",
+            after={"booking_status": BookingStatus.CANCELLED.value},
+        )
+        notify_for_type(
+            NotificationType.BOOKING.value,
+            title=f"Booking {saved.get('booking_number')}",
+            message="This booking was cancelled. Check seats and any open invoice.",
+            related_entity_type="bookings",
+            related_entity_id=saved["_id"],
+            exclude_user_id=actor_id,
+        )
+        return saved
+
+    def complete(self, booking_id, *, actor_id) -> dict:
+        document = self.get(booking_id)
+        status = document.get("booking_status")
+        if status == BookingStatus.COMPLETED.value:
+            return document
+        if status != BookingStatus.CONFIRMED.value:
+            raise BusinessRuleViolation("Only a confirmed booking can be marked completed.")
+        now = utcnow()
+        try:
+            result = self.repository.update_if(
+                document["_id"],
+                expected={"booking_status": BookingStatus.CONFIRMED.value},
+                updates={"booking_status": BookingStatus.COMPLETED.value, "updated_at": now},
+            )
+        except PyMongoError as extra:
+            raise DatabaseUnavailableError("Could not complete the booking.") from extra
+        if result.matched_count != 1:
+            current = self.get(document["_id"])
+            if current.get("booking_status") == BookingStatus.COMPLETED.value:
+                return current
+            raise BusinessRuleViolation("This booking could not be completed.")
+        saved = self.get(document["_id"])
+        safe_audit(
+            actor_id=actor_id,
+            action=AuditAction.COMPLETED.value,
+            entity_type="bookings",
+            entity_id=saved["_id"],
+            description=f"Completed booking {saved.get('booking_number')}.",
+            after={"booking_status": BookingStatus.COMPLETED.value},
+        )
+        self._ensure_invoice(saved["_id"], actor_id=actor_id)
+        return saved
+
+    def _ensure_invoice(self, booking_id, *, actor_id) -> None:
+        from apps.invoices.services import InvoiceService
+
+        InvoiceService().create_for_booking(str(booking_id), created_by=str(actor_id))
+
+    def _close_finance_for_cancel(self, document: dict, *, actor_id) -> None:
+        from apps.invoices.services import InvoiceService
+
+        invoice = InvoiceService().repository.find_by_booking(document["_id"])
+        if not invoice:
+            return
+        paid = to_decimal(invoice.get("paid_amount") or 0)
+        refunded = to_decimal(invoice.get("refunded_amount") or 0)
+        if paid - refunded > ZERO:
+            raise BusinessRuleViolation(
+                "This booking still has unrefunded payments. Complete refunds before cancelling."
+            )
+        InvoiceService().cancel(invoice["_id"], actor_id=actor_id)
 
     def assign_rooms(self, booking_id, assignments: list[dict], *, actor_id, tour_id=None) -> dict:
         document = self.get(booking_id)

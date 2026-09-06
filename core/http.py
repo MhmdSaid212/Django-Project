@@ -5,7 +5,6 @@ from collections.abc import Callable
 from functools import wraps
 
 from django.http import HttpRequest
-from django.views.decorators.csrf import csrf_exempt
 
 from core.exceptions import TourOpsError, ValidationError
 from core.permissions import get_session_user, login_required, role_required
@@ -56,6 +55,10 @@ def actor_id(request: HttpRequest) -> str:
     return get_session_user(request)["id"]
 
 
+def actor_role(request: HttpRequest) -> str:
+    return get_session_user(request)["role"]
+
+
 def client_ip(request: HttpRequest) -> str | None:
     forwarded = (request.META.get("HTTP_X_FORWARDED_FOR") or "").split(",")[0].strip()
     return forwarded or request.META.get("REMOTE_ADDR") or None
@@ -86,8 +89,7 @@ def method_view(*roles, **handlers: Callable):
         return handler(request, *args, **kwargs)
 
     view.handlers = handlers
-    protected = role_required(*roles)(view) if roles else login_required(view)
-    return csrf_exempt(protected)
+    return role_required(*roles)(view) if roles else login_required(view)
 
 
 def unimplemented(*methods: str, message: str | None = None, roles: tuple = ()):

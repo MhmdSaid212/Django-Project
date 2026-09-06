@@ -2,24 +2,43 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Users</p>
         <h1>{{ page_heading }}</h1>
-        <p>Create a Travel Agent, Accountant, or Owner / Admin account.</p>
     </div>
 </div>
-<form method="post" class="panel form-grid" style="max-width:640px">
+<form method="post" class="ops-form">
     {% csrf_token %}
     {{ form.non_field_errors }}
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
-        <label>First name{{ form.first_name }}{{ form.first_name.errors }}</label>
-        <label>Last name{{ form.last_name }}{{ form.last_name.errors }}</label>
-    </div>
-    <label>Email{{ form.email }}{{ form.email.errors }}</label>
-    <label>Phone{{ form.phone }}{{ form.phone.errors }}</label>
-    <label>Role{{ form.role }}{{ form.role.errors }}</label>
-    <label>Password{{ form.password }}{{ form.password.errors }}</label>
-    <label>Confirm password{{ form.confirm_password }}{{ form.confirm_password.errors }}</label>
-    <div class="actions">
+
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">1</span>
+            <div>
+                <h2>Who they are</h2>
+            </div>
+        </header>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.first_name %}
+            {% include "components/form_field.html" with field=form.last_name %}
+        </div>
+        <div class="form-row">
+            {% include "components/form_field.html" with field=form.email %}
+            {% include "components/form_field.html" with field=form.phone %}
+        </div>
+    </section>
+
+    <section class="form-card">
+        <header class="form-card-h">
+            <span class="form-step">2</span>
+            <div>
+                <h2>Access</h2>
+            </div>
+        </header>
+        {% include "components/form_field.html" with field=form.role %}
+        {% include "components/form_field.html" with field=form.password %}
+        {% include "components/form_field.html" with field=form.confirm_password caption="Confirm password" %}
+    </section>
+
+    <div class="ops-form-foot">
         <button class="btn btn-warm" type="submit">Create user</button>
         <a class="btn btn-ghost" href="{% url 'accounts:users' %}">Cancel</a>
     </div>

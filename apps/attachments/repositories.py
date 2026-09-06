@@ -30,6 +30,7 @@ class AttachmentRepository(SoftDeleteRepositoryMixin):
         self,
         *,
         entity_type: str | None = None,
+        entity_types=None,
         entity_id=None,
         category: str | None = None,
         limit: int = 100,
@@ -37,6 +38,8 @@ class AttachmentRepository(SoftDeleteRepositoryMixin):
         query: dict = {}
         if entity_type:
             query["entity_type"] = entity_type
+        elif entity_types:
+            query["entity_type"] = {"$in": list(entity_types)}
         if entity_id:
             query["entity_id"] = parse_object_id(entity_id, field="entity_id")
         if category:

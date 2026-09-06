@@ -1,6 +1,6 @@
 from django import forms
 
-from apps.supplier_reservations.constants import FIELD_CLASS, ROOM_TYPE_CHOICES, STATUS_CHOICES
+from apps.supplier_reservations.constants import FIELD_CLASS, STATUS_CHOICES
 
 
 def _styled(fields: dict[str, forms.Field]) -> None:
@@ -34,7 +34,7 @@ class SupplierReservationForm(forms.Form):
         label="Release / cutoff date",
     )
     confirmation_number = forms.CharField(required=False, max_length=80)
-    quantity = forms.IntegerField(required=False, min_value=1, label="Quantity (non-hotel)")
+    quantity = forms.IntegerField(required=False, min_value=1, label="Quantity")
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
     status = forms.ChoiceField(choices=STATUS_CHOICES, required=False)
 
@@ -68,28 +68,3 @@ class SupplierEmailForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["kind"].choices = list(kind_choices or [])
         _styled(self.fields)
-
-
-class RoomAssignmentRow(forms.Form):
-    booking_id = forms.CharField(widget=forms.HiddenInput())
-    traveler_index = forms.IntegerField(widget=forms.HiddenInput())
-    hotel_reservation_id = forms.ChoiceField(required=False, label="Hotel")
-    room_type = forms.ChoiceField(required=False, choices=[("", "—")] + list(ROOM_TYPE_CHOICES))
-    room_number = forms.CharField(required=False, max_length=20)
-
-    def __init__(self, *args, hotel_choices=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["hotel_reservation_id"].choices = [("", "—")] + list(hotel_choices or [])
-        _styled(self.fields)
-
-
-def allocations_from_post(post) -> list[dict]:
-    rows = []
-    for index in range(8):
-        room_type = (post.get(f"alloc_{index}_type") or "").strip()
-        quantity = (post.get(f"alloc_{index}_qty") or "").strip()
-        occupancy = (post.get(f"alloc_{index}_occ") or "").strip()
-        if not room_type and not quantity:
-            continue
-        rows.append({"room_type": room_type, "quantity": quantity, "occupancy": occupancy or None})
-    return rows

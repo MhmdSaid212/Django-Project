@@ -10,7 +10,6 @@ class AttachmentUploadForm(forms.Form):
     entity_id = forms.CharField(
         max_length=24,
         label="Record ID",
-        help_text="Copy the ID from the record page URL.",
         widget=forms.TextInput(attrs={"placeholder": "24-character ID", "spellcheck": "false"}),
     )
     category = forms.ChoiceField(choices=CATEGORY_CHOICES, label="Category")
@@ -22,8 +21,12 @@ class AttachmentUploadForm(forms.Form):
     )
     upload = forms.FileField(label="File")
 
-    def __init__(self, *args, hide_entity: bool = False, **kwargs):
+    def __init__(self, *args, hide_entity: bool = False, allowed_entities=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if allowed_entities is not None:
+            self.fields["entity_type"].choices = [
+                (value, label) for value, label in ENTITY_CHOICES if value in allowed_entities
+            ]
         if hide_entity:
             self.fields["entity_type"].widget = forms.HiddenInput()
             self.fields["entity_id"].widget = forms.HiddenInput()

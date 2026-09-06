@@ -3,9 +3,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Reports</p>
         <h1>Refunds</h1>
-        <p>Refund requests in range. Cash total counts completed refunds only.</p>
     </div>
     <a class="btn btn-ghost" href="{% url 'reports:list' %}{{ query }}">All reports</a>
 </div>
@@ -17,14 +15,12 @@
         <div class="stat-copy">
             <span class="tiny">Cash refunded</span>
             <b>{{ report.total|money }}</b>
-            <small>Completed refunds only</small>
         </div>
     </article>
     <article class="stat-tile stat-count tone-teal">
         <div class="stat-ring"><b>{{ report.count }}</b></div>
         <div class="stat-copy">
             <span class="tiny">Refunds</span>
-            <small>Requests in range</small>
         </div>
     </article>
     <article class="stat-tile stat-range tone-purple">
@@ -32,7 +28,6 @@
         <div class="stat-copy">
             <span class="tiny">Range</span>
             <b>{% if filters.month %}{{ filters.month }}{% else %}All time{% endif %}</b>
-            <small>Filter window</small>
         </div>
     </article>
     <article class="stat-tile stat-desk tone-navy">
@@ -40,7 +35,6 @@
         <div class="stat-copy">
             <span class="tiny">Source</span>
             <b>Refunds ledger</b>
-            <small>Calculated · not stored</small>
         </div>
     </article>
 </div>

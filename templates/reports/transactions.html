@@ -3,9 +3,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Reports</p>
         <h1>Cash ledger</h1>
-        <p>Customer payments in, refunds and supplier payments out.</p>
     </div>
     <a class="btn btn-ghost" href="{% url 'reports:list' %}{{ query }}">All reports</a>
 </div>
@@ -20,7 +18,6 @@
         <div class="stat-copy">
             <span class="tiny">Money in</span>
             <b>{{ report.money_in|money }}</b>
-            <small>Customer payments</small>
         </div>
     </article>
     <article class="stat-tile stat-alert">
@@ -28,14 +25,12 @@
         <div class="stat-copy">
             <span class="tiny">Money out</span>
             <b>{{ report.money_out|money }}</b>
-            <small>Refunds + supplier payouts</small>
         </div>
     </article>
     <article class="stat-tile stat-money tone-blue">
         <div class="stat-copy">
             <span class="tiny">Net</span>
             <b>{{ report.net|money }}</b>
-            <small>In minus out</small>
         </div>
         <span class="stat-mark" aria-hidden="true">Σ</span>
     </article>
@@ -43,7 +38,6 @@
         <div class="stat-ring"><b>{{ report.count }}</b></div>
         <div class="stat-copy">
             <span class="tiny">Rows</span>
-            <small>Ledger lines in range</small>
         </div>
     </article>
 </div>

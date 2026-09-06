@@ -2,12 +2,10 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Files</p>
         <h1>Attachments</h1>
-        <p>Receipts, contracts, passports, and booking documents. Maximum 5 MB per file.</p>
     </div>
 </div>
-<form class="filter-bar" method="get">
+<form class="filter-bar" method="get" data-autosubmit>
     <label>Record type
         <select class="field" name="entity_type">
             <option value="">All types</option>
@@ -28,7 +26,6 @@
         </select>
     </label>
     <div class="filter-actions">
-        <button class="btn btn-ghost" type="submit">Apply</button>
         {% if filters.entity_type or filters.entity_id or filters.category %}
         <a class="btn btn-ghost" href="{% url 'attachments:list' %}">Clear</a>
         {% endif %}
@@ -60,12 +57,9 @@
                         <td>{{ item.entity_label }}</td>
                         <td>{{ item.category_label }}</td>
                         <td>{{ item.created_display }}</td>
-                        <td>
-                            <form method="post" action="{% url 'attachments:delete' item.id %}" onsubmit="return confirm('Remove {{ item.file_name }}?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
-                            </form>
+                        <td class="row-actions">
+                            {% url 'attachments:delete' item.id as delete_url %}
+                            {% include "components/ico_btn.html" with action=delete_url title="Remove" icon="delete" danger=1 confirm="This file leaves the record. Download it first if you still need a copy." confirm_title="Clear this file?" confirm_ok="Remove it" hidden_name="next" hidden_value=request.get_full_path %}
                         </td>
                     </tr>
                 {% empty %}
@@ -81,22 +75,16 @@
     </section>
     <section class="panel">
         <h2>Upload a file</h2>
-        <p class="muted" style="margin:.35rem 0 1rem">Choose the record type, paste its ID from the page URL, then pick a file.</p>
-        <form method="post" action="{% url 'attachments:upload' %}" enctype="multipart/form-data" class="form-grid">
+        <form method="post" action="{% url 'attachments:upload' %}" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             {{ form.non_field_errors }}
-            <label>{{ form.entity_type.label }}{{ form.entity_type }}{{ form.entity_type.errors }}</label>
-            <label>
-                {{ form.entity_id.label }}
-                {{ form.entity_id }}
-                {% if form.entity_id.help_text %}<span class="help">{{ form.entity_id.help_text }}</span>{% endif %}
-                {{ form.entity_id.errors }}
-            </label>
-            <label>{{ form.category.label }}{{ form.category }}{{ form.category.errors }}</label>
-            <label>{{ form.upload.label }}{{ form.upload }}{{ form.upload.errors }}</label>
-            <label>{{ form.notes.label }}{{ form.notes }}{{ form.notes.errors }}</label>
-            <div class="filter-actions">
+            {% include "components/form_field.html" with field=form.entity_type %}
+            {% include "components/form_field.html" with field=form.entity_id %}
+            {% include "components/form_field.html" with field=form.category %}
+            {% include "components/form_field.html" with field=form.upload %}
+            {% include "components/form_field.html" with field=form.notes caption="Internal notes" %}
+            <div class="ops-form-foot" style="position:static;margin-top:.85rem">
                 <button class="btn btn-warm" type="submit">Upload</button>
             </div>
         </form>

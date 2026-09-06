@@ -7,14 +7,30 @@ from apps.bookings.services import BookingService
 from apps.customers.services import CustomerService
 from apps.invoices.services import InvoiceService
 from apps.supplier_reservations.services import SupplierReservationService
+from apps.suppliers.offerings import SupplierOfferingService
 from apps.suppliers.services import SupplierService
+from apps.packages.services import PackageService
 from apps.tours.services import TourService
-from core.constants import BookingStatus, SupplierReservationStatus, SupplierType
-from core.exceptions import BusinessRuleViolation, ValidationError
+from core.constants import BookingStatus, SupplierReservationStatus, SupplierServiceKind, SupplierType
+from core.exceptions import BusinessRuleViolation
 from core.money import to_money
 
 
 OWNER_ID = "000000000000000000000001"
+
+
+def _package(**overrides):
+    payload = {
+        "actor_id": OWNER_ID,
+        "name": "Egypt Discovery",
+        "city": "Cairo",
+        "country": "Egypt",
+        "duration_days": 7,
+        "selling_price_per_person": "900.00",
+        "default_capacity": 50,
+    }
+    payload.update(overrides)
+    return PackageService().create(**payload)
 
 
 def _tour(**overrides):
@@ -29,6 +45,8 @@ def _tour(**overrides):
         "selling_price_per_person": "900.00",
     }
     payload.update(overrides)
+    if "package_id" not in payload:
+        payload["package_id"] = _package()["_id"]
     return TourService().create(**payload)
 
 
@@ -83,21 +101,49 @@ def _booking(tour, customer, names, *, confirm=False):
     return booking
 
 
-def _hotel_reservation(tour, hotel, *, allocations=None, status="REQUESTED", confirmation="NV-4410"):
+def _hotel_reservation(tour, hotel, *, status="REQUESTED", confirmation="NV-4410"):
     return SupplierReservationService().create(
         actor_id=OWNER_ID,
         tour_id=tour["_id"],
         supplier_id=hotel["_id"],
-        room_allocations=allocations
-        or [
-            {"room_type": "SINGLE", "quantity": 5, "occupancy": 1},
-            {"room_type": "TWIN", "quantity": 15, "occupancy": 2},
-            {"room_type": "TRIPLE", "quantity": 5, "occupancy": 3},
-        ],
         status=status,
         confirmation_number=confirmation if status == SupplierReservationStatus.CONFIRMED.value else None,
         release_date="2026-09-01",
     )
+
+
+def test_booking_blocked_until_planned_suppliers_confirm():
+    hotel = _hotel()
+    stay = SupplierOfferingService().create(
+        actor_id=OWNER_ID,
+        supplier_id=hotel["_id"],
+        name="Nile stay",
+        service_kind=SupplierServiceKind.ACCOMMODATION.value,
+        estimated_cost="400.00",
+    )
+    package = _package(services=[{"supplier_service_id": stay["_id"]}])
+    tour = _tour(package_id=package["_id"], capacity=10)
+    customer = _customer()
+    try:
+        _booking(tour, customer, ["Fatima Ghazzawi"])
+    except BusinessRuleViolation as extra:
+        assert "supplier" in extra.message.lower()
+    else:
+        raise AssertionError("expected BusinessRuleViolation")
+    reservation = _hotel_reservation(tour, hotel)
+    try:
+        _booking(tour, customer, ["Fatima Ghazzawi"])
+    except BusinessRuleViolation as extra:
+        assert "supplier" in extra.message.lower()
+    else:
+        raise AssertionError("expected BusinessRuleViolation")
+    SupplierReservationService().confirm(
+        reservation["_id"],
+        actor_id=OWNER_ID,
+        confirmation_number="NV-READY",
+    )
+    booking = _booking(tour, customer, ["Fatima Ghazzawi"], confirm=True)
+    assert booking["booking_status"] == BookingStatus.CONFIRMED.value
 
 
 def test_confirm_booking_uses_tour_seats_not_rooms():
@@ -160,54 +206,148 @@ def test_invoice_only_after_confirm():
     assert to_money(invoice["total_amount"]) == Decimal("900.00")
 
 
-def test_hotel_allocation_is_rooms_not_travelers():
+def test_payment_creates_receipt_and_updates_invoice():
+    from apps.payments.services import PaymentService
+    from apps.receipts.services import ReceiptService
+    from core.constants import PaymentStatus
+
+    tour = _tour()
+    customer = _customer()
+    booking = _booking(tour, customer, ["Fatima Ghazzawi"], confirm=True)
+    invoice = InvoiceService().create_for_booking(str(booking["_id"]), created_by=OWNER_ID)
+    payment = PaymentService().record_for_invoice(
+        invoice["id"],
+        amount="400.00",
+        method="CASH",
+        recorded_by=OWNER_ID,
+        reference_number="TRX-1",
+    )
+    assert payment["payment_number"].startswith("PAY-")
+    rolled = InvoiceService().get(invoice["id"])
+    assert rolled["status"] == "PARTIALLY_PAID"
+    assert to_money(rolled["paid_amount"]) == Decimal("400.00")
+    receipt = ReceiptService().for_payment(payment["id"])
+    assert receipt["receipt_number"].startswith("REC-")
+    booking = BookingService().get(booking["_id"])
+    assert booking["payment_status"] == PaymentStatus.PARTIALLY_PAID.value
+
+    PaymentService().record_for_invoice(
+        invoice["id"],
+        amount="500.00",
+        method="BANK_TRANSFER",
+        recorded_by=OWNER_ID,
+    )
+    rolled = InvoiceService().get(invoice["id"])
+    assert rolled["status"] == "PAID"
+    assert to_money(rolled["remaining_amount"]) == Decimal("0.00")
+    booking = BookingService().get(booking["_id"])
+    assert booking["payment_status"] == PaymentStatus.PAID.value
+    assert booking["booking_status"] == BookingStatus.COMPLETED.value
+
+
+def test_payment_cannot_exceed_remaining_balance():
+    from apps.payments.services import PaymentService
+
+    tour = _tour()
+    customer = _customer()
+    booking = _booking(tour, customer, ["Fatima Ghazzawi"], confirm=True)
+    invoice = InvoiceService().create_for_booking(str(booking["_id"]), created_by=OWNER_ID)
+    try:
+        PaymentService().record_for_invoice(
+            invoice["id"],
+            amount="9999.00",
+            method="CASH",
+            recorded_by=OWNER_ID,
+        )
+    except BusinessRuleViolation as extra:
+        assert "exceeds" in extra.message.lower()
+    else:
+        raise AssertionError("expected BusinessRuleViolation")
+
+
+def test_refund_lifecycle_updates_invoice():
+    from apps.payments.services import PaymentService
+    from apps.refunds.services import RefundService
+    from core.constants import RefundPolicyTier, RefundStatus
+
+    tour = _tour()
+    customer = _customer()
+    booking = _booking(tour, customer, ["Fatima Ghazzawi"], confirm=True)
+    invoice = InvoiceService().create_for_booking(str(booking["_id"]), created_by=OWNER_ID)
+    payment = PaymentService().record_for_invoice(
+        invoice["id"],
+        amount="900.00",
+        method="CASH",
+        recorded_by=OWNER_ID,
+    )
+    assert BookingService().get(booking["_id"])["booking_status"] == BookingStatus.COMPLETED.value
+    refund = RefundService().create_from_payment(
+        payment["id"],
+        reason="Customer cancelled",
+        refund_method="CASH",
+        requested_by=OWNER_ID,
+        tier=RefundPolicyTier.DAYS_15_TO_29.value,
+    )
+    assert refund["status"] == RefundStatus.PENDING.value
+    RefundService().approve(refund["id"], actor_id=OWNER_ID)
+    completed = RefundService().complete(refund["id"], actor_id=OWNER_ID)
+    assert completed["status"] == RefundStatus.COMPLETED.value
+    rolled = InvoiceService().get(invoice["id"])
+    assert to_money(rolled["refunded_amount"]) > 0
+    assert BookingService().get(booking["_id"])["booking_status"] == BookingStatus.CONFIRMED.value
+
+
+def test_owner_direct_refund_skips_approval():
+    from apps.payments.services import PaymentService
+    from apps.refunds.services import RefundService
+    from core.constants import RefundPolicyTier, RefundStatus
+
+    tour = _tour()
+    customer = _customer()
+    booking = _booking(tour, customer, ["Fatima Ghazzawi"], confirm=True)
+    invoice = InvoiceService().create_for_booking(str(booking["_id"]), created_by=OWNER_ID)
+    payment = PaymentService().record_for_invoice(
+        invoice["id"],
+        amount="900.00",
+        method="CASH",
+        recorded_by=OWNER_ID,
+    )
+    refund = RefundService().create_from_payment(
+        payment["id"],
+        reason="Owner payout",
+        refund_method="CASH",
+        requested_by=OWNER_ID,
+        tier=RefundPolicyTier.AGENCY_CANCEL.value,
+        direct=True,
+    )
+    assert refund["status"] == RefundStatus.COMPLETED.value
+    rolled = InvoiceService().get(invoice["id"])
+    assert to_money(rolled["refunded_amount"]) == Decimal("900.00")
+    assert BookingService().get(booking["_id"])["booking_status"] == BookingStatus.CONFIRMED.value
+
+
+def test_hotel_reservation_does_not_use_tour_seats():
     tour = _tour()
     hotel = _hotel()
     reservation = _hotel_reservation(tour, hotel)
     presented = SupplierReservationService().get_presented(reservation["_id"])
-    assert presented["room_count"] == 25
-    assert presented["bed_capacity"] == 5 + 30 + 15
+    assert "room_count" not in presented
+    assert "room_allocations" not in presented
     assert TourService().get(tour["_id"])["capacity"] == 50
+    assert TourService().get(tour["_id"])["booked_seats"] == 0
 
 
 def test_multiple_hotels_on_one_tour():
     tour = _tour()
     first = _hotel()
     second = _second_hotel()
-    _hotel_reservation(
-        tour,
-        first,
-        allocations=[{"room_type": "TWIN", "quantity": 15, "occupancy": 2}],
-    )
-    _hotel_reservation(
-        tour,
-        second,
-        allocations=[{"room_type": "TWIN", "quantity": 5, "occupancy": 2}],
-    )
+    _hotel_reservation(tour, first)
+    _hotel_reservation(tour, second)
     rows = SupplierReservationService().list_for_tour(tour["_id"])
     assert len(rows) == 2
     snapshot = SupplierReservationService().accommodation_snapshot(tour["_id"])
-    assert snapshot["room_count"] == 20
-    assert snapshot["bed_capacity"] == 40
-
-
-def test_shortage_warning_uses_occupancy_not_room_count():
-    tour = _tour(capacity=50)
-    hotel = _hotel()
-    _hotel_reservation(
-        tour,
-        hotel,
-        allocations=[{"room_type": "SINGLE", "quantity": 2, "occupancy": 1}],
-        status=SupplierReservationStatus.CONFIRMED.value,
-    )
-    customer = _customer()
-    _booking(tour, customer, ["Fatima Ghazzawi", "Waad Nasser", "Omar Said"], confirm=True)
-    snapshot = SupplierReservationService().accommodation_snapshot(tour["_id"])
-    assert snapshot["confirmed_travelers"] == 3
-    assert snapshot["bed_capacity"] == 2
-    assert snapshot["shortage_travelers"] == 1
-    assert any("insufficient for 1" in warning for warning in snapshot["warnings"])
-    assert TourService().get(tour["_id"])["capacity"] == 50
+    assert len(snapshot["hotels"]) == 2
+    assert "room_count" not in snapshot
 
 
 def test_reservation_does_not_create_expense():
@@ -221,54 +361,7 @@ def test_reservation_does_not_create_expense():
     assert get_collection(Collections.SUPPLIER_PAYMENTS).count_documents({}) == 0
 
 
-def test_rooming_list_reuses_booking_travelers():
-    tour = _tour()
-    hotel = _hotel()
-    reservation = _hotel_reservation(tour, hotel, status=SupplierReservationStatus.CONFIRMED.value)
-    customer = _customer()
-    booking = _booking(tour, customer, ["Fatima Ghazzawi", "Waad Nasser"], confirm=True)
-    BookingService().assign_rooms(
-        booking["_id"],
-        [
-            {
-                "traveler_index": 0,
-                "room_number": "101",
-                "room_type": "TWIN",
-                "hotel_reservation_id": reservation["_id"],
-            },
-            {
-                "traveler_index": 1,
-                "room_number": "101",
-                "room_type": "TWIN",
-                "hotel_reservation_id": reservation["_id"],
-            },
-        ],
-        actor_id=OWNER_ID,
-        tour_id=tour["_id"],
-    )
-    listing = SupplierReservationService().rooming_list(tour["_id"])
-    assert listing["rooms"][0]["room_number"] == "101"
-    names = [guest["name"] for guest in listing["rooms"][0]["guests"]]
-    assert names == ["Fatima Ghazzawi", "Waad Nasser"]
-
-
-def test_hotel_needs_allocation():
-    tour = _tour()
-    hotel = _hotel()
-    try:
-        SupplierReservationService().create(
-            actor_id=OWNER_ID,
-            tour_id=tour["_id"],
-            supplier_id=hotel["_id"],
-            room_allocations=[],
-        )
-    except ValidationError as extra:
-        assert "room type" in extra.message.lower()
-    else:
-        raise AssertionError("expected ValidationError")
-
-
-def test_html_reservation_and_rooming_pages(owner_session):
+def test_html_reservation_pages(owner_session):
     tour = _tour()
     hotel = _hotel()
     reservation = _hotel_reservation(tour, hotel)
@@ -278,9 +371,19 @@ def test_html_reservation_and_rooming_pages(owner_session):
     response = owner_session.get(reverse("supplier_reservations:detail", args=[str(reservation["_id"])]))
     assert response.status_code == 200
     assert b"Nile View Hotel" in response.content
-    response = owner_session.get(reverse("supplier_reservations:rooming", args=[str(tour["_id"])]))
-    assert response.status_code == 200
-    assert b"Rooming list" in response.content
+    assert b"Rooming list" not in response.content
+
+
+def test_hotel_reservation_does_not_require_allocation():
+    tour = _tour()
+    hotel = _hotel()
+    reservation = SupplierReservationService().create(
+        actor_id=OWNER_ID,
+        tour_id=tour["_id"],
+        supplier_id=hotel["_id"],
+    )
+    assert reservation["service_type"] == "HOTEL"
+    assert "room_allocations" not in reservation
 
 
 def test_api_create_and_confirm_reservation(owner_session):
@@ -291,7 +394,6 @@ def test_api_create_and_confirm_reservation(owner_session):
         data=json.dumps(
             {
                 "supplier_id": str(hotel["_id"]),
-                "room_allocations": [{"room_type": "TWIN", "quantity": 4, "occupancy": 2}],
             }
         ),
         content_type="application/json",
@@ -312,18 +414,15 @@ def test_email_generation_uses_live_reservation_data():
 
     tour = _tour(name="Egypt Explorer")
     hotel = _hotel()
-    reservation = _hotel_reservation(
-        tour,
-        hotel,
-        allocations=[{"room_type": "TWIN", "quantity": 15, "occupancy": 2}],
-    )
+    reservation = _hotel_reservation(tour, hotel)
     email = SupplierEmailService().build_reservation_request(str(reservation["_id"]))
     presented = SupplierReservationService().get_presented(reservation["_id"])
     assert email["to"] == "stay@nileview.example"
     assert "Egypt Explorer" in email["subject"]
     assert "Nile View Hotel" in email["body"]
-    assert "15 Twin" in email["body"]
-    assert "30" in email["body"]
+    assert "Twin" not in email["body"]
+    assert "Occupancy" not in email["body"]
+    assert "Sleeping capacity" not in email["body"]
     followup = SupplierEmailService().build_confirmation_followup(str(reservation["_id"]))
     assert presented["number"] in followup["subject"]
     assert presented["number"] in followup["body"]
@@ -337,8 +436,6 @@ def test_html_email_preview_and_ops_pages(owner_session):
     assert email_page.status_code == 200
     assert b"stay@nileview.example" in email_page.content
     assert b"Egypt Discovery" in email_page.content
-    assert owner_session.get(reverse("supplier_reservations:rooming_index")).status_code == 200
-    assert owner_session.get(reverse("tours:rooming", args=[str(tour["_id"])])).status_code == 302
     agent_dash = owner_session.get(reverse("dashboard:agent"))
     assert agent_dash.status_code == 200
     assert b"Requested" in agent_dash.content

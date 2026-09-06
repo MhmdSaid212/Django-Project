@@ -22,20 +22,9 @@
     <div class="stack">
         <section class="dash-card">
             <div class="panel-h">
-                <h2>Accommodation alerts</h2>
-                <a class="tiny" href="{% url 'supplier_reservations:rooming_index' %}">Rooming lists</a>
+                <h2>Hotel reservations</h2>
+                <a class="tiny" href="{% url 'supplier_reservations:list' %}?type=HOTEL">View hotels</a>
             </div>
-            {% for snap in desk.shortages %}
-            <a class="dash-ticket" href="{% url 'tours:detail' snap.tour_id %}?tab=reservations">
-                <span class="dash-stamp ap">⚠</span>
-                <div>
-                    <strong>{{ snap.tour_name }}</strong>
-                    <em>{{ snap.confirmed_travelers }} travelers / {{ snap.bed_capacity }} beds · Shortage {{ snap.shortage_travelers }}</em>
-                </div>
-            </a>
-            {% empty %}
-            <p class="muted">No bed shortages. Tour capacity is still travelers, not rooms.</p>
-            {% endfor %}
         </section>
 
         <section class="dash-card">
@@ -51,7 +40,7 @@
                 </div>
             </a>
             {% empty %}
-            <p class="muted">No release dates approaching. Unused rooms are not cancelled automatically.</p>
+            <p class="muted">No release dates approaching.</p>
             {% endfor %}
         </section>
     </div>

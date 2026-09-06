@@ -3,11 +3,13 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="tiny">Vendor directory</p>
         <h1>Suppliers</h1>
-        <p>Manage hotels, transportation companies, guides, restaurants and other travel service providers. Suppliers do not log in to TourOps.</p>
     </div>
-    <div class="actions"><a class="btn btn-warm" href="{% url 'suppliers:create' %}">New supplier</a></div>
+    <div class="actions">
+        {% if nav.ops %}<a class="btn btn-ghost" href="{% url 'suppliers:service_new' %}">Add service</a>
+        <a class="btn btn-ghost" href="{% url 'suppliers:services' %}">Supplier services</a>{% endif %}
+        {% if nav.ops %}<a class="btn btn-warm" href="{% url 'suppliers:create' %}">New supplier</a>{% endif %}
+    </div>
 </div>
 
 <div class="metrics-4" style="margin-bottom:1rem">
@@ -23,27 +25,20 @@
     {% endif %}
 </div>
 
-<form class="filters" method="get">
-    <input class="field" name="q" value="{{ q }}" placeholder="Search by name, code or email…" style="min-width:220px">
-    <select class="field" name="status">
+<div class="filters" data-live-filters>
+    <input class="field" type="search" data-live-q value="{{ q }}" placeholder="Search by name, code or email…" style="min-width:220px" autocomplete="off">
+    <select class="field" data-live-status>
         <option value="">All statuses</option>
         <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Active</option>
         <option value="INACTIVE" {% if status_filter == 'INACTIVE' %}selected{% endif %}>Inactive</option>
     </select>
-    {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
-    <button class="btn btn-ghost" type="submit">Filter</button>
-</form>
+</div>
 
 <div class="filters">
     <a class="chip {% if not type_filter %}is-on{% endif %}" href="{% url 'suppliers:list' %}">All</a>
     <a class="chip {% if type_filter == 'HOTEL' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=HOTEL">Hotels</a>
     <a class="chip {% if type_filter == 'TRANSPORTATION' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=TRANSPORTATION">Transportation</a>
     <a class="chip {% if type_filter == 'TOUR_GUIDE' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=TOUR_GUIDE">Guides</a>
-    <a class="chip {% if type_filter == 'AIRLINE' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=AIRLINE">Airlines</a>
-    <a class="chip {% if type_filter == 'ACTIVITY_PROVIDER' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=ACTIVITY_PROVIDER">Activities</a>
-    <a class="chip {% if type_filter == 'RESTAURANT' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=RESTAURANT">Restaurants</a>
-    <a class="chip {% if type_filter == 'INSURANCE' %}is-on{% endif %}" href="{% url 'suppliers:list' %}?type=INSURANCE">Insurance</a>
-    <a class="chip {% if type_filter == 'OTHER' %}is-on{% endif %}" href="{% url 'suppliers:other' %}">Other</a>
 </div>
 
 <div class="panel" style="padding:0">
@@ -62,7 +57,7 @@
         </thead>
         <tbody>
         {% for s in suppliers %}
-            <tr>
+            <tr data-live-row data-status="{{ s.status }}" data-search="{{ s.name }} {{ s.number }} {{ s.contact }} {{ s.phone }} {{ s.email }} {{ s.type_label }}">
                 <td>
                     <a href="{% url 'suppliers:detail' s.id %}"><strong>{{ s.name }}</strong></a>
                     <div class="mono muted">{{ s.number }}</div>
@@ -74,20 +69,39 @@
                 {% if nav.finance %}<td><strong>{{ s.owed|money }}</strong></td>{% endif %}
                 <td>{% include "components/status_badge.html" with status=s.status %}</td>
                 <td class="row-actions">
-                    <a href="{% url 'suppliers:detail' s.id %}">View</a>
-                    <a href="{% url 'suppliers:edit' s.id %}">Edit</a>
-                    {% if nav.ops %}<a href="{% url 'supplier_reservations:create' %}?supplier_id={{ s.id }}">Create reservation</a>{% endif %}
-                    {% if nav.finance %}<a href="{% url 'expenses:list' %}">Expenses</a>{% endif %}
+                    {% url 'suppliers:detail' s.id as view_url %}
+                    {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
+                    {% if nav.ops %}
+                    {% url 'suppliers:edit' s.id as edit_url %}
+                    {% include "components/ico_btn.html" with href=edit_url title="Edit" icon="edit" %}
+                    {% url 'suppliers:service_create' s.id as add_service_url %}
+                    {% include "components/ico_btn.html" with href=add_service_url title="Add service" icon="plus" %}
+                    <a class="ico-btn" href="{% url 'supplier_reservations:create' %}?supplier_id={{ s.id }}" title="Create reservation" aria-label="Create reservation">
+                        {% include "components/ico_mark.html" with icon="calendar" %}
+                    </a>
+                    {% endif %}
+                    {% if nav.finance %}
+                    <a class="ico-btn" href="{% url 'suppliers:detail' s.id %}?tab=expenses" title="Expenses" aria-label="Expenses">
+                        {% include "components/ico_mark.html" with icon="bill" %}
+                    </a>
+                    {% endif %}
                 </td>
             </tr>
         {% empty %}
             <tr>
                 <td colspan="8">
+                    {% if nav.ops %}
                     {% url 'suppliers:create' as supplier_create_url %}
-                    {% include "components/empty_state.html" with title="No suppliers yet" body="Add a hotel, transporter, guide, or other vendor. They will never log in — you record arrangements after contacting them outside TourOps." cta="New supplier" cta_url=supplier_create_url %}
+                    {% include "components/empty_state.html" with title="No suppliers yet" body="Add a hotel, transporter, or guide. They will never log in — you record arrangements after contacting them outside TourOps." cta="New supplier" cta_url=supplier_create_url %}
+                    {% else %}
+                    {% include "components/empty_state.html" with title="No suppliers yet" body="Ask an agent or the owner to add the hotel, transporter, or guide." %}
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}
+            <tr data-live-empty hidden>
+                <td colspan="8"><p class="muted" style="margin:.8rem">No suppliers match.</p></td>
+            </tr>
         </tbody>
     </table>
 </div>

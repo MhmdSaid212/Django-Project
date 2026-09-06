@@ -17,8 +17,8 @@ def _styled(fields: dict[str, forms.Field]) -> None:
 
 
 class TourForm(forms.Form):
+    package_id = forms.ChoiceField(label="Package")
     name = forms.CharField(required=False, max_length=200, label="Tour name")
-    package_id = forms.ChoiceField(required=False, label="From package")
     city = forms.CharField(required=False, max_length=80, label="Destination city")
     country = forms.CharField(required=False, max_length=80)
     start_date = forms.DateField(
@@ -49,12 +49,17 @@ class TourForm(forms.Form):
 
     def __init__(self, *args, package_choices=None, include_status=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["package_id"].choices = [("", "Standalone departure")] + list(package_choices or [])
+        self.fields["package_id"].choices = [("", "Select a package")] + list(package_choices or [])
         if not include_status:
             self.fields.pop("status")
         else:
             self.fields["status"].initial = TourStatus.AVAILABLE.value
         self.fields["currency"].widget.attrs.setdefault("placeholder", DEFAULT_CURRENCY)
+        self.fields["name"].widget.attrs.setdefault("placeholder", "Defaults to the package name")
+        self.fields["package_id"].widget.attrs.setdefault("aria-required", "true")
+        self.fields["start_date"].widget.attrs.setdefault("aria-required", "true")
+        self.fields["capacity"].widget.attrs["data-cost-capacity"] = "1"
+        self.fields["selling_price_per_person"].widget.attrs["data-cost-price"] = "1"
         _styled(self.fields)
 
 

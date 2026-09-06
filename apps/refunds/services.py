@@ -16,7 +16,8 @@ from apps.audit.constants import AuditAction
 from apps.audit.services import safe_audit
 from apps.invoices.services import InvoiceService
 from apps.notifications.constants import NotificationType
-from apps.notifications.services import FINANCE_NOTIFY_ROLES, OWNER_NOTIFY_ROLES, safe_notify_roles
+from apps.notifications.services import notify_for_type
+from apps.payments.repositories import PaymentRepository
 from apps.payments.services import _sync_booking_payment_status
 from apps.refunds.repositories import RefundRepository
 from core.constants import (
@@ -33,6 +34,12 @@ from core.soft_delete import stamp_new
 from core.utils import parse_object_id, serialize_id, utcnow
 
 POLICY_VERSION = "2026-01"
+
+OPEN_REFUND_STATUSES = {
+    RefundStatus.PENDING.value,
+    RefundStatus.APPROVED.value,
+    RefundStatus.COMPLETED.value,
+}
 
 # Refund % of amount paid, by tier. Matches the Dev 3 spec / BRD.
 REFUND_TIERS = {
@@ -79,6 +86,7 @@ class RefundService:
     def __init__(self, repository: RefundRepository | None = None):
         self.repository = repository or RefundRepository()
         self.invoices = InvoiceService()
+        self.payments = PaymentRepository()
 
     def list_items(self, **filters) -> list[dict]:
         return [present_refund(d) for d in self.repository.list_refunds(**filters)]
@@ -98,7 +106,8 @@ class RefundService:
     # ---- create a refund request from a payment (the main path) ------------
     def create_from_payment(self, payment_id: str, *, reason: str, refund_method: str,
                             requested_by: str, tier: str | None = None,
-                            days_before: int | None = None, amount=None) -> dict:
+                            days_before: int | None = None, amount=None,
+                            direct: bool = False) -> dict:
         payment = get_collection(Collections.PAYMENTS).find_one({
             "_id": parse_object_id(payment_id, field="payment_id"),
             "is_deleted": {"$ne": True},
@@ -109,29 +118,52 @@ class RefundService:
             raise BusinessRuleViolation("Only a COMPLETED payment can be refunded.")
 
         paid = to_decimal(payment.get("amount", 0))
+        self._ensure_refundable_remaining(payment)
+        eligible = self.remaining_refundable(payment)
 
         # Resolve tier: explicit tier wins, else derive from days_before.
         if tier is None and days_before is not None:
             tier = tier_for_days(days_before)
         if tier is None:
             raise ValidationError("Provide a policy tier or days_before.")
-        if tier not in REFUND_TIERS:
-            raise ValidationError(f"Unknown policy tier {tier!r}.")
 
-        percent = REFUND_TIERS[tier]
-        computed = to_money(paid * percent)
+        if tier == RefundPolicyTier.OTHER.value:
+            if amount is None:
+                raise ValidationError("OTHER refunds require an explicit amount.")
+            refund_amount = to_money(amount)
+            percent = to_money(refund_amount / paid) if paid > ZERO else ZERO
+        else:
+            if tier not in REFUND_TIERS:
+                raise ValidationError(f"Unknown policy tier {tier!r}.")
+            percent = REFUND_TIERS[tier]
+            computed = to_money(paid * percent)
+            if amount is not None:
+                refund_amount = to_money(amount)
+                if refund_amount > computed:
+                    raise BusinessRuleViolation(
+                        f"Refund {refund_amount} exceeds the policy cap of {computed} for this cancellation window."
+                    )
+            else:
+                refund_amount = computed
 
-        # An explicit amount may override (e.g. ad-hoc/OTHER), but is still capped.
-        refund_amount = to_money(amount) if amount is not None else computed
-        if refund_amount > paid:
+        if refund_amount <= ZERO:
+            if amount is not None:
+                raise ValidationError("Refund amount must be greater than zero.")
+            raise ValidationError("This cancellation window does not allow a refund.")
+
+        if refund_amount > eligible:
             raise BusinessRuleViolation(
-                f"Refund {refund_amount} exceeds amount paid {to_money(paid)}."
+                f"Refund {refund_amount} exceeds remaining refundable amount {eligible}."
             )
-        if refund_amount < ZERO:
-            raise ValidationError("Refund amount cannot be negative.")
 
         retained = to_money(paid - refund_amount)
+        reserved = self.payments.try_consume_refundable(payment["_id"], refund_amount)
+        if not reserved:
+            raise BusinessRuleViolation(
+                f"Refund {refund_amount} exceeds remaining refundable amount {eligible}."
+            )
         now = utcnow()
+        actor = parse_object_id(requested_by, field="requested_by")
         doc = stamp_new({
             "refund_number": next_number(Collections.REFUNDS),
             "payment_id": payment["_id"],
@@ -141,22 +173,39 @@ class RefundService:
             "amount": to_decimal128(refund_amount),
             "reason": reason,
             "refund_method": refund_method,
-            "status": RefundStatus.PENDING.value,
+            "status": RefundStatus.COMPLETED.value if direct else RefundStatus.PENDING.value,
             "policy_tier": tier,
             "policy_version": POLICY_VERSION,
             "refund_percent": to_decimal128(percent),
             "deposit_excluded_amount": to_decimal128(ZERO),
             "retained_fee_amount": to_decimal128(retained),
-            "approved_at": None,
-            "approved_by": None,
-            "processed_at": None,
-            "processed_by": None,
-            "created_by": parse_object_id(requested_by, field="requested_by"),
+            "approved_at": now if direct else None,
+            "approved_by": actor if direct else None,
+            "processed_at": now if direct else None,
+            "processed_by": actor if direct else None,
+            "created_by": actor,
             "created_at": now,
         })
-        result = self.repository.insert(doc)
+        try:
+            result = self.repository.insert(doc)
+        except Exception:
+            self.payments.release_refundable(payment["_id"], refund_amount)
+            raise
         doc["_id"] = result.inserted_id
         presented = present_refund(doc)
+        if direct:
+            self._apply_payout(doc, actor_id=requested_by)
+            presented = self.get(serialize_id(doc["_id"]))
+            safe_audit(
+                actor_id=requested_by,
+                action=AuditAction.COMPLETED.value,
+                entity_type="refunds",
+                entity_id=doc["_id"],
+                description=f"Issued refund {presented.get('refund_number')}.",
+                after={"refund_number": presented.get("refund_number"), "amount": presented.get("amount")},
+            )
+            self._notify_paid(presented, actor_id=requested_by)
+            return presented
         safe_audit(
             actor_id=requested_by,
             action=AuditAction.CREATED.value,
@@ -165,9 +214,8 @@ class RefundService:
             description=f"Requested refund {presented.get('refund_number')}.",
             after={"refund_number": presented.get("refund_number"), "amount": presented.get("amount")},
         )
-        safe_notify_roles(
-            OWNER_NOTIFY_ROLES,
-            type=NotificationType.REFUND.value,
+        notify_for_type(
+            NotificationType.REFUND.value,
             title=f"Refund {presented.get('refund_number')}",
             message=f"A refund of {presented.get('amount')} is waiting for approval.",
             related_entity_type="refunds",
@@ -175,6 +223,37 @@ class RefundService:
             exclude_user_id=requested_by,
         )
         return presented
+
+    def remaining_refundable(self, payment: dict):
+        if payment.get("refundable_remaining") is not None:
+            leftover = to_money(payment.get("refundable_remaining"))
+            return leftover if leftover > ZERO else ZERO
+        paid = to_decimal(payment.get("amount", 0))
+        reserved = ZERO
+        for existing in self.repository.list_refunds(payment_id=payment["_id"]):
+            if existing.get("status") in OPEN_REFUND_STATUSES:
+                reserved += to_decimal(existing.get("amount", 0))
+        leftover = to_money(paid - reserved)
+        return leftover if leftover > ZERO else ZERO
+
+    def _ensure_refundable_remaining(self, payment: dict) -> None:
+        if payment.get("refundable_remaining") is not None:
+            return
+        leftover = self.remaining_refundable(payment)
+        from pymongo.errors import PyMongoError
+
+        try:
+            self.payments.collection.update_one(
+                {
+                    "_id": payment["_id"],
+                    "refundable_remaining": {"$exists": False},
+                    "is_deleted": {"$ne": True},
+                },
+                {"$set": {"refundable_remaining": to_decimal128(leftover)}},
+            )
+        except PyMongoError:
+            pass
+        payment["refundable_remaining"] = leftover
 
     # ---- lifecycle actions -------------------------------------------------
     def approve(self, refund_id: str, *, actor_id: str) -> dict:
@@ -203,6 +282,7 @@ class RefundService:
             refund_id, RefundStatus.REJECTED.value,
             actor_id=parse_object_id(actor_id, field="processed_by"), stamp_field="processed_by",
         )
+        self.payments.release_refundable(doc["payment_id"], to_money(doc.get("amount")))
         presented = self.get(refund_id)
         safe_audit(
             actor_id=actor_id,
@@ -221,9 +301,8 @@ class RefundService:
             refund_id, RefundStatus.COMPLETED.value,
             actor_id=parse_object_id(actor_id, field="processed_by"), stamp_field="processed_by",
         )
-        # Cash has now left the agency: move invoice + booking rollups.
-        self.invoices.recompute_rollups(serialize_id(doc["invoice_id"]))
-        _sync_booking_payment_status(doc.get("booking_id"))
+        doc = self._get_raw(refund_id)
+        self._apply_payout(doc, actor_id=actor_id)
         presented = self.get(refund_id)
         safe_audit(
             actor_id=actor_id,
@@ -232,13 +311,19 @@ class RefundService:
             entity_id=doc["_id"],
             description=f"Completed refund {presented.get('refund_number')}.",
         )
-        safe_notify_roles(
-            FINANCE_NOTIFY_ROLES,
-            type=NotificationType.REFUND.value,
+        self._notify_paid(presented, actor_id=actor_id)
+        return presented
+
+    def _apply_payout(self, doc: dict, *, actor_id: str) -> None:
+        self.invoices.recompute_rollups(serialize_id(doc["invoice_id"]))
+        _sync_booking_payment_status(doc.get("booking_id"))
+
+    def _notify_paid(self, presented: dict, *, actor_id: str) -> None:
+        notify_for_type(
+            NotificationType.REFUND.value,
             title=f"Refund {presented.get('refund_number')} paid",
             message=f"Refund {presented.get('refund_number')} of {presented.get('amount')} was completed.",
             related_entity_type="refunds",
-            related_entity_id=doc["_id"],
+            related_entity_id=presented.get("id"),
             exclude_user_id=actor_id,
         )
-        return presented

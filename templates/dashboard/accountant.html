@@ -5,12 +5,9 @@
     <div class="dash-hero">
         <section class="dash-hero-main">
             <div class="dash-kicker">
-                <span>Finance desk</span>
-                <span>·</span>
                 <span>{{ today_label }}</span>
             </div>
             <h1>{{ greeting }}, {{ greeting_name }}</h1>
-            <p class="lead">Count what came in, what still sits unpaid, and what must leave the till.</p>
             {% if dash %}
             <div class="dash-figure {% if dash.summary.net < 0 %}is-down{% endif %}">
                 <div>
@@ -26,22 +23,19 @@
             {% endif %}
         </section>
         <aside class="dash-hero-side">
-            <form class="dash-tile dash-month" method="get">
+            <form class="dash-tile dash-month" method="get" data-autosubmit>
                 <label class="tiny" style="flex:1">Month
                     <input class="field" type="month" name="month" value="{{ filters.month }}">
                 </label>
-                <button class="btn btn-ghost" type="submit">Show</button>
             </form>
             {% if dash %}
             <a class="dash-tile clay" href="{% url 'finance:receivables' %}" style="color:inherit">
                 <span class="tiny">Receivables</span>
                 <b>{{ dash.summary.receivables.total|money }}</b>
-                <p class="muted" style="font-size:.8rem;margin-top:.2rem">Still to collect</p>
             </a>
             <a class="dash-tile sea" href="{% url 'finance:payables' %}" style="color:inherit">
                 <span class="tiny">Payables</span>
                 <b>{{ dash.summary.payables.total|money }}</b>
-                <p class="muted" style="font-size:.8rem;margin-top:.2rem">Still to settle</p>
             </a>
             {% endif %}
         </aside>
@@ -95,10 +89,10 @@
                 </div>
                 <div class="dash-queue">
                     {% for inv in dash.open_invoices %}
-                    <div class="row">
+                    <a href="{% url 'invoices:detail' inv.id %}">
                         <span><span class="mono">{{ inv.number }}</span> · {{ inv.customer }}</span>
                         <strong>{{ inv.remaining|money }}</strong>
-                    </div>
+                    </a>
                     {% empty %}
                     <p class="muted">No open customer balances.</p>
                     {% endfor %}

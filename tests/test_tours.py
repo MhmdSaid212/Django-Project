@@ -2,13 +2,17 @@ import json
 from decimal import Decimal
 
 from bson import ObjectId
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+from apps.attachments.services import AttachmentService
 from apps.expenses.services import ExpenseService
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import NotificationService
 from apps.packages.services import PackageService
 from apps.tours.schemas import available_seats
 from apps.tours.services import TourService
-from core.constants import ExpenseCategory, ExpenseScope, TourStatus
+from core.constants import ExpenseCategory, ExpenseScope, PackageStatus, TourStatus
 from core.exceptions import NotFoundError, ValidationError
 from core.money import to_money
 
@@ -43,6 +47,8 @@ def _create_tour(**overrides):
         "selling_price_per_person": "650.00",
     }
     payload.update(overrides)
+    if "package_id" not in payload:
+        payload["package_id"] = _create_package()["_id"]
     return TourService().create(**payload)
 
 
@@ -50,6 +56,35 @@ def test_available_seats_never_negative():
     assert available_seats(25, 18) == 7
     assert available_seats(20, 20) == 0
     assert available_seats(10, 12) == 0
+
+
+def test_create_tour_requires_package():
+    try:
+        TourService().create(
+            actor_id=OWNER_ID,
+            name="Orphan departure",
+            city="Cairo",
+            country="Egypt",
+            start_date="2026-09-12",
+            end_date="2026-09-16",
+            capacity=10,
+            selling_price_per_person="100.00",
+        )
+    except ValidationError as extra:
+        assert "package" in extra.message.lower()
+    else:
+        raise AssertionError("expected ValidationError")
+
+
+def test_cannot_create_tour_from_inactive_package():
+    package = _create_package()
+    PackageService().update(package["_id"], actor_id=OWNER_ID, status=PackageStatus.INACTIVE.value)
+    try:
+        TourService().create(actor_id=OWNER_ID, package_id=package["_id"], start_date="2026-10-01")
+    except Exception as extra:
+        assert "inactive" in str(extra).lower()
+    else:
+        raise AssertionError("expected inactive package rejection")
 
 
 def test_create_tour_numbers_and_seats():
@@ -127,7 +162,7 @@ def test_projected_profit_uses_expense_costs(fake_mongo):
     ExpenseService().create(
         actor_id=OWNER_ID,
         expense_scope=ExpenseScope.TOUR.value,
-        category=ExpenseCategory.HOTEL.value,
+        category=ExpenseCategory.MARKETING.value,
         amount="2000.00",
         description="Hotel block",
         expense_date="2026-09-12",
@@ -152,9 +187,11 @@ def test_accountant_forbidden_from_tours(accountant_session):
 
 
 def test_html_create_detail_and_availability(owner_session):
+    package = _create_package()
     response = owner_session.post(
         reverse("tours:create"),
         {
+            "package_id": str(package["_id"]),
             "name": "Istanbul Explorer",
             "city": "Istanbul",
             "country": "Turkey",
@@ -178,6 +215,48 @@ def test_html_create_detail_and_availability(owner_session):
     assert board.status_code == 200
     assert b"Istanbul Explorer" in board.content
     assert b"20" in board.content
+
+
+def test_html_tour_gallery_on_list_and_detail(owner_session, agent_session, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    package = _create_package()
+    photo = SimpleUploadedFile("bosphorus.png", b"\x89PNG\r\n\x1a\nhello", content_type="image/png")
+    created = owner_session.post(
+        reverse("tours:create"),
+        {
+            "package_id": str(package["_id"]),
+            "name": "Istanbul Explorer",
+            "city": "Istanbul",
+            "country": "Turkey",
+            "start_date": "2026-09-15",
+            "end_date": "2026-09-20",
+            "capacity": "20",
+            "selling_price_per_person": "890.00",
+            "currency": "USD",
+            "gallery": photo,
+        },
+    )
+    assert created.status_code == 302, created.content
+    tour = TourService().list_items()[0]
+    listing = agent_session.get(reverse("tours:list"))
+    assert listing.status_code == 200
+    assert b"Istanbul Explorer" in listing.content
+    assert b"t-hero has-photo" in listing.content
+    assert b"/attachments/" in listing.content
+    assert b"/preview/" in listing.content
+    detail = agent_session.get(reverse("tours:detail", args=[str(tour["_id"])]) + "?tab=gallery")
+    assert detail.status_code == 200
+    assert b"data-gallery" in detail.content
+    assert b"bosphorus.png" in detail.content
+    photos = AttachmentService().gallery_for_tours([str(tour["_id"])]).get(str(tour["_id"]), [])
+    assert photos
+    preview = agent_session.get(reverse("attachments:preview", args=[photos[0]["id"]]))
+    assert preview.status_code == 200
+    form = owner_session.get(reverse("tours:create") + f"?package_id={package['_id']}")
+    assert b"Client gallery" in form.content
+    page = owner_session.get(reverse("tours:list"))
+    assert b'id="app-confirm"' in page.content
+    assert b"return confirm(" not in page.content
 
 
 def test_html_create_from_package(owner_session):

@@ -7,13 +7,20 @@ from apps.supplier_payments.api import (
     supplier_payments_for_supplier,
 )
 from apps.suppliers import api
-from core.access import ALL_ROLES, FINANCE_ROLES
+from core.access import ALL_ROLES, FINANCE_ROLES, OPERATIONS_ROLES
 from core.http import method_view
 
 app_name = "suppliers_api"
 
 urlpatterns = [
     path("", method_view(*ALL_ROLES, GET=api.list_suppliers, POST=api.create_supplier), name="collection"),
+    path("services/", method_view(*OPERATIONS_ROLES, GET=api.list_catalog), name="services"),
+    path("<str:id>/services/", method_view(*OPERATIONS_ROLES, GET=api.list_offerings, POST=api.create_offering), name="offerings"),
+    path(
+        "<str:id>/services/<str:service_id>/",
+        method_view(*OPERATIONS_ROLES, GET=api.get_offering, PATCH=api.patch_offering),
+        name="offering",
+    ),
     path("<str:id>/expenses/", method_view(*FINANCE_ROLES, GET=expenses_for_supplier), name="expenses"),
     path(
         "<str:id>/payments/",

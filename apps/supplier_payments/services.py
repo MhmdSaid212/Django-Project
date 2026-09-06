@@ -10,9 +10,10 @@ from apps.expenses.services import ExpenseService
 from apps.notifications.constants import NotificationType
 from apps.notifications.services import FINANCE_NOTIFY_ROLES, safe_notify_roles
 from apps.expenses.validators import parse_positive_money, parse_when
+from apps.supplier_payments.constants import METHOD_LABELS
 from apps.supplier_payments.repositories import SupplierPaymentRepository
 from apps.supplier_payments.validators import validate_payment_method
-from core.constants import Collections, DEFAULT_CURRENCY
+from core.constants import Collections, DEFAULT_CURRENCY, RecordStatus
 from core.exceptions import DatabaseUnavailableError, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal128, to_money
 from core.numbering import next_number
@@ -56,6 +57,7 @@ def present_payment(
         "currency": document.get("currency") or DEFAULT_CURRENCY,
         "method": document.get("payment_method"),
         "payment_method": document.get("payment_method"),
+        "method_label": METHOD_LABELS.get(document.get("payment_method"), document.get("payment_method") or ""),
         "date": _display_date(document.get("payment_date")),
         "payment_date": document.get("payment_date"),
         "ref": document.get("reference_number") or "",
@@ -130,14 +132,21 @@ class SupplierPaymentService:
             requested = parse_object_id(supplier_id, field="supplier_id")
             if requested != expense_supplier:
                 raise ValidationError("Expense does not belong to this supplier.")
-        if not self.repository.find_supplier(expense_supplier):
+        supplier = self.repository.find_supplier(expense_supplier)
+        if not supplier:
             raise ValidationError("Supplier not found.")
+        if supplier.get("status") == RecordStatus.INACTIVE.value:
+            raise ValidationError("Cannot pay an inactive supplier.")
 
         remaining = to_money(expense.get("remaining_amount"))
         if remaining <= ZERO:
             raise ValidationError("This expense is already paid in full.")
         money = parse_positive_money(amount, field="amount")
         if money > remaining:
+            raise ValidationError(f"Amount cannot exceed the remaining balance of {remaining}.")
+
+        reserved = self.expenses.repository.try_consume_remaining(expense["_id"], money)
+        if not reserved:
             raise ValidationError(f"Amount cannot exceed the remaining balance of {remaining}.")
 
         method = validate_payment_method(payment_method)
@@ -166,8 +175,16 @@ class SupplierPaymentService:
         try:
             result = self.repository.insert(document)
         except DuplicateKeyError as extra:
+            self.expenses.sync_paid_amount(
+                expense["_id"],
+                self.repository.sum_for_expense(expense["_id"]),
+            )
             raise ValidationError("A supplier payment with this number already exists.") from extra
         except PyMongoError as extra:
+            self.expenses.sync_paid_amount(
+                expense["_id"],
+                self.repository.sum_for_expense(expense["_id"]),
+            )
             raise DatabaseUnavailableError("Could not save the supplier payment.") from extra
         document["_id"] = result.inserted_id
         self._sync_expense(expense["_id"])

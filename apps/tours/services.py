@@ -23,8 +23,11 @@ from apps.packages.validators import (
 from apps.tours.repositories import TourRepository
 from apps.tours.schemas import available_seats
 from apps.tours.validators import default_end, ensure_date_order, seat_status, validate_tour_status
-from core.constants import Collections, DEFAULT_CURRENCY, TourStatus
-from core.exceptions import DatabaseUnavailableError, NotFoundError, ValidationError
+from apps.notifications.constants import NotificationType
+from apps.notifications.services import notify_for_type
+from core.constants import Collections, DEFAULT_CURRENCY, PackageStatus, TourStatus
+from core.costing import cost_sheet, serialize_costing
+from core.exceptions import BusinessRuleViolation, DatabaseUnavailableError, NotFoundError, ValidationError
 from core.money import ZERO, to_decimal128, to_money
 from core.numbering import next_number
 from core.utils import full_name, parse_object_id, serialize_id, utcnow
@@ -68,6 +71,13 @@ def present_tour(
     included = document.get("included_services") or []
     excluded = document.get("excluded_services") or []
     package_name = (package or {}).get("name") if package else None
+    costing = cost_sheet(
+        services if services is not None else document.get("services"),
+        capacity=capacity or 1,
+        selling_price=price,
+        margin_percent=(package or {}).get("target_margin_percent"),
+        booked=booked,
+    )
     return {
         "id": str(document["_id"]),
         "code": document.get("tour_code") or "",
@@ -92,6 +102,7 @@ def present_tour(
         "price": price,
         "selling_price_per_person": price,
         "currency": document.get("currency") or DEFAULT_CURRENCY,
+        "costing": costing,
         "revenue": revenue,
         "costs": cost_total,
         "profit": profit,
@@ -111,6 +122,8 @@ def present_tour(
         "created_at": document.get("created_at"),
         "updated_at": document.get("updated_at"),
         "created_by": serialize_id(document.get("created_by")),
+        "can_take_bookings": True,
+        "booking_block_reason": "",
     }
 
 
@@ -119,6 +132,7 @@ def serialize_tour(presented: dict) -> dict:
     for key in ("price", "selling_price_per_person", "revenue", "costs", "profit"):
         if isinstance(payload.get(key), Decimal):
             payload[key] = str(to_money(payload[key]))
+    payload["costing"] = serialize_costing(payload.get("costing"))
     payload["start_date"] = _iso(payload.get("start_date"))
     payload["end_date"] = _iso(payload.get("end_date"))
     payload["created_at"] = _iso(payload.get("created_at"))
@@ -166,13 +180,15 @@ class TourService:
         rows = []
         for document in self.list_items(**filters):
             package = self._package(document.get("package_id"))
-            rows.append(
-                present_tour(
-                    document,
-                    package=package,
-                    costs=costs.get(str(document["_id"]), ZERO),
-                )
+            services = [self._service(line) for line in document.get("services") or []]
+            presented = present_tour(
+                document,
+                package=package,
+                costs=costs.get(str(document["_id"]), ZERO),
+                services=services,
             )
+            presented["services"] = []
+            rows.append(self._with_booking_gate(document, presented))
         return rows
 
     def get(self, tour_id) -> dict:
@@ -214,6 +230,23 @@ class TourService:
         else:
             presented["reservations"] = []
             presented["accommodation"] = {}
+        return self._with_booking_gate(document, presented)
+
+    def assert_ready_for_customer_bookings(self, tour_id) -> None:
+        document = self.get(tour_id)
+        reason = self.customer_booking_block_reason(document)
+        if reason:
+            raise BusinessRuleViolation(reason)
+
+    def customer_booking_block_reason(self, tour: dict) -> str | None:
+        from apps.supplier_reservations.services import SupplierReservationService
+
+        return SupplierReservationService().customer_booking_block_reason(tour)
+
+    def _with_booking_gate(self, document: dict, presented: dict) -> dict:
+        reason = self.customer_booking_block_reason(document)
+        presented["booking_block_reason"] = reason or ""
+        presented["can_take_bookings"] = reason is None
         return presented
 
     def availability(self) -> list[dict]:
@@ -225,7 +258,9 @@ class TourService:
         return rows
 
     def create(self, *, actor_id, **fields) -> dict:
-        package = self._load_package(fields.get("package_id"))
+        package = self._load_package(fields.get("package_id"), required=True)
+        if package.get("status") == PackageStatus.INACTIVE.value:
+            raise BusinessRuleViolation("This package is inactive. Activate it before creating a departure.")
         document = self._document(existing=None, package=package, **fields)
         now = utcnow()
         document.update(
@@ -243,11 +278,29 @@ class TourService:
         except PyMongoError as extra:
             raise DatabaseUnavailableError("Could not save the tour.") from extra
         document["_id"] = result.inserted_id
+        notify_for_type(
+            NotificationType.TOUR.value,
+            title=f"Tour {document.get('tour_code')}",
+            message=f"{document.get('name') or 'A departure'} is on the board for agents to sell.",
+            related_entity_type="tours",
+            related_entity_id=document["_id"],
+            exclude_user_id=actor_id,
+        )
         return self.get(document["_id"])
 
     def update(self, tour_id, *, actor_id=None, **fields) -> dict:
         existing = self.get(tour_id)
-        package = self._load_package(fields.get("package_id", existing.get("package_id")))
+        requested_status = fields.get("status")
+        if requested_status == TourStatus.CANCELLED.value and existing.get("status") != TourStatus.CANCELLED.value:
+            booked = int(existing.get("booked_seats") or 0)
+            if booked > 0 or self.repository.has_live_bookings(existing["_id"]):
+                raise BusinessRuleViolation("Cancel live bookings before cancelling this tour.")
+        package = self._load_package(existing.get("package_id"), required=True)
+        if "package_id" in fields and fields.get("package_id"):
+            incoming = serialize_id(fields.get("package_id"))
+            current = serialize_id(existing.get("package_id"))
+            if incoming and current and incoming != current:
+                raise BusinessRuleViolation("A tour cannot be moved to a different package.")
         updates = self._document(existing=existing, package=package, **fields)
         if actor_id:
             updates["updated_by"] = parse_object_id(actor_id, field="updated_by")
@@ -265,6 +318,43 @@ class TourService:
             booked = 0
         return self.update(tour_id, booked_seats=booked)
 
+    def try_reserve_seats(self, tour_id, seats: int) -> dict:
+        count = int(seats)
+        if count <= 0:
+            raise ValidationError("Seat count must be positive.")
+        document = self.get(tour_id)
+        status = document.get("status")
+        if status in {TourStatus.CANCELLED.value, TourStatus.COMPLETED.value, TourStatus.DRAFT.value}:
+            raise BusinessRuleViolation("This tour is not open for new confirmed bookings.")
+        capacity = int(document.get("capacity") or 0)
+        max_booked = capacity - count
+        updated = self.repository.try_increment_booked_seats(document["_id"], count, max_booked=max_booked)
+        if not updated:
+            booked = int(document.get("booked_seats") or 0)
+            raise BusinessRuleViolation(
+                f"Not enough tour seats. {booked} of {capacity} are already booked; this booking needs {count}."
+            )
+        return self._sync_seat_status(updated)
+
+    def release_reserved_seats(self, tour_id, seats: int) -> dict:
+        count = int(seats)
+        if count <= 0:
+            return self.get(tour_id)
+        updated = self.repository.try_decrement_booked_seats(tour_id, count)
+        if not updated:
+            return self.get(tour_id)
+        return self._sync_seat_status(updated)
+
+    def _sync_seat_status(self, document: dict) -> dict:
+        booked = int(document.get("booked_seats") or 0)
+        capacity = int(document.get("capacity") or 0)
+        status = seat_status(document.get("status"), capacity=capacity, booked=booked)
+        self.repository.update(
+            document["_id"],
+            {"booked_seats": booked, "status": status, "updated_at": utcnow()},
+        )
+        return self.get(document["_id"])
+
     def soft_delete(self, tour_id, *, actor_id) -> None:
         document = self.get(tour_id)
         booked = int(document.get("booked_seats") or 0)
@@ -277,9 +367,11 @@ class TourService:
         if result.matched_count != 1:
             raise NotFoundError("Tour not found.")
 
-    def _load_package(self, package_id):
+    def _load_package(self, package_id, *, required: bool = False):
         oid = parse_optional_object_id(package_id, field="package_id")
         if not oid:
+            if required:
+                raise ValidationError("Select a package. A tour is a dated departure of a package.")
             return None
         package = self.repository.find_package(oid)
         if not package:
@@ -308,6 +400,11 @@ class TourService:
     def _lookup_supplier(self, supplier_id):
         return self.repository.find_supplier(supplier_id)
 
+    def _lookup_offering(self, offering_id, *, require_active: bool = True) -> dict:
+        from apps.suppliers.offerings import SupplierOfferingService
+
+        return SupplierOfferingService().snapshot(offering_id, require_active=require_active)
+
     def _bookings(self, tour_id) -> tuple[list[dict], list[dict]]:
         bookings = []
         travelers = []
@@ -334,16 +431,16 @@ class TourService:
                 }
             )
             if document.get("booking_status") != "CANCELLED":
-             for person in document.get("travelers") or []:
-                if not isinstance(person, dict):
-                    continue
-                travelers.append(
-                    {
-                        "name": full_name(person.get("first_name"), person.get("last_name")) or person.get("name") or "Traveler",
-                        "passport": person.get("passport_number") or "—",
-                        "type": person.get("type") or "—",
-                    }
-                )
+                for person in document.get("travelers") or []:
+                    if not isinstance(person, dict):
+                        continue
+                    travelers.append(
+                        {
+                            "name": full_name(person.get("first_name"), person.get("last_name")) or person.get("name") or "Traveler",
+                            "passport": person.get("passport_number") or "—",
+                            "type": person.get("type") or "—",
+                        }
+                    )
         return bookings, travelers
 
     def _activity(self, document: dict, bookings: list, expenses: list) -> list[dict]:
@@ -432,8 +529,21 @@ class TourService:
             raise ValidationError("Price is required.")
         price = parse_price(price_raw)
 
-        if "services" in fields:
-            services = clean_service_lines(fields.get("services"), lookup_supplier=self._lookup_supplier)
+        if "service_ids" in fields:
+            services = clean_service_lines(
+                [{"supplier_service_id": item} for item in (fields.get("service_ids") or [])],
+                lookup_supplier=self._lookup_supplier,
+                lookup_offering=self._lookup_offering,
+                require_active=True,
+            )
+        elif "services" in fields:
+            services = clean_service_lines(
+                fields.get("services"),
+                lookup_supplier=self._lookup_supplier,
+                lookup_offering=self._lookup_offering,
+                require_active=not existing,
+                existing_lines=previous.get("services"),
+            )
         elif existing:
             services = list(previous.get("services") or [])
         else:

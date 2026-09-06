@@ -4,7 +4,6 @@
 <div class="page-head">
     <div>
         <h1>Customer Balances</h1>
-        <p>Calculated from invoices, payments, refunds — never typed</p>
     </div>
     <a class="btn btn-ghost" href="{% url 'finance:receivables' %}{{ query }}">Open invoices</a>
 </div>
@@ -19,12 +18,19 @@
                 <th>Open invoices</th>
                 <th>Balance</th>
                 <th>Flags</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
         {% for row in report.customers %}
             <tr>
-                <td><strong>{{ row.customer }}</strong></td>
+                <td>
+                    {% if row.customer_id %}
+                    <a href="{% url 'customers:detail' row.customer_id %}"><strong>{{ row.customer }}</strong></a>
+                    {% else %}
+                    <strong>{{ row.customer }}</strong>
+                    {% endif %}
+                </td>
                 <td>{{ row.count }}</td>
                 <td>
                     {% if row.outstanding %}
@@ -34,10 +40,16 @@
                     {% endif %}
                 </td>
                 <td>{% if row.overdue %}<span class="badge b-bad">OVERDUE</span>{% else %}<span class="badge b-ok">CURRENT</span>{% endif %}</td>
+                <td class="row-actions">
+                    {% if row.customer_id %}
+                    {% url 'customers:detail' row.customer_id as view_url %}
+                    {% include "components/ico_btn.html" with href=view_url title="View" icon="view" %}
+                    {% endif %}
+                </td>
             </tr>
         {% empty %}
             <tr>
-                <td colspan="4">
+                <td colspan="5">
                     {% include "components/empty_state.html" with title="No customer balances" body="Customers with open invoice balances will appear here." %}
                 </td>
             </tr>

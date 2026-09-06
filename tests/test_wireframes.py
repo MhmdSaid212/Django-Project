@@ -11,24 +11,23 @@ def test_wireframe_pages_render(owner_session):
         ("bookings:create", None),
         ("supplier_reservations:list", None),
         ("supplier_reservations:create", None),
-        ("supplier_reservations:rooming_index", None),
         ("tours:list", None),
         ("tours:create", None),
         ("availability:index", None),
         ("packages:list", None),
         ("packages:create", None),
         ("suppliers:list", None),
+        ("suppliers:services", None),
+        ("suppliers:service_new", None),
         ("suppliers:hotels", None),
         ("suppliers:create", None),
         ("invoices:list", None),
-        ("invoices:detail", ["inv-1042"]),
-        ("invoices:print", ["inv-1042"]),
+        ("invoices:create", None),
         ("payments:list", None),
-        ("payments:detail", ["pay-1042"]),
+        ("payments:create", None),
         ("receipts:list", None),
-        ("receipts:detail", ["rec-1042"]),
         ("refunds:list", None),
-        ("refunds:detail", ["ref-1012"]),
+        ("refunds:create", None),
         ("expenses:list", None),
         ("expenses:create", None),
         ("supplier_payments:list", None),
@@ -57,3 +56,17 @@ def test_wireframe_pages_render(owner_session):
         url = reverse(name, args=args) if args else reverse(name)
         response = owner_session.get(url)
         assert response.status_code == 200, f"{name} {url} -> {response.status_code}"
+
+
+def test_missing_finance_records_are_not_found(owner_session):
+    named = [
+        ("invoices:detail", ["inv-1042"]),
+        ("invoices:print", ["inv-1042"]),
+        ("payments:detail", ["pay-1042"]),
+        ("receipts:detail", ["rec-1042"]),
+        ("refunds:detail", ["ref-1012"]),
+    ]
+    for name, args in named:
+        url = reverse(name, args=args)
+        response = owner_session.get(url)
+        assert response.status_code == 404, f"{name} {url} -> {response.status_code}"

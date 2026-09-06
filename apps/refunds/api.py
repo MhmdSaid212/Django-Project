@@ -1,5 +1,6 @@
 """JSON API — refunds.  OWNER: Dev 3 — Customer Finance"""
 from apps.refunds.services import RefundService
+from core.access import is_owner
 from core.exceptions import ValidationError
 from core.http import actor_id, guarded, json_body, query_value, resource_id
 from core.responses import success_response
@@ -14,6 +15,7 @@ def _create(request, payment_id, payload):
         days_before=payload.get("days_before"),
         amount=payload.get("amount"),
         requested_by=actor_id(request),
+        direct=is_owner(request),
     )
 
 

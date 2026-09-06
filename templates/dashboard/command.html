@@ -4,9 +4,8 @@
 <div class="bazaar dash">
     <header class="bazaar-mast">
         <div>
-            <p class="tiny">Operations souk · {{ today_label }}</p>
+            <p class="tiny">{{ today_label }}</p>
             <h1>{{ greeting }}, {{ greeting_name }}</h1>
-            <p class="muted">The day’s departures, open seats, and bookings waiting on a human.</p>
         </div>
         <div class="actions">
             {% if nav.ops %}<a class="btn btn-warm" href="{% url 'bookings:create' %}">New booking</a>{% endif %}
@@ -27,7 +26,6 @@
             <div>
                 <span class="tiny">Bookings live</span>
                 <b>{{ m.kpis.active_bookings }}</b>
-                <small>Files in motion</small>
             </div>
         </article>
         <article class="bazaar-tile">
@@ -35,7 +33,6 @@
             <div>
                 <span class="tiny">Departures</span>
                 <b>{{ m.kpis.upcoming }}</b>
-                <small>Coming up this month</small>
             </div>
         </article>
         <article class="bazaar-tile">
@@ -43,7 +40,6 @@
             <div>
                 <span class="tiny">Booked revenue</span>
                 <b>{{ m.kpis.revenue|money }}</b>
-                <small>Demo desk total</small>
             </div>
         </article>
         <article class="bazaar-tile">
@@ -51,7 +47,6 @@
             <div>
                 <span class="tiny">Still owed</span>
                 <b>{{ m.kpis.ar|money }}</b>
-                <small>Customer balances</small>
             </div>
         </article>
     </div>
@@ -62,14 +57,12 @@
         <div class="dash-lane in">
             <span class="tiny">Money in</span>
             <div class="amount">{{ m.money_in|money }}</div>
-            <p class="muted" style="font-size:.8rem;margin-bottom:.55rem">Customer payments hitting the till</p>
             <div class="dash-meter"><i style="width:{{ m.money_in|width_pct:flow }}%"></i></div>
         </div>
         <div class="dash-vs">CASH</div>
         <div class="dash-lane out">
             <span class="tiny">Money out</span>
             <div class="amount">{{ m.money_out|money }}</div>
-            <p class="muted" style="font-size:.8rem;margin-bottom:.55rem">Supplier payouts leaving the desk</p>
             <div class="dash-meter"><i style="width:{{ m.money_out|width_pct:flow }}%"></i></div>
         </div>
     </div>
@@ -80,7 +73,6 @@
         <section class="dash-card bazaar-arch">
             <div class="panel-h">
                 <h2>Needs a stamp today</h2>
-                <span class="tiny">Act now</span>
             </div>
             {% if nav.finance %}
             <a class="dash-ticket passport" href="{% url 'invoices:list' %}">

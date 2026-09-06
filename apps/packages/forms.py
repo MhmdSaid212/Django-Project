@@ -22,11 +22,22 @@ class PackageForm(forms.Form):
     country = forms.CharField(required=False, max_length=80)
     duration_days = forms.IntegerField(min_value=1, label="Duration (days)")
     selling_price_per_person = forms.DecimalField(
+        required=False,
         min_value=Decimal("0.01"),
         decimal_places=2,
         max_digits=12,
-        label="Base price / person",
+        label="Selling price / person",
         widget=forms.NumberInput(attrs={"step": "0.01"}),
+    )
+    target_margin_percent = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0.00"),
+        max_value=Decimal("80.00"),
+        decimal_places=2,
+        max_digits=5,
+        initial=Decimal("30.00"),
+        label="Target margin %",
+        widget=forms.NumberInput(attrs={"step": "0.5"}),
     )
     currency = forms.CharField(max_length=3, required=False, initial=DEFAULT_CURRENCY)
     default_capacity = forms.IntegerField(min_value=1, label="Default departure capacity")
@@ -50,6 +61,15 @@ class PackageForm(forms.Form):
         self.fields["included_services"].widget.attrs.setdefault("placeholder", "Hotel, transfers, guided tour")
         self.fields["excluded_services"].widget.attrs.setdefault("placeholder", "Flights, personal expenses")
         self.fields["currency"].widget.attrs.setdefault("placeholder", DEFAULT_CURRENCY)
+        self.fields["name"].widget.attrs.setdefault("placeholder", "Lebanon Discovery")
+        self.fields["city"].widget.attrs.setdefault("placeholder", "Beirut")
+        self.fields["default_capacity"].widget.attrs["data-cost-capacity"] = "1"
+        self.fields["target_margin_percent"].widget.attrs["data-cost-margin"] = "1"
+        self.fields["selling_price_per_person"].widget.attrs["data-cost-price"] = "1"
+        self.fields["selling_price_per_person"].widget.attrs.setdefault("placeholder", "Leave blank to use suggested")
+        for field in self.fields.values():
+            if field.required:
+                field.widget.attrs.setdefault("aria-required", "true")
         _styled(self.fields)
 
 
@@ -60,6 +80,7 @@ def initial_from_package(record: dict) -> dict:
         "country": record.get("country") or "",
         "duration_days": record.get("duration_days") or 1,
         "selling_price_per_person": record.get("price"),
+        "target_margin_percent": record.get("target_margin_percent"),
         "currency": record.get("currency") or DEFAULT_CURRENCY,
         "default_capacity": record.get("default_capacity") or 1,
         "included_services": join_list(record.get("included_services")),

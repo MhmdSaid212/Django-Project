@@ -5,6 +5,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.packages.forms import PackageForm, initial_from_package
 from apps.packages.services import PackageService
+from apps.suppliers.offerings import SupplierOfferingService
 from core.access import OPERATIONS_ROLES
 from core.exceptions import DatabaseUnavailableError, TourOpsError
 from core.permissions import get_session_user, login_required, role_required
@@ -15,7 +16,7 @@ def _unavailable(request, next_name="packages:list"):
     return redirect(next_name)
 
 
-def _form_payload(form: PackageForm) -> dict:
+def _form_payload(form: PackageForm, post=None) -> dict:
     data = form.cleaned_data
     payload = {
         "name": data["name"],
@@ -23,15 +24,36 @@ def _form_payload(form: PackageForm) -> dict:
         "country": data.get("country"),
         "duration_days": data["duration_days"],
         "selling_price_per_person": data["selling_price_per_person"],
+        "target_margin_percent": data.get("target_margin_percent"),
         "currency": data.get("currency"),
         "default_capacity": data["default_capacity"],
         "included_services": data.get("included_services"),
         "excluded_services": data.get("excluded_services"),
         "description": data.get("description"),
+        "services": [{"supplier_service_id": item} for item in (post.getlist("service_ids") if post else [])],
     }
     if data.get("status"):
         payload["status"] = data["status"]
     return payload
+
+
+def _catalog_context(selected_ids=None):
+    selected = {str(item) for item in (selected_ids or []) if item}
+    catalog = SupplierOfferingService().list_catalog()
+    seen = {row["id"] for row in catalog}
+    for service_id in selected:
+        if service_id in seen:
+            continue
+        try:
+            row = SupplierOfferingService().get_presented(service_id)
+        except TourOpsError:
+            continue
+        row["unavailable"] = True
+        catalog.append(row)
+        seen.add(service_id)
+    for row in catalog:
+        row["selected"] = row["id"] in selected
+    return catalog
 
 
 @login_required
@@ -63,7 +85,7 @@ def package_create(request):
     form = PackageForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
-            package = PackageService().create(actor_id=get_session_user(request)["id"], **_form_payload(form))
+            package = PackageService().create(actor_id=get_session_user(request)["id"], **_form_payload(form, request.POST))
         except DatabaseUnavailableError:
             return _unavailable(request)
         except TourOpsError as extra:
@@ -79,6 +101,8 @@ def package_create(request):
             "page_title": "New package",
             "page_heading": "New package",
             "submit_label": "Save package",
+            "catalog": _catalog_context(request.POST.getlist("service_ids") if request.method == "POST" else []),
+            "has_departures": False,
         },
     )
 
@@ -114,7 +138,7 @@ def package_detail(request, id):
 def package_edit(request, id):
     service = PackageService()
     try:
-        record = service.get_presented(id, include_extras=False)
+        record = service.get_presented(id, include_extras=True)
     except DatabaseUnavailableError:
         return _unavailable(request)
     except TourOpsError:
@@ -123,7 +147,7 @@ def package_edit(request, id):
     form = PackageForm(request.POST or None, initial=initial_from_package(record), include_status=True)
     if request.method == "POST" and form.is_valid():
         try:
-            service.update(id, actor_id=get_session_user(request)["id"], **_form_payload(form))
+            service.update(id, actor_id=get_session_user(request)["id"], **_form_payload(form, request.POST))
         except DatabaseUnavailableError:
             return _unavailable(request)
         except TourOpsError as extra:
@@ -140,6 +164,12 @@ def package_edit(request, id):
             "page_heading": f"Edit {record['name']}",
             "submit_label": "Save changes",
             "record": record,
+            "has_departures": bool(record.get("tours")),
+            "catalog": _catalog_context(
+                request.POST.getlist("service_ids")
+                if request.method == "POST"
+                else [line.get("supplier_service_id") for line in record.get("services") or []]
+            ),
         },
     )
 
