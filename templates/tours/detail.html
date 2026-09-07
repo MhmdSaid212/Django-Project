@@ -97,9 +97,16 @@
             <p class="muted">{{ record.city }}{% if record.country %} · {{ record.country }}{% endif %} · {{ record.dates }}</p>
         </div>
         {% if nav.ops %}
-        <a class="btn btn-ghost" href="{% url 'tours:edit' record.id %}">Add photos</a>
+        <a class="btn btn-ghost" href="{% url 'tours:edit' record.id %}">Edit tour</a>
         {% endif %}
     </div>
+    {% if nav.ops and gallery_room %}
+    <form method="post" action="{% url 'tours:gallery_add' record.id %}" enctype="multipart/form-data" class="gallery-add">
+        {% csrf_token %}
+        {% include "components/gallery_picker.html" with gallery_room=gallery_room picker_label="Add photos to this gallery" %}
+        <button class="btn btn-warm" type="submit">Upload photos</button>
+    </form>
+    {% endif %}
     {% if record.gallery %}
     <div class="gallery-grid" data-gallery>
         {% for photo in record.gallery %}
@@ -120,8 +127,12 @@
         {% endfor %}
     </div>
     {% else %}
+    {% if nav.ops and gallery_room %}
+    <p class="muted">No photos yet. Upload several images below.</p>
+    {% else %}
     {% url 'tours:edit' record.id as tour_edit_url %}
     {% include "components/empty_state.html" with title="No gallery yet" body="Add photos on the tour so agents can walk a client through the departure." cta="Add photos" cta_url=tour_edit_url %}
+    {% endif %}
     {% endif %}
 </section>
 {% elif tab == 'bookings' %}
@@ -329,4 +340,8 @@
     {% endfor %}
 </section>
 {% endif %}
+{% endblock %}
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/gallery-picker.js' %}?v=1"></script>
 {% endblock %}

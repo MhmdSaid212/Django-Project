@@ -252,6 +252,9 @@ def test_html_supplier_service_then_package_then_tour(owner_session):
     assert package["name"] == "Lebanon Discovery"
     assert len(package["services"]) == 1
 
+    blank_tour = owner_session.get(reverse("tours:create"))
+    assert blank_tour.status_code == 200
+
     tour_page = owner_session.get(reverse("tours:create") + f"?package_id={package['_id']}")
     assert tour_page.status_code == 200
     assert b"Lebanon Discovery" in tour_page.content

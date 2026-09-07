@@ -90,6 +90,13 @@ def _attach_galleries(tours: list[dict]) -> list[dict]:
     return tours
 
 
+def _gallery_room(tour_id=None) -> int:
+    if not tour_id:
+        return MAX_GALLERY_FILES
+    existing = AttachmentService().gallery_for_tours([str(tour_id)]).get(str(tour_id), [])
+    return max(MAX_GALLERY_FILES - len(existing), 0)
+
+
 def _save_gallery(request, tour_id) -> int:
     uploads = list(request.FILES.getlist("gallery") or [])
     if not uploads:
@@ -215,6 +222,7 @@ def tour_create(request):
                 else [line.get("supplier_service_id") for line in (selected_package or {}).get("services") or []]
             ),
             "override_services": request.POST.get("override_services") == "1" if request.method == "POST" else False,
+            "gallery_room": MAX_GALLERY_FILES,
         },
     )
 
@@ -253,6 +261,7 @@ def tour_detail(request, id):
             ],
             "record": record,
             "tab": tab,
+            "gallery_room": _gallery_room(record["id"]),
         },
     )
 
@@ -310,8 +319,29 @@ def tour_edit(request, id):
             ),
             "override_services": request.POST.get("override_services") == "1" if request.method == "POST" else False,
             "gallery": AttachmentService().gallery_for_tours([id]).get(id, []),
+            "gallery_room": _gallery_room(id),
         },
     )
+
+
+@login_required
+@role_required(*OPERATIONS_ROLES)
+@require_POST
+def tour_gallery_add(request, id):
+    try:
+        TourService().get_presented(id)
+    except DatabaseUnavailableError:
+        return _unavailable(request)
+    except TourOpsError:
+        messages.error(request, "Tour not found.")
+        return redirect("tours:list")
+    added = _save_gallery(request, id)
+    if added:
+        messages.success(
+            request,
+            f"Added {added} gallery photo{'s' if added != 1 else ''}.",
+        )
+    return redirect(f"{reverse('tours:detail', args=[id])}?tab=gallery")
 
 
 @login_required

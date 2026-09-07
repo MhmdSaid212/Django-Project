@@ -3625,6 +3625,40 @@ button.catalog-row {
     border-radius: 10px;
     border: 1px solid var(--primary-border);
 }
+.gallery-add {
+    margin: 0 0 1rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px dashed var(--primary-border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+}
+.gallery-add .btn { margin-top: 0.65rem; }
+.gallery-pending {
+    list-style: none;
+    margin: 0.55rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.gallery-pending li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    font-size: 0.8rem;
+}
+.gallery-pending button {
+    border: 0;
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+}
 .gallery-stage {
     background:
         radial-gradient(160px 100px at 100% 0%, rgba(37, 99, 235, 0.14), transparent 70%),

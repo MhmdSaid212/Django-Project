@@ -259,6 +259,49 @@ def test_html_tour_gallery_on_list_and_detail(owner_session, agent_session, sett
     assert b"return confirm(" not in page.content
 
 
+def test_html_tour_gallery_accepts_multiple_photos(owner_session, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    package = _create_package()
+    png = b"\x89PNG\r\n\x1a\nhello"
+    created = owner_session.post(
+        reverse("tours:create"),
+        {
+            "package_id": str(package["_id"]),
+            "name": "Istanbul Explorer",
+            "city": "Istanbul",
+            "country": "Turkey",
+            "start_date": "2026-09-15",
+            "end_date": "2026-09-20",
+            "capacity": "20",
+            "selling_price_per_person": "890.00",
+            "currency": "USD",
+            "gallery": [
+                SimpleUploadedFile("bosphorus.png", png, content_type="image/png"),
+                SimpleUploadedFile("blue-mosque.png", png, content_type="image/png"),
+            ],
+        },
+    )
+    assert created.status_code == 302, created.content
+    tour = TourService().list_items()[0]
+    photos = AttachmentService().gallery_for_tours([str(tour["_id"])]).get(str(tour["_id"]), [])
+    assert len(photos) == 2
+    extra = owner_session.post(
+        reverse("tours:gallery_add", args=[str(tour["_id"])]),
+        {
+            "gallery": [
+                SimpleUploadedFile("hagia-sophia.png", png, content_type="image/png"),
+            ],
+        },
+    )
+    assert extra.status_code == 302, extra.content
+    photos = AttachmentService().gallery_for_tours([str(tour["_id"])]).get(str(tour["_id"]), [])
+    assert len(photos) == 3
+    gallery_tab = owner_session.get(reverse("tours:detail", args=[str(tour["_id"])]) + "?tab=gallery")
+    assert gallery_tab.status_code == 200
+    assert b"Upload photos" in gallery_tab.content
+    assert b"multiple" in gallery_tab.content
+
+
 def test_html_create_from_package(owner_session):
     package = _create_package()
     response = owner_session.post(

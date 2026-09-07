@@ -78,7 +78,11 @@
             {% include "components/form_field.html" with field=form.currency %}
         </div>
         {% include "components/form_field.html" with field=form.selling_price_per_person caption="Selling price / person" %}
+        {% if record %}
         {% include "components/cost_sheet.html" with costing=record.costing live=1 plain=1 intro="Land cost is supplier estimates at this capacity. Group costs (coach, guide) are shared across seats. Suggested price is land cost plus the target margin, rounded up to $10." %}
+        {% else %}
+        {% include "components/cost_sheet.html" with costing=None live=1 plain=1 intro="Land cost is supplier estimates at this capacity. Group costs (coach, guide) are shared across seats. Suggested price is land cost plus the target margin, rounded up to $10." %}
+        {% endif %}
     </section>
 
     <div class="ops-form-foot">

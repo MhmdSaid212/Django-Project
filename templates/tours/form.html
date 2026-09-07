@@ -112,7 +112,13 @@
     </section>
     {% endif %}
 
-    {% include "components/cost_sheet.html" with costing=record.costing|default:selected_package.costing live=1 step=4 heading="Price from cost" intro="Capacity changes how group costs are shared. Leave selling price blank to keep the package rate, or use the suggested price for this departure." %}
+    {% if record %}
+    {% include "components/cost_sheet.html" with costing=record.costing live=1 step=4 heading="Price from cost" intro="Capacity changes how group costs are shared. Leave selling price blank to keep the package rate, or use the suggested price for this departure." %}
+    {% elif selected_package %}
+    {% include "components/cost_sheet.html" with costing=selected_package.costing live=1 step=4 heading="Price from cost" intro="Capacity changes how group costs are shared. Leave selling price blank to keep the package rate, or use the suggested price for this departure." %}
+    {% else %}
+    {% include "components/cost_sheet.html" with costing=None live=1 step=4 heading="Price from cost" intro="Capacity changes how group costs are shared. Leave selling price blank to keep the package rate, or use the suggested price for this departure." %}
+    {% endif %}
 
     <section class="form-card">
         <header class="form-card-h">
@@ -130,10 +136,7 @@
             {% endfor %}
         </div>
         {% endif %}
-        <label class="form-field">
-            <span class="form-label">Add photos</span>
-            <input class="field" type="file" name="gallery" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
-        </label>
+        {% include "components/gallery_picker.html" with gallery_room=gallery_room picker_label="Add photos" %}
     </section>
 
     <div class="ops-form-foot">
@@ -150,6 +153,7 @@
 {% block extra_js %}
 {% load static %}
 <script src="{% static 'js/costing.js' %}?v=1"></script>
+<script src="{% static 'js/gallery-picker.js' %}?v=1"></script>
 {% if form and not package_locked %}
 <script>
 (function () {
